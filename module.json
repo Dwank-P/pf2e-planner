@@ -1,8 +1,8 @@
 {
   "id": "pf2e-planner-bridge",
   "title": "PF2e Planner Bridge",
-  "description": "Secure GM pairing and bounded PF2e catalogue preview synchronization to PF2e Planner.",
-  "version": "0.3.0",
+  "description": "Secure GM pairing and rich PF2e/SF2e rules catalogue sync, including linked actions, conditions and effects.",
+  "version": "0.3.1",
   "authors": [
     {
       "name": "Dwank-P"
