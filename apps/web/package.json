@@ -1,6 +1,6 @@
 {
   "name": "@pf2e-planner/web",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,12 +11,14 @@
     "build": "vite build && node scripts/generate-build-metadata.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "test": "node --test tests/db.test.mjs",
+    "test": "node --test tests/db.test.mjs tests/rich-text.test.mjs",
     "smoke": "node --test tests/smoke.test.mjs"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",
-    "sanitize-html": "^2.17.0"
+    "sanitize-html": "^2.17.0",
+    "htmlparser2": "^10.0.0",
+    "dom-serializer": "^2.0.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-node": "^6.0.0",

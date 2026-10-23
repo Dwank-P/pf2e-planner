@@ -96,23 +96,30 @@ function fullReport({pub,rows}, includeItems) {
   const versions=JSON.parse(pub.sources_json);
   const classes=rows.filter(row=>row.type==='class').reduce((n,row)=>n+row.count,0);
   const feats=rows.filter(row=>row.type==='feat').reduce((n,row)=>n+row.count,0);
+  const typeCounts=[];
+  for (const row of rows) {
+    const key=typeCounts.find(x=>x.type===row.type);
+    if(key)key.count+=row.count;
+    else typeCounts.push({type:row.type,count:row.count});
+  }
+  typeCounts.sort((a,b)=>b.count-a.count||a.type.localeCompare(b.type));
   const result={
     synced:true, complete:true, completeness:'Published selected feat/class compendiums',
     schemaVersion:2, snapshotId:pub.snapshot_id,sha256:pub.sha256,
     updatedAt:pub.updated_at,
     ruleset:{systemId:versions.systemId,systemVersion:versions.systemVersion,
       levelerVersion:versions.levelerVersion,worldId:versions.worldId},
-    variants, packs,
+    variants, packs, itemTypes:typeCounts,
     totals:{classes,feats,savedItems:pub.entry_count},
     sources:{
       classes: rows.filter(r=>r.type==='class').map(r=>({label:r.pack,count:r.count})),
       feats: rows.filter(r=>r.type==='feat').map(r=>({label:r.pack,count:r.count}))
     },
     limits:[
-      'All class and feat Items in the selected compendium packs were imported, including descriptions and metadata.',
+      'All supported Item documents in the selected compendium packs were imported, including action, condition and effect references when those packs were selected or included as core references.',
       'Compendium selection is controlled by the Foundry GM. Non-selected content is not imported.',
-      'Spells, equipment, ancestries, heritages and actors are not imported by this feat browser release.',
-      'Inline compendium links open details only if the target item was synchronized; dice-roll macros and rule elements are not executed.'
+      'Imported Item types include spells, equipment, ancestries and heritages when contained in selected Item packs; full character-builder semantics and actor data are not synchronized.',
+      'Inline compendium links open details only if the target Item was synchronized. Damage, templates and checks are styled but not executed; actor-dependent formulas remain symbolic.'
     ]
   };
   if(includeItems){

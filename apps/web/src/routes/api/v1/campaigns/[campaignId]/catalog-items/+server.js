@@ -13,7 +13,7 @@ export function GET(event){
   const pack=event.url.searchParams.get('pack')||'';
   const trait=(event.url.searchParams.get('trait')||'').trim().toLowerCase().slice(0,80);
   const page=Math.max(1,Math.min(10000,Number.parseInt(event.url.searchParams.get('page')||'1',10)||1));
-  if(!['feat','class'].includes(type))problem(400,'invalid_item_type');
+  if(!/^[a-z][a-zA-Z0-9-]{0,39}$/.test(type))problem(400,'invalid_item_type');
   const clauses=['integration_id=?','snapshot_id=?','type=?'];
   const values=[pub.integration_id,pub.snapshot_id,type];
   if(q){clauses.push("LOWER(name) LIKE ? ESCAPE '\\'");values.push('%'+q.replace(/[\\%_]/g,v=>'\\'+v)+'%');}
