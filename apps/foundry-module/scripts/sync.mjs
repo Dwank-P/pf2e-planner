@@ -1,5 +1,6 @@
 import { getWorldMetadata } from './snapshot.mjs';
 import { credentials } from './credentials.mjs';
+import { normalizeWebsiteUrl } from './url.mjs';
 
 const MODULE_ID='pf2e-planner-bridge';
 function requireGM() {
@@ -7,15 +8,6 @@ function requireGM() {
     throw Error('Planner synchronization requires an authorized GM in a PF2e or SF2e world.');
   }
   if (!game.modules.get('pf2e-leveler')?.active) throw Error('PF2e Leveler must be active.');
-}
-function normalizedUrl(value) {
-  const parsed = new URL(value);
-  const local = ['localhost','127.0.0.1'].includes(parsed.hostname);
-  if (!(parsed.protocol === 'https:' || (local && parsed.protocol === 'http:')) ||
-      parsed.username || parsed.password || parsed.search || parsed.hash || parsed.pathname !== '/') {
-    throw Error('Use the planner HTTPS site origin, e.g. https://planner.example (localhost HTTP for local testing only).');
-  }
-  return parsed.origin;
 }
 async function post(base,path,data,bearer=null) {
   const response=await fetch(base+path,{
@@ -70,7 +62,7 @@ async function collectPreview() {
  */
 export async function testWebsite(url) {
   requireGM();
-  const base = normalizedUrl(url);
+  const base = normalizeWebsiteUrl(url);
   let response;
   try {
     response = await fetch(base + '/api/v1/bridge/status', {

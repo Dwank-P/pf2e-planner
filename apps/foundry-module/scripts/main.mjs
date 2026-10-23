@@ -7,7 +7,7 @@ const MODULE_ID = 'pf2e-planner-bridge';
 Hooks.once('init', () => {
   game.settings.register(MODULE_ID, 'websiteUrl', {
     name: 'Planner Website URL',
-    hint: 'Saved only after successfully pairing using the Connect World menu.',
+    hint: 'Non-secret connection address, managed through the pairing dialog.',
     scope: 'world', config: false, type: String, default: ''
   });
   game.settings.register(MODULE_ID, 'integrationId', {
@@ -17,8 +17,8 @@ Hooks.once('init', () => {
   });
   game.settings.registerMenu(MODULE_ID, 'connection', {
     name: 'Website Connection & Pairing',
-    label: 'Open Connection Settings',
-    hint: 'Test the website URL, enter a one-time pairing code, and synchronize.',
+    label: 'Open Pairing Dialog',
+    hint: 'The only connection control: enter a URL or IP, test reachability, and pair the world.',
     icon: 'fa-solid fa-link',
     type: PlannerConnectionMenu,
     restricted: true
@@ -33,7 +33,7 @@ Hooks.once('ready', () => {
   });
   console.info('[PF2e Planner Bridge] v' +
     game.modules.get(MODULE_ID)?.version +
-    ' — Open Configure Settings → PF2e Planner Bridge → Open Connection Settings.');
+    ' — Open Configure Settings → PF2e Planner Bridge → Open Pairing Dialog.');
 
   if (game.users.activeGM?.id === game.user.id) {
     setTimeout(() => syncNow().catch(error => {

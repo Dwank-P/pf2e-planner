@@ -33,5 +33,7 @@ jobs:
             node --check "$js"
           done
           node -e "const m=require('./apps/foundry-module/module.json'); if(!m.relationships.requires.some(d=>d.id==='pf2e-leveler')) process.exit(1);"
+      - name: Test Foundry bridge URL normalization
+        run: node --test tests/foundry-url.test.mjs
       - name: Package Foundry module
         run: python scripts/build_module_release.py --base-url https://example.invalid/foundry

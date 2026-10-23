@@ -1,4 +1,5 @@
 import { pairWebsite, testWebsite } from './sync.mjs';
+import { normalizeWebsiteUrl } from './url.mjs';
 
 const MODULE_ID = 'pf2e-planner-bridge';
 
@@ -11,44 +12,45 @@ function notifyError(error) {
   ui.notifications.error('PF2e Planner: ' + message);
   console.error('[PF2e Planner Bridge] Connection failed:', message);
 }
-function fields(button) {
-  const form = button.form;
-  if (!form) throw Error('The pairing form could not be read.');
-  const url = String(form.elements.namedItem('website')?.value ?? '').trim();
-  const code = String(form.elements.namedItem('code')?.value ?? '').trim();
-  if (!url) throw Error('Enter a Planner website URL, such as https://level.dwank.uk.');
-  return { url, code };
+function fields(button, dialog) {
+  // DialogV2's generated form and callback element differ slightly across
+  // versions. Prefer the DOM of this rendered dialog and a named form.
+  const element = dialog?.element || button?.closest?.('.window-app') ||
+    button?.closest?.('.application');
+  const form = button?.form || element?.querySelector?.('form.planner-pair-form');
+  const inputUrl = form?.elements?.namedItem?.('website');
+  const inputCode = form?.elements?.namedItem?.('code');
+  if (!inputUrl) throw Error('Unable to read the pairing form. Reload Foundry and reopen the dialog.');
+  const url = normalizeWebsiteUrl(String(inputUrl.value ?? ''));
+  // Reflect the normalized origin back in the dialog for clarity.
+  inputUrl.value = url;
+  return { url, code: String(inputCode?.value ?? '').trim() };
 }
 
-/**
- * Foundry v14 native module settings submenu. A plain website URL setting
- * was misleading: saving it never redeemed the pairing code.
- */
 export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
   constructor(options = {}) {
     const saved = game.settings.get(MODULE_ID, 'websiteUrl') || '';
     const paired = game.settings.get(MODULE_ID, 'integrationId');
     const content = `
-      <p>1. Sign in to your Planner website as a GM and choose
-      <strong>Generate pairing code</strong>.</p>
-      <p>2. Paste the website address and <strong>one-time code</strong> below.</p>
-      <p>3. Select <strong>Pair &amp; Sync</strong>; saving a URL alone does not connect the world.</p>
-      <div class="form-group">
-        <label>Planner website URL</label>
-        <input type="url" name="website" placeholder="https://level.dwank.uk"
-          autocomplete="url" value="${escapeAttribute(saved)}" required />
-      </div>
-      <div class="form-group">
-        <label>One-time pairing code</label>
-        <input type="text" name="code" autocomplete="off"
-          placeholder="Paste the code from the Planner website" />
-      </div>
-      <p class="hint">Current state: ${paired ? 'World registered; authorize this GM browser if needed.' : 'Not paired.'}</p>
-      <p class="hint">Use <strong>Test Website</strong> first to check DNS, HTTPS and API compatibility.
-      Testing does not consume a pairing code.</p>`;
+      <form class="planner-pair-form" autocomplete="off">
+        <p>Get a one-time code from the Planner website's <strong>Generate pairing code</strong> button.</p>
+        <div class="form-group">
+          <label for="planner-website">Website domain or IP</label>
+          <input id="planner-website" type="text" name="website" inputmode="url"
+            placeholder="level.dwank.uk" value="${escapeAttribute(saved)}" required />
+          <p class="hint">HTTPS is added automatically if you omit it. HTTP works only for local loopback tests.</p>
+        </div>
+        <div class="form-group">
+          <label for="planner-code">One-time pairing code</label>
+          <input id="planner-code" type="text" name="code"
+            placeholder="Paste your code here" spellcheck="false" autocapitalize="off" />
+        </div>
+        <p class="hint">Status: ${paired ? 'World paired — enter a fresh code to authorize this browser.' : 'Not yet paired.'}</p>
+        <p class="hint">Test Website checks the address without using your pairing code.</p>
+      </form>`;
     super({
       ...options,
-      window: { ...options.window, title: 'PF2e Planner — Connect World' },
+      window: { ...options.window, title: 'PF2e Planner — Pair World' },
       content,
       rejectClose: false,
       buttons: [
@@ -56,12 +58,12 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
           action: 'test',
           label: 'Test Website',
           icon: 'fa-solid fa-wifi',
-          callback: async (_event, button) => {
+          callback: async (_event, button, dialog) => {
             try {
-              const { url } = fields(button);
+              const { url } = fields(button, dialog || this);
               await testWebsite(url);
-              return 'connected';
-            } catch (error) { notifyError(error); return 'error'; }
+              return { tested: true };
+            } catch (error) { notifyError(error); return null; }
           }
         },
         {
@@ -69,14 +71,16 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
           label: 'Pair & Sync',
           icon: 'fa-solid fa-link',
           default: true,
-          callback: async (_event, button) => {
+          callback: async (_event, button, dialog) => {
             try {
-              const { url, code } = fields(button);
-              if (!code) throw Error('Paste the one-time pairing code from the Planner website.');
+              const { url, code } = fields(button, dialog || this);
+              if (!/^[A-Za-z0-9_-]{40,70}$/.test(code)) {
+                throw Error('Enter a valid one-time pairing code from the Planner website.');
+              }
               const result = await pairWebsite(url, code);
-              ui.notifications.info('PF2e Planner: Paired world and synchronized preview successfully.');
+              ui.notifications.info('PF2e Planner: World paired and preview synchronized.');
               return result;
-            } catch (error) { notifyError(error); return 'error'; }
+            } catch (error) { notifyError(error); return null; }
           }
         },
         { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' }
