@@ -1,4 +1,4 @@
-# Loopback-bound development only. Configure HTTPS, trusted proxy and PUBLIC_ORIGIN
+# Loopback-bound by default; configure PLANNER_BIND_IP as host LAN address only when a separate reverse-proxy container needs access. Configure HTTPS, trusted proxy and PUBLIC_ORIGIN
 # before sharing remotely. BOOTSTRAP_TOKEN MUST be provided via environment.
 services:
   planner-web:
@@ -6,7 +6,7 @@ services:
       context: ./apps/web
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+      - "${PLANNER_BIND_IP:-127.0.0.1}:3000:3000"
     environment:
       HOST: "0.0.0.0"
       PORT: "3000"
