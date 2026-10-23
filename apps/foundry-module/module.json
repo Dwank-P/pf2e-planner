@@ -1,0 +1,19 @@
+{
+  "id": "pf2e-planner-bridge",
+  "title": "PF2e Planner Bridge",
+  "description": "GM-only diagnostics and future bridge to the self-hosted PF2e Planner.",
+  "version": "0.1.0",
+  "authors": [
+    {
+      "name": "Dwank-P"
+    }
+  ],
+  "compatibility": {
+    "minimum": "14",
+    "verified": "14"
+  },
+  "esmodules": [
+    "scripts/main.mjs"
+  ],
+  "url": "https://github.com/Dwank-P/pf2e-planner"
+}
