@@ -74,3 +74,16 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Foundry Test Website uses non-submitting in-dialog control; remains open with inline success/error feedback.
 - [ ] Confirm in actual Foundry v14 that the dialog remains open after Test Website.
 - [ ] Confirm website displays persisted snapshot counts from real Foundry world after Portainer v0.2.4 redeploy.
+
+## v0.3.0 — Content import, variant settings and feat browser
+
+- [x] Export actual PF2e variant settings from Foundry: Free Archetype, Gradual Boosts, ABP, Proficiency Without Level, Stamina and Mythic; plus Leveler Dual Class, Ancestral Paragon and restrictions.
+- [x] Show variant settings and system version on campaign home and detailed ruleset page.
+- [x] Module's Open Pairing Dialog includes **Sync Now** without pairing code and pack selection; website test remains in-dialog and does not close it.
+- [x] Batch stage/commit authentic class and feat compendium Items and sanitized HTML descriptions; preserve prior published snapshot on incomplete transfer.
+- [x] Feat browser search, filters (level, rarity, trait, feat category and pack), clickable details and related compendium links.
+- [x] Token refresh during large uploads; suppress unchanged automatic GM-login transfers.
+- [x] CI web build and HTTP smoke test for import, variant flags, filters, safe HTML and interrupted snapshot.
+- [ ] Real Foundry v14 **manual** test against 6,000+ feats; measure batch import duration and UI responsiveness.
+- [ ] Extend source selection/licensing policy and add scalable spells, ancestries, equipment and heritages.
+- [ ] Rich inline @Check/@Damage/conditions resolution and supported actions (no untrusted macro execution).

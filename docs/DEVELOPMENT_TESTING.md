@@ -169,3 +169,16 @@ code and pressing Pair & Sync is still a separate explicit action.
 
 Automated CI validates read endpoints and role restrictions, build and script
 syntax, but cannot prove the remote live DB contents or Foundry dialog behavior.
+
+## L. v0.3.0 live Foundry and full compendium import
+
+1. Update Docker/Portainer and Foundry module, verify both show v0.3.0.
+2. Open Foundry as the **same GM browser** previously authorized. Open **Configure Settings → PF2e Planner Bridge → Open Pairing Dialog**. Click **Sync Now (no code needed)**; **do not generate another pairing code**. A saved refresh credential is required on that browser.
+3. Expand **Compendium packs to import** and approve optional third-party content only if campaign members can legally access it. Core `pf2e.classes` and `pf2e.feats-srd` are always included. Selected additional packs can be saved at sync time.
+4. The bridge reads Item documents and uploads batches of at most 15 items; expect multiple progress notices. Changing packs, system version or variant settings triggers a new automatic sync on next authorized GM login; manual sync always forces one.
+5. Website campaign should show PF2e system/Leveler version, **Free Archetype**, **Dual Class** etc. with actual values from Foundry, counts from SQLite and last sync time. The GM ruleset details page includes a link to the feat browser.
+6. Open **Browse imported feats**. Filter by feat name, level, rarity, type, traits or source pack. Click an entry and check HTML description, prerequisites and linked `@UUID[Compendium....]` documents. Linked items must only open if present in this campaign's synchronized catalog; absent links show an informative error.
+7. Re-sync with one optional feat compendium added and verify its feat counts and filtered source appear. Confirm older successful snapshot remains visible if a later import is interrupted.
+8. Browser DevTools can inspect CORS/network errors if sync fails; **never share access tokens, refresh tokens or pairing codes**.
+
+Limitations: Foundry v14 live tests are pending; the full import covers only selected class/feat Items, not every Item type. Inline PF2e skill checks, die rolls, spells, effects and condition links are not interactive yet.

@@ -2,7 +2,7 @@
 
 Private monorepo for a **Docker-hosted Pathfinder 2e / Starfinder 2e character planner** and an independently installable **Foundry VTT v14 bridge module**.
 
-> **Development status: v0.2.4 implementation branch.** Web login/account activation, pairing, GM-client bearer tokens and a **bounded metadata preview** are coded but not yet verified by a complete npm build, container test or real Foundry v14 integration test. This is **not yet ready for public deployment or real character imports**.
+> **Development status: v0.3.0 implementation branch.** Web login/account activation, pairing, GM-client bearer tokens and a **bounded metadata preview** are coded but not yet verified by a complete npm build, container test or real Foundry v14 integration test. This is **not yet ready for public deployment or real character imports**.
 
 ## Two applications, one repository
 
@@ -100,3 +100,15 @@ class schedules, first 1000 feat metadata rows, snapshot SHA-256 and warnings
 about excluded content. Server routes `catalog-summary` and `catalog-details`
 derive these fields from the last accepted SQLite snapshot. The current bridge
 still does not export a complete rulebook or third-party content.
+
+## v0.3.0 — Ruleset variants, compendium import and browsing
+
+An authorized Foundry GM now has **Open Pairing Dialog → Sync Now (no code needed)**. This uses the browser's existing rotating bridge credential (re-authorization required only if revoked or expired). It includes a GM-only, opt-in selection of additional Item compendium packs; the core PF2e `classes` and `feats-srd` packs are always included. On initial pairing and manual Sync, the bridge exports **all feat and class Items** in the selected packs (not only a 1000-item preview) including descriptions, levels, traits, rarity, categories, and class progression schedules.
+
+The bridge reads the active Foundry PF2e **variant rule settings** (Free Archetype, Gradual Ability Boosts, ABP, Mythic, Proficiency Without Level and Stamina) and relevant PF2e Leveler settings (Dual Class, Ancestral Paragon, archetype dedication lock and prerequisites). These are persisted with the catalog revision and shown on the homepage and GM ruleset details. `null` means no setting was available.
+
+Website → campaign → **Browse imported feats** offers search, level, rarity, trait, feat category and source pack filters; clicking a feat displays sanitized rich descriptions. Foundry inline `@UUID` references and pre-rendered `data-uuid` compendium links navigate to other synchronized Items, including a back history. Unsupported targets show a message rather than opening a live Foundry app or executing its RuleElements/rolls.
+
+Uploads are staged in bounded authenticated batches and only replace the published ruleset when every expected entry is received. Automatic GM-login sync is skipped when the source system/version, variant settings and selected packs are unchanged; **Sync Now** forces a refresh.
+
+**Important limits:** Only class/feat Items are currently imported, not spells, equipment, backgrounds, ancestries or actors. Selected third-party packs require GM approval and appropriate player content rights; the app never copies licensed content into the GitHub repository. Rich descriptions are sanitized before storage. Browser UI of the Foundry module still needs manual live-world verification.
