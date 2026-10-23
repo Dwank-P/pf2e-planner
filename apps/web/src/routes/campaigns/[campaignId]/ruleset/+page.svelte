@@ -76,7 +76,15 @@
           {/each}
         </div>
       {/if}
-      <h3>What's missing</h3>
+      {#if report.itemTypes?.length}
+        <h3>Imported Item types</h3>
+        <div class="chips">
+          {#each report.itemTypes as itemType}
+            <span class="chip">{itemType.type}: <strong>{itemType.count}</strong></span>
+          {/each}
+        </div>
+      {/if}
+      <h3>Import coverage &amp; limitations</h3>
       <ul>{#each report.limits as limit}<li>{limit}</li>{/each}</ul>
       {#if report.note}<p class="muted">Bridge note: {report.note}</p>{/if}
     </section>

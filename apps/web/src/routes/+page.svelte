@@ -299,6 +299,7 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
               <div><strong>Leveler {ruleset.ruleset.levelerVersion ?? '?'}</strong><span>Module version</span></div>
               <div><strong>{ruleset.totals.classes} classes</strong><span>Saved in SQLite</span></div>
               <div><strong>{ruleset.totals.feats} feats</strong><span>Saved in SQLite</span></div>
+              <div><strong>{ruleset.totals.savedItems} Items</strong><span>All synchronized types</span></div>
               <div><strong>{ruleset.complete ? 'Selected packs' : 'Preview only'}</strong><span>Sync scope</span></div>
             </div>
             <p><span class="partial">{ruleset.complete ? 'Selected packs imported' : 'Partial preview'}</span> · Last received {new Date(ruleset.updatedAt * 1000).toLocaleString()}</p>
@@ -307,7 +308,7 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
                 {Object.entries(ruleset.variants).map(([key,value]) => key.replace(/([A-Z])/g,' $1') + ': ' + (value === null ? 'Unknown' : String(value))).join(' · ')}
               </p>
             {/if}
-            <p class="muted">{ruleset.complete ? 'All feat/class Items in GM-selected packs; spell/equipment/ancestry import still pending.' : 'Only the first 1,000 core feat entries. Full descriptions and variant settings not yet imported.'}</p>
+            <p class="muted">{ruleset.complete ? 'All supported Item types in GM-selected packs, plus official core reference packs. Third-party Item packs require explicit GM selection.' : 'Only the first 1,000 core feat entries. Full descriptions and variant settings not yet imported.'}</p>
             {#if ruleset.complete}
               <p><a href={'/campaigns/' + encodeURIComponent(activeCampaign) + '/feats'}>Browse imported feats &amp; descriptions →</a></p>
             {/if}
