@@ -52,6 +52,11 @@ export function db() {
       refresh_hash TEXT NOT NULL UNIQUE, refresh_expires_at INTEGER NOT NULL,
       previous_refresh_hash TEXT, revoked_at INTEGER, created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS bridge_spent_refresh_tokens (
+      token_hash TEXT PRIMARY KEY,
+      credential_id TEXT NOT NULL REFERENCES bridge_credentials(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS catalog_previews (
       integration_id TEXT PRIMARY KEY REFERENCES integrations(id) ON DELETE CASCADE,
       snapshot_id TEXT NOT NULL, sha256 TEXT NOT NULL, data_json TEXT NOT NULL,

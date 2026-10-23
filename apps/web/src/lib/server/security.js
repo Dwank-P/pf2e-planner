@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { hash, verify, Algorithm } from '@node-rs/argon2';
 import { db, unix } from './db.js';
 
@@ -53,7 +53,7 @@ export function logout(cookies) {
 
 export function newCredential(sql, integrationId, userId) {
   const accessToken = token(), refreshToken = token();
-  const id = crypto.randomUUID();
+  const id = randomUUID();
   const now = unix();
   sql.prepare(`INSERT INTO bridge_credentials
     (id,integration_id,user_id,access_hash,access_expires_at,refresh_hash,refresh_expires_at,created_at)

@@ -8,7 +8,7 @@ test('schema initializes and foreign keys are enabled',()=>{
   const sql=db();
   assert.equal(sql.prepare('PRAGMA foreign_keys').get().foreign_keys,1);
   const names=sql.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(x=>x.name);
-  for(const name of ['users','sessions','campaigns','memberships','invitations','pairing_codes','integrations','bridge_credentials','catalog_previews']) {
+  for(const name of ['users','sessions','campaigns','memberships','invitations','pairing_codes','integrations','bridge_credentials','bridge_spent_refresh_tokens','catalog_previews']) {
     assert.ok(names.includes(name),name);
   }
 });

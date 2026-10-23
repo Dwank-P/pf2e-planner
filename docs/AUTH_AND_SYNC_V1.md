@@ -125,9 +125,9 @@ Never serialize raw full actor objects during ruleset sync; don't serve paid com
 | `POST /api/v1/bridge/{id}/authorize` | one-time pairing code from an existing campaign GM | Authorize another GM browser for same integration |\n| `POST /api/v1/bridge/{id}/refresh` | rotating refresh token | Short-lived access renewal |
 | `POST /api/v1/bridge/{id}/catalog-preview` | access bearer + authorized GM | Transactional bounded rules preview |
 | `GET /api/v1/campaigns/{id}/catalog-preview` | campaign membership | Permission-filtered published preview |
-| `POST /api/v1/bridge/{id}/revoke` | authorized GM/owner session | Revoke paired device(s) |
+| `POST /api/v1/integrations/{id}/revoke` | authorized GM/owner browser session | Revoke all paired devices for integration (implemented) |
 
-**Implemented in this feature branch but not yet tested:** bootstrap, login/logout, me, user directory, membership reads/writes, join redemption, pairing code issuance, initial pair, existing-world reauthorization, rotating refresh, core PF2e preview upload and campaign preview retrieval. **Not implemented:** bridge revoke endpoint, password reset/reinvite/reissue, GM promotion, full catalogue batching or actor apply. API table is a contract; unimplemented routes must not be assumed available.
+**Implemented in this feature branch but not yet tested:** bootstrap, login/logout, me, user directory, membership reads/writes, join redemption, pairing code issuance, initial pair, existing-world reauthorization, rotating refresh, core PF2e preview upload and campaign preview retrieval. **Not implemented:** device-specific revocation UI, password reset/reinvite/reissue, GM promotion, full catalogue batching or actor apply. API table is a contract; unimplemented routes must not be assumed available.
 
 ## 7. Operational controls and test gates
 
