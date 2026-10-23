@@ -32,10 +32,10 @@ GM website UI: **Campaign → Players → Add Player** opens a searchable existi
 
 ### New user
 
-- GM enters a **display name**. Website reserves a global user record in `pending` state and adds that account to the campaign as a player.
-- Website generates a **single-use 192-bit+ random invitation code** (32 random bytes, base64url, ~43 characters). Display the code and an optional join URL **once**, for GM to share over a private channel. The DB holds SHA-256 of the random code, never the code.
+- GM clicks **Generate invitation** without entering a name. The website reserves a placeholder user in `pending` state and adds it to the selected campaign.
+- Website generates a **single-use 192-bit+ random invitation code** (32 random bytes, base64url, ~43 characters). Show a **player-facing invitation message** with the join URL and code **once**, plus a copy-to-clipboard button for the GM to share over a private channel. The DB holds SHA-256 of the random code, never the code.
 - Expire unredeemed code after 24 hours. Only explicit POST redemption consumes it; viewing the join form never consumes it (protects against messaging link scanners).
-- User opens `/join`, enters code and selects a unique login username and password. Username is case-normalized, immutable initially; display name can be changed later. Password min 12, max 256 characters and hashed with Argon2id (memory at least 19 MiB, t>=2, p>=1, with unique per-password salt).
+- User opens `/join`, enters the code, and clicks **Validate code**. This check does not consume the code. Only after verification does the website request a unique login username and password. Username is case-normalized and is initially also the display name. Password min 12, max 256 characters and hashed with Argon2id (memory at least 19 MiB, t>=2, p>=1, with unique per-password salt).
 - Atomic DB transaction marks invitation used, activates the pending user, stores password verifier and creates a new server-side browser session.
 - If token expires/lost, GM may **reissue** and invalidate old pending code. No password ever sent to GM.
 - For this email-less design, forgotten password recovery requires an authorized owner-issued reset code. There is no email-based account verification. Do not automatically merge accounts with matching display names.
