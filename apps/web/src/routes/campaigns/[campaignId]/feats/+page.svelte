@@ -49,18 +49,26 @@
     return '/api/v1/campaigns/'+encodeURIComponent(campaignId)+
       '/catalog-item?uuid='+encodeURIComponent(uuid);
   }
-  async function openItem(uuid,pushHistory=true) {
-    if (detailLoading) return;
+  async function openReference(url,pushHistory=true) {
+    if(detailLoading)return;
     detailLoading=true;
     detailError='';
-    try {
-      if(pushHistory && selected?.uuid) history=[...history,selected.uuid];
-      const response=await get(itemUrl(uuid));
+    try{
+      const response=await get(url);
+      if(pushHistory && selected?.uuid)history=[...history,selected.uuid];
       selected=response.item;
     }catch(error){
-      detailError='Linked Item unavailable: '+error.message+
-        '. It may be in a compendium that the GM did not synchronize.';
+      detailError='Referenced item is not in the synchronized catalogue: '+error.message+
+        '. Check that its compendium pack is selected in Foundry, then Sync Now.'+
+        ' Some Foundry actions are system macros without a standalone Item.';
     }finally{detailLoading=false;}
+  }
+  async function openItem(uuid,pushHistory=true) {
+    return openReference(itemUrl(uuid),pushHistory);
+  }
+  async function openAction(slug) {
+    return openReference('/api/v1/campaigns/'+encodeURIComponent(campaignId)+
+      '/catalog-item?slug='+encodeURIComponent(slug));
   }
   async function back() {
     if(!history.length)return;
@@ -70,13 +78,15 @@
   }
   function close(){selected=null;detailError='';history=[];}
   function descriptionClick(event) {
-    const target=event.target.closest?.('[data-pf2e-uuid], [data-uuid]');
+    const target=event.target.closest?.('[data-pf2e-uuid], [data-uuid], [data-pf2e-action]');
     if(!target)return;
     const uuid=target.getAttribute('data-pf2e-uuid')||target.getAttribute('data-uuid');
-    if(!uuid?.startsWith('Compendium.'))return;
+    const slug=target.getAttribute('data-pf2e-action');
+    if(!uuid?.startsWith('Compendium.') && !slug)return;
     event.preventDefault();
     event.stopPropagation();
-    openItem(uuid);
+    if(uuid?.startsWith('Compendium.'))openItem(uuid);
+    else openAction(slug);
   }
   onMount(async()=>{
     campaignId=decodeURIComponent(window.location.pathname.split('/')[2]||'');
@@ -170,7 +180,7 @@
           <button type="button" class="quiet" onclick={close} aria-label="Close feat details">✕ Close</button>
         </div>
         <h2>{selected.name}</h2>
-        <p><strong>Level {badge(selected.level)}</strong> · {badge(selected.rarity)} ·
+        <p><strong>{badge(selected.type).toUpperCase()}</strong> · Level {badge(selected.level)} · {badge(selected.rarity)} ·
            {selected.pack} · {badge(selected.metadata?.featType)}</p>
         <div class="traits">{#each selected.traits || [] as t}<span>{t}</span>{/each}</div>
         {#if selected.metadata?.prerequisites?.length}
@@ -182,7 +192,7 @@
         </div>
         <hr/>
         <small>UUID: {selected.uuid}</small>
-        <p class="small">Compendium links open other synchronized Items. Foundry rolls, conditions and inline effects are shown as text, not executed.</p>
+        <p class="small">Compendium references open other synchronized Items. Damage, checks and area templates are visual representations, not rolls or automated effects. Dynamic actor formulas require a character.</p>
       </div>
     </div>
   {/if}
@@ -208,5 +218,13 @@
  .description{line-height:1.65;overflow-wrap:anywhere}.description :global(a[data-uuid]),.description :global(a[data-pf2e-uuid]){cursor:pointer;color:#80cef7;text-decoration:underline}
  .description :global(table){border-collapse:collapse}.description :global(td),.description :global(th){border:1px solid #526f82;padding:.5rem}
  .description :global(h3){margin-top:1rem}
+ .description :global(.pf2e-inline){display:inline-block;padding:.07rem .36rem;border-radius:.3rem;
+   border:1px solid #6d93a8;background:#142c3d;line-height:1.5;white-space:normal}
+ .description :global(.pf2e-damage){border-color:#c38b7d;background:#3a2626;color:#ffdfd3}
+ .description :global(.pf2e-check){border-color:#85a2d5;background:#243353;color:#e3ecff}
+ .description :global(.pf2e-template){border-color:#98bda0;background:#243b2e;color:#e0f6e5}
+ .description :global(.pf2e-inline-icon){font-weight:bold;padding-right:.18rem}
+ .description :global(.pf2e-action){color:#8bd0f3;text-decoration:underline;cursor:pointer}
+ .description :global(.pf2e-unresolved){border-bottom:1px dashed #aaa;color:#b6c3ca}
  @media(max-width:750px){.results{grid-template-columns:1fr}main{padding:1rem}}
 </style>
