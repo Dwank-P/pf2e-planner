@@ -112,3 +112,20 @@ Website → campaign → **Browse imported feats** offers search, level, rarity,
 Uploads are staged in bounded authenticated batches and only replace the published ruleset when every expected entry is received. Automatic GM-login sync is skipped when the source system/version, variant settings and selected packs are unchanged; **Sync Now** forces a refresh.
 
 **Important limits:** Only class/feat Items are currently imported, not spells, equipment, backgrounds, ancestries or actors. Selected third-party packs require GM approval and appropriate player content rights; the app never copies licensed content into the GitHub repository. Rich descriptions are sanitized before storage. Browser UI of the Foundry module still needs manual live-world verification.
+
+### Richer content synchronization (v0.3.1)
+
+The Bridge now imports all **Item subtypes** from GM-selected packs and automatically
+includes installed official PF2e action, condition and effect packs for common
+linked references. The feat browser displays stylized Foundry `@Template`,
+`@Damage` and `@Check` codes (with nested brackets correctly parsed),
+follows imported `@UUID`/`@Compendium` Item references, and tries to open
+`@Action` slugs as imported action Items. This is **display-only**;
+it never rolls damage, places measured templates, or executes actor-related
+check/RuleElement logic.
+
+A third-party module being **enabled is not consent to publish its text**
+to the site's players. Select its Item compendium packs in the Foundry
+Bridge's **Compendium packs to import** section and run **Sync Now**.
+Only selected/required packs are synced; module-specific client-side
+data outside Item compendiums is not automatically exported.

@@ -50,3 +50,18 @@ Fully reproducing the Foundry PF2e rule engine, supporting every bespoke third-p
 ## First end-to-end acceptance criterion
 
 GM pairs one world; site imports a small real Fighter/feat catalog; player makes a level-2 feat plan; a resulting plan imports and correctly applies to a **test actor** through the deployed Leveler version. Repeat for wizard/spontaneous spells before general release.
+
+## Description enrichers and referenced Items
+
+Descriptions may contain PF2e inline enrichers such as `@Template`,
+`@Damage`, `@Check`, `@Action`, `@UUID` and `@Compendium`.
+Render these as readable, explicitly **non-executable** UI tokens using
+server-side sanitized HTML. Do not try to calculate `@actor.level` outside
+a specific actor/level context; preserve formula text symbolically. Resolve
+links to other authorized imported Item documents (including actions, effects
+and conditions), and show an honest unresolved-link state when absent.
+
+Import selected Item compendiums beyond feats/classes (including third-party
+spells, ancestries, equipment, conditions and actions) as *browseable content*
+without treating them as fully modeled character-builder rules. The GM must
+opt in third-party packs; do not silently mirror all enabled third-party modules.

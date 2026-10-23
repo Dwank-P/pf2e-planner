@@ -182,3 +182,36 @@ syntax, but cannot prove the remote live DB contents or Foundry dialog behavior.
 8. Browser DevTools can inspect CORS/network errors if sync fails; **never share access tokens, refresh tokens or pairing codes**.
 
 Limitations: Foundry v14 live tests are pending; the full import covers only selected class/feat Items, not every Item type. Inline PF2e skill checks, die rolls, spells, effects and condition links are not interactive yet.
+
+## L. v0.3.1 reference-rich import checks
+
+This is an update to the existing v0.3.0 full-import protocol, not a database
+reset. Keep the SQLite volume intact.
+
+1. Update web **v0.3.1** and Foundry Bridge **v0.3.1** together.
+2. In Foundry **Open Pairing Dialog → Compendium packs to import**, inspect
+   all additional **Item** packs. Official PF2e action, condition and effect
+   packs are automatically included. Third-party packs (e.g. Battlezoo) are
+   **not** included just because their source module is enabled: check each
+   relevant third-party Item pack explicitly and click **Sync Now**.
+3. The website ruleset detail panel lists actual saved item types and counts,
+   including actions/conditions/effects and selected third-party feats.
+4. In the feat browser, inspect a feat with this description:
+   `@Template[line|distance:60]`,
+   `@Damage[(floor((@actor.level -1)/2) +2)d4[slashing]|options:area-damage]`,
+   `@Check[reflex|against:kineticist|basic|options:area-effect]`.
+   They should display styled area, damage formula and saving-throw tokens.
+   Actor-dependent formulae are **not** rolled or resolved on the website.
+5. Clicking `@UUID` or `@Compendium` references should show linked Item
+   details for imported actions, conditions, effects and other types.
+   `@Action[slug]` attempts lookup of an imported action by its slug.
+   If the target is not synchronized or is a Foundry-only macro, the dialog
+   explains this rather than silently doing nothing.
+6. If third-party content still does not appear, check whether the module
+   provided actual **Item compendium packs** and whether each pack was checked
+   before sync. Actor/Journal compendiums and dynamic data registered outside
+   `game.packs` are not part of the Item snapshot.
+7. Verify permissions: selected third-party packs should only be synchronized
+   when every campaign user who can browse them is authorized to view that
+   content. The planner's authenticated membership currently allows all
+   campaign members access to the explicitly selected compendium data.

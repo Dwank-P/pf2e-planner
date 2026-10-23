@@ -87,3 +87,16 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [ ] Real Foundry v14 **manual** test against 6,000+ feats; measure batch import duration and UI responsiveness.
 - [ ] Extend source selection/licensing policy and add scalable spells, ancestries, equipment and heritages.
 - [ ] Rich inline @Check/@Damage/conditions resolution and supported actions (no untrusted macro execution).
+
+## v0.3.1 — Rich PF2e descriptions and referenced content
+
+- [x] Import **all Item types** from explicitly selected packs, not only class/feat Items.
+- [x] Include installed official PF2e action/condition/effect Item packs automatically to resolve common core reference links.
+- [x] Keep third-party Item compendiums **GM-opt-in**; enabled Foundry module alone does not mean import approval.
+- [x] HTML-sanitize descriptions, parse rich PF2e text nodes with balanced brackets and render @Template, @Damage, @Check, @Action, @UUID and @Compendium references without executing rolls/macros.
+- [x] Linked actions can resolve through an imported action Item slug; condition/effect UUID references resolve by imported Item UUID.
+- [x] Display per-Item-type stored counts; show meaningful error if a referenced compendium was not included.
+- [x] Add parser unit tests, security sanitization tests and HTTP smoke coverage of official/third-party references.
+- [ ] **Manual Foundry v14 confirmation**, including the exact Kineticist example, selected Battlezoo packs and in-description navigation.
+- [ ] Expand other inline syntaxes and optional action-system macro descriptions beyond imported standalone Item documents.
+- [ ] Model advanced rule elements, actor-specific formulas and spell/equipment semantics for character planning; the browser does not execute Foundry effects.
