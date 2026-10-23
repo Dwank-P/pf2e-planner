@@ -39,8 +39,16 @@ Hooks.on('renderSettings',(app,html)=>{
   button.textContent='PF2e Planner — Pair / Sync';
   button.addEventListener('click',async()=>{
     try {
-      if (!game.settings.get(MODULE_ID,'integrationId')) await openPairingDialog();
-      else await syncNow();
+      const connected=Boolean(game.settings.get(MODULE_ID,'integrationId'));
+      if (!connected) await openPairingDialog();
+      else {
+        try { await syncNow(); }
+        catch (error) {
+          if (/not authorized|invalid_bridge_authorization|refresh_|refresh_expired/.test(error.message)) {
+            await openPairingDialog();
+          } else throw error;
+        }
+      }
     } catch(e){ui.notifications.error('PF2e Planner: '+e.message);}
   });
   target.append(button);

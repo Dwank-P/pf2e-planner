@@ -77,7 +77,15 @@ export async function pairWebsite(url,code) {
   requireGM();
   const base=normalizedUrl(url);
   const data=getWorldMetadata();
-  const result=await post(base,'/api/v1/bridge/pair',{
+  const previousUrl=game.settings.get(MODULE_ID,'websiteUrl');
+  const previousId=game.settings.get(MODULE_ID,'integrationId');
+  if (previousId && previousUrl!==base) {
+    throw Error('This world is paired to another website. Revoke/reconcile the old pairing before switching.');
+  }
+  const endpoint=previousId
+    ? '/api/v1/bridge/'+encodeURIComponent(previousId)+'/authorize'
+    : '/api/v1/bridge/pair';
+  const result=await post(base,endpoint,{
     code,worldId:data.world.id,worldTitle:data.world.title,
     systemId:data.system.id,systemVersion:data.system.version,
     levelerVersion:data.leveler.version,clientNonce:crypto.randomUUID()
@@ -89,8 +97,9 @@ export async function pairWebsite(url,code) {
   });
   await game.settings.set(MODULE_ID,'websiteUrl',base);
   await game.settings.set(MODULE_ID,'integrationId',result.integrationId);
-  ui.notifications.info('PF2e Planner paired. Campaign created.');
-  return { integrationId:result.integrationId,campaignId:result.campaignId };
+  ui.notifications.info('PF2e Planner browser authorized. Starting preview sync.');
+  const previewResult=await syncNow();
+  return { integrationId:result.integrationId,campaignId:result.campaignId,sync:previewResult };
 }
 
 let syncing=false;
