@@ -21,7 +21,9 @@
 - [x] Implement GM directory/member assignment across campaigns, pairing codes, per-browser rotating refresh/access tokens.
 - [x] Implement Foundry v14 dependency on pf2e-leveler, GM pairing dialog, IndexedDB and bounded core PF2e classes/feat preview sync.
 - [x] Add GM website console for pairing and selecting new/existing users.
-- [ ] Install Node dependencies and pass npm build/check/test; manually test Foundry v14 module (NOT YET VERIFIED).
+- [x] GitHub Actions passing: npm install, SvelteKit check, SQLite tests, production build, HTTP onboarding/pairing/refresh smoke test, Foundry JS syntax, release packager.
+- [x] Stage v0.2.0 alpha `module.json` and ZIP on `foundry-release` branch for temporary-public Foundry manifest installation.
+- [ ] **Manually** install/test v0.2.0 in a running Foundry v14 world; browser CORS/GM dialog/IndexedDB are NOT YET VERIFIED.
 - [ ] Test authorization failure and race conditions; password recovery, session revocation UI and backup/restore.
 - [ ] Perform production security review before exposing website to internet.
 

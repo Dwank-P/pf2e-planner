@@ -20,7 +20,7 @@
 ## C. First pair
 
 1. In web dashboard click **Generate pairing code** while logged in as site owner or campaign GM.
-2. Enable v0.2.0 Bridge and PF2e Leveler in a PF2e world. Verify Bridge dependency shows in module management.
+2. Install the **v0.2.0 alpha** manifest from the `foundry-release` branch (briefly public GitHub repository for install), then enable Bridge and PF2e Leveler in a PF2e test world. Verify Bridge dependency shows in module management.
 3. In Foundry's Game Settings use **PF2e Planner — Pair / Sync**, or console `PF2ePlannerBridge.openPairingDialog()`.
 4. Enter website **origin only** (no path, query or fragment), plus code. Website creates campaign and GM membership. Bridge stores **only** URL and integration UUID in world settings. The GM browser IndexedDB holds secrets.
 5. Confirm the website lists the new campaign and that its `GET /api/v1/campaigns/{id}/catalog-preview` returns core PF2e class data and at most the first 1000 feats. **Do not** treat this as complete catalog synchronization.

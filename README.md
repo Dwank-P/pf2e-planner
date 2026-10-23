@@ -55,7 +55,7 @@ In production configure `PUBLIC_ORIGIN` as the real HTTPS origin, reverse proxy,
 
 The current source manifest is `apps/foundry-module/module.json`, with `pf2e-leveler` required.
 
-For manual installation, put the contents of `apps/foundry-module/` in Foundry user data `Data/modules/pf2e-planner-bridge/`, reload and enable the module as GM. The previously installed v0.1.0 build is only a diagnostic bridge; **v0.2.0 source must be built/installed to see pairing**.
+For manual installation, put the contents of `apps/foundry-module/` in Foundry user data `Data/modules/pf2e-planner-bridge/`, reload and enable the module as GM. The previously installed v0.1.0 build is only a diagnostic bridge. **An installable v0.2.0 alpha manifest and ZIP are now staged on the separate `foundry-release` branch**; temporarily make the repository public to install/update through that branch's manifest (then restore private). See installation guide.
 
 Once website is accessible to your GM Foundry browser over HTTPS and an owner is set up:
 
@@ -68,6 +68,6 @@ This initial preview intentionally does **not** sync full compendiums, third-par
 
 ## Notes
 
-- Repository is private; Foundry's installer requires an accessible manifest + ZIP. See [Foundry installation](docs/FOUNDRY_INSTALLATION.md). There is no official verified v0.2.0 distribution yet.
+- Repository is private; Foundry's installer requires an accessible manifest + ZIP. See [Foundry installation](docs/FOUNDRY_INSTALLATION.md). A v0.2.0 alpha archive is packaged on `foundry-release`, but has not been tested inside a running Foundry v14 client.
 - Never include installed premium rulebooks, actor data, secrets or privately licensed content in public repository releases.
 - No public project license has been selected.
