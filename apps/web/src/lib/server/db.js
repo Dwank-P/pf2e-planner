@@ -62,6 +62,29 @@ export function db() {
       snapshot_id TEXT NOT NULL, sha256 TEXT NOT NULL, data_json TEXT NOT NULL,
       updated_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS catalog_imports (
+      id TEXT PRIMARY KEY, integration_id TEXT NOT NULL UNIQUE REFERENCES integrations(id) ON DELETE CASCADE,
+      expected_count INTEGER NOT NULL, packs_json TEXT NOT NULL, variants_json TEXT NOT NULL,
+      sources_json TEXT NOT NULL, created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS catalog_staging (
+      integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
+      snapshot_id TEXT NOT NULL, batch_number INTEGER NOT NULL, uuid TEXT NOT NULL,
+      item_json TEXT NOT NULL, PRIMARY KEY(integration_id,snapshot_id,uuid)
+    );
+    CREATE TABLE IF NOT EXISTS catalog_publications (
+      integration_id TEXT PRIMARY KEY REFERENCES integrations(id) ON DELETE CASCADE,
+      snapshot_id TEXT NOT NULL, sha256 TEXT NOT NULL, entry_count INTEGER NOT NULL,
+      variants_json TEXT NOT NULL, packs_json TEXT NOT NULL, sources_json TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS catalog_entries (
+      integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
+      snapshot_id TEXT NOT NULL, uuid TEXT NOT NULL, type TEXT NOT NULL, pack TEXT NOT NULL,
+      level INTEGER, rarity TEXT,name TEXT NOT NULL,traits_json TEXT NOT NULL,
+      item_json TEXT NOT NULL, PRIMARY KEY(integration_id,snapshot_id,uuid)
+    );
+    CREATE INDEX IF NOT EXISTS idx_catalog_query ON catalog_entries(integration_id,snapshot_id,type,level,rarity,pack,name);
     CREATE TABLE IF NOT EXISTS rate_limits (
       key TEXT PRIMARY KEY, bucket INTEGER NOT NULL, hits INTEGER NOT NULL
     );
