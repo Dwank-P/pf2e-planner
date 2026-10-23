@@ -46,7 +46,14 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
             placeholder="Paste your code here" spellcheck="false" autocapitalize="off" />
         </div>
         <p class="hint">Status: ${paired ? 'World paired — enter a fresh code to authorize this browser.' : 'Not yet paired.'}</p>
-        <p class="hint">Test Website checks the address without using your pairing code.</p>
+        <div class="form-group">
+          <button id="planner-test-website" type="button">
+            <i class="fa-solid fa-wifi"></i> Test Website
+          </button>
+          <p id="planner-test-result" class="hint" role="status" aria-live="polite">
+            Test the address without consuming your pairing code. The dialog stays open.
+          </p>
+        </div>
       </div>`;
     super({
       ...options,
@@ -54,18 +61,6 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
       content,
       rejectClose: false,
       buttons: [
-        {
-          action: 'test',
-          label: 'Test Website',
-          icon: 'fa-solid fa-wifi',
-          callback: async (_event, button, dialog) => {
-            try {
-              const { url } = fields(button, dialog || this);
-              await testWebsite(url);
-              return { tested: true };
-            } catch (error) { notifyError(error); return null; }
-          }
-        },
         {
           action: 'pair',
           label: 'Pair & Sync',
@@ -85,6 +80,38 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
         },
         { action: 'cancel', label: 'Cancel', icon: 'fa-solid fa-xmark' }
       ]
+    });
+  }
+
+  /**
+   * Keep website testing inside the dialog content as a non-submit button.
+   * DialogV2 footer buttons submit and close the dialog, regardless of
+   * the callback's return value; this control must not do that.
+   */
+  async _onRender(context, options) {
+    await super._onRender(context, options);
+    const button = this.element?.querySelector('#planner-test-website');
+    const status = this.element?.querySelector('#planner-test-result');
+    if (!button || !status) return;
+
+    button.addEventListener('click', async event => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (button.disabled) return;
+      button.disabled = true;
+      status.textContent = 'Checking website…';
+      try {
+        const { url } = fields(button, this);
+        const result = await testWebsite(url);
+        status.textContent = 'Connected successfully to PF2e Planner v' +
+          (result.version ?? 'unknown') + '. Enter your code and click Pair & Sync.';
+      } catch (error) {
+        const message = error?.message ?? String(error);
+        status.textContent = 'Connection failed: ' + message;
+        notifyError(error);
+      } finally {
+        button.disabled = false;
+      }
     });
   }
 }
