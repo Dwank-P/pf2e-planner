@@ -16,6 +16,9 @@
   let initialSetup = $state(false);
   let activeCampaign = $state('');
   let roster = $state([]);
+  let ruleset = $state(null);
+  let rulesetLoading = $state(false);
+  let rulesetError = $state('');
   let search = $state('');
   let userMatches = $state([]);
   let selectedUser = $state('');
@@ -82,7 +85,7 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
       me = result.user;
       campaigns = result.campaigns;
       if (!campaigns.some(c => c.id === activeCampaign)) activeCampaign = campaigns[0]?.id ?? '';
-      await loadRoster();
+      await Promise.all([loadRoster(), loadRuleset()]);
     } catch (error) {
       if (check !== sessionCheck) return;
       if (error.status === 401) {
@@ -94,6 +97,23 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
       }
     } finally {
       if (check === sessionCheck) booting = false;
+    }
+  }
+
+  async function loadRuleset() {
+    const id = activeCampaign;
+    ruleset = null;
+    rulesetError = '';
+    if (!me || !id) return;
+    rulesetLoading = true;
+    try {
+      const result = await api('/api/v1/campaigns/' + encodeURIComponent(id) +
+        '/catalog-summary', undefined, 'GET');
+      if (activeCampaign === id) ruleset = result;
+    } catch (error) {
+      if (activeCampaign === id) rulesetError = error.message;
+    } finally {
+      if (activeCampaign === id) rulesetLoading = false;
     }
   }
 
@@ -111,7 +131,7 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
       campaigns = confirmed.campaigns;
       activeCampaign = campaigns[0]?.id ?? '';
       booting = false;
-      await loadRoster();
+      await Promise.all([loadRoster(), loadRuleset()]);
     });
   }
 
@@ -131,7 +151,7 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
     await run(async () => {
       await api('/api/v1/auth/logout', {});
       ++sessionCheck;
-      me = null; campaigns = []; roster = []; pairing = null; issuedInvite = null;
+      me = null; campaigns = []; roster = []; ruleset = null; pairing = null; issuedInvite = null;
     });
   }
 
@@ -142,7 +162,7 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
   async function addNew() {
     await run(async () => {
       issuedInvite = await api('/api/v1/campaigns/' + activeCampaign + '/members', {});
-      await loadRoster();
+      await Promise.all([loadRoster(), loadRuleset()]);
     });
   }
 
@@ -161,7 +181,7 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
       });
       notice = response.alreadyMember ? 'This player already belongs to the world.' :
         'Player added. They can use their existing login.';
-      await loadRoster();
+      await Promise.all([loadRoster(), loadRuleset()]);
     });
   }
 
@@ -257,12 +277,36 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
       {:else}
         <label>World
           <select bind:value={activeCampaign}
-            onchange={() => { issuedInvite = null; userMatches = []; run(loadRoster); }}>
+            onchange={() => { issuedInvite = null; userMatches = []; run(async () => {
+              await Promise.all([loadRoster(), loadRuleset()]);
+            }); }}>
             {#each campaigns as campaign (campaign.id)}
               <option value={campaign.id}>{campaign.title} — {campaign.system_id}</option>
             {/each}
           </select>
         </label>
+        <div class="ruleset-card" aria-label="Campaign ruleset status">
+          <div class="ruleset-head"><h3>Campaign ruleset</h3>
+            <button type="button" class="quiet" disabled={rulesetLoading}
+              onclick={() => run(loadRuleset)}>Refresh status</button></div>
+          {#if rulesetLoading}
+            <p>Checking what the website has received…</p>
+          {:else if rulesetError}
+            <p class="alert">Unable to read ruleset status: {rulesetError}</p>
+          {:else if ruleset?.synced}
+            <div class="ruleset-stats">
+              <div><strong>{ruleset.ruleset.systemId?.toUpperCase() ?? 'System'} {ruleset.ruleset.systemVersion ?? '?'}</strong><span>Rules system</span></div>
+              <div><strong>Leveler {ruleset.ruleset.levelerVersion ?? '?'}</strong><span>Module version</span></div>
+              <div><strong>{ruleset.totals.classes} classes</strong><span>Saved in SQLite</span></div>
+              <div><strong>{ruleset.totals.feats} feats</strong><span>Saved in SQLite</span></div>
+            </div>
+            <p><span class="partial">Partial preview</span> · Last received {new Date(ruleset.updatedAt * 1000).toLocaleString()}</p>
+            <p class="muted">Only core PF2e classes and the first 1,000 feat entries. Spells, third-party content and full feat rules have not been synchronized.</p>
+            {#if canManage}<a href={'/campaigns/' + encodeURIComponent(activeCampaign) + '/ruleset'}>View received data &amp; sync details →</a>{/if}
+          {:else}
+            <p>No ruleset snapshot received. Authorize this Foundry world and run Sync Now in the bridge.</p>
+          {/if}
+        </div>
         {#if canManage}
           <h3>Players</h3>
           {#if roster.length}
@@ -345,6 +389,15 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
   .alert {padding:1rem;background:#6e2727;color:#fff;} .success{padding:1rem;background:#23543a;color:#fff;}
   a{color:#a8d5ff;} footer{color:#8ba0af;margin:2rem 0;}
   .status{padding:1rem;background:#263847;border-radius:4px;}
+  .ruleset-card{margin:1rem 0;padding:1.25rem;border:1px solid #537384;border-radius:7px;background:#132633}
+  .ruleset-head{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
+  .ruleset-head h3{margin:0}
+  .ruleset-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem;margin-top:1rem}
+  .ruleset-stats div{background:#263947;padding:.8rem;border-radius:5px}
+  .ruleset-stats strong{display:block;overflow-wrap:anywhere}
+  .ruleset-stats span,.muted{color:#b0c0cb;font-size:.85rem}
+  .partial{background:#59441b;border:1px solid #bf9852;border-radius:4px;color:#ffe4ab;padding:.2rem .4rem}
+  @media(max-width:720px){.ruleset-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;}
   @media(max-width:720px){.cols{grid-template-columns:1fr;} header{gap:1rem;} h1{font-size:2.1rem;}}
 </style>
