@@ -1,5 +1,25 @@
 # Installing and distributing the Foundry module
 
+## Temporary public install from GitHub
+
+The private monorepo now contains a dedicated `foundry-release` branch with a ready-to-install `module.json` and `module.zip` for **v0.1.0**. If you temporarily change the repo to public, Foundry can install it directly from this Manifest URL:
+
+```text
+https://raw.githubusercontent.com/Dwank-P/pf2e-planner/foundry-release/module.json
+```
+
+Steps:
+1. Change repo visibility to **Public** in GitHub → Settings → General → Danger Zone.
+2. In Foundry Setup, select **Add-on Modules → Install Module**, paste the manifest URL, click Install.
+3. Confirm that the module appears. Then turn the GitHub repo back to **Private**.
+
+**Tradeoff:** The module will stay installed after the repository becomes private, but GitHub's raw manifest and ZIP URLs will be inaccessible to unauthenticated Foundry. Automatic **update checks and updates will not work** until it is public again. Do not use a personal access token in the manifest URL.
+
+**Privacy warning:** Temporarily publishing a private repository exposes its entire contents and history while public; someone can clone/fork it. Making it private again does not retract downloaded copies or public forks. Do not use this workflow with secrets in the repository.
+
+This temporary-public workflow is intended for personal testing, not long-term distribution. The proper long-term alternative is a stable public **distribution-only** endpoint or repository, while keeping source private.
+
+---
 ## Why the module.json in the private repository is not an install URL
 
 The source manifest lives at `apps/foundry-module/module.json`. Foundry's **Install Module → Manifest URL** expects a URL it can access directly. It also needs that manifest's `download` field to point at an accessible ZIP package.
