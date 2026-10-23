@@ -2,7 +2,7 @@
 
 Private monorepo for a **Docker-hosted Pathfinder 2e / Starfinder 2e character planner** and an independently installable **Foundry VTT v14 bridge module**.
 
-> **Development status: v0.2.3 implementation branch.** Web login/account activation, pairing, GM-client bearer tokens and a **bounded metadata preview** are coded but not yet verified by a complete npm build, container test or real Foundry v14 integration test. This is **not yet ready for public deployment or real character imports**.
+> **Development status: v0.2.4 implementation branch.** Web login/account activation, pairing, GM-client bearer tokens and a **bounded metadata preview** are coded but not yet verified by a complete npm build, container test or real Foundry v14 integration test. This is **not yet ready for public deployment or real character imports**.
 
 ## Two applications, one repository
 
@@ -80,13 +80,23 @@ fingerprint are returned by `GET /health`. To verify the **effective Docker port
 binding**, inspect `docker ps` or `docker inspect` on the host. See
 [developer deployment testing](docs/DEVELOPMENT_TESTING.md).
 
-### Connecting a Foundry GM browser (module v0.2.3)
+### Connecting a Foundry GM browser (module v0.2.4)
 
-Foundry **Game Settings → Configure Settings → PF2e Planner Bridge → Open Connection Settings** has the website URL field and the **one-time pairing code** field. Click **Test Website** to verify the URL (does not consume the code), then **Pair & Sync**. Merely saving the website URL does not pair a world. The server must also run v0.2.3 for the reachability probe. An unauthorized/no-network request displays a Foundry error notification.
+Foundry **Game Settings → Configure Settings → PF2e Planner Bridge → Open Connection Settings** has the website URL field and the **one-time pairing code** field. Click **Test Website** to verify the URL (does not consume the code), then **Pair & Sync**. Merely saving the website URL does not pair a world. The server must also run v0.2.4 for the reachability probe. An unauthorized/no-network request displays a Foundry error notification.
 
-### v0.2.3 usability fixes
+### v0.2.4 usability fixes
 The GM dashboard can generate an invitation without pre-selecting the player's name, copy the player-facing invitation, and copy pairing codes. Invitation validation is separate from password creation. Normal players do not lose their login session when the GM-only roster endpoint rejects their access. The Foundry Bridge has one visible **Open Pairing Dialog** settings control; URL inputs accept domains/IPs with automatic HTTPS default and actionable validation errors.
 
-### Player-facing invitation flow (v0.2.3)
+### Player-facing invitation flow (v0.2.4)
 
 GM chooses a campaign and clicks **Generate invitation**, no player display name needed. The one-time code appears in a formatted message addressed to the player, with a copy-to-clipboard icon. On `/join`, the player validates the code before username/password are requested. There is also a copy icon for Foundry pairing codes. Normal player sessions are not invalidated by the GM-only roster API.
+
+### Inspect synchronized rulesets (v0.2.4)
+
+Each campaign on the home screen now shows the **stored** PF2e system version,
+Leveler version, class/feat counts, and last received timestamp. A GM/owner link
+opens a read-only detailed received-catalog dashboard with source pack distribution,
+class schedules, first 1000 feat metadata rows, snapshot SHA-256 and warnings
+about excluded content. Server routes `catalog-summary` and `catalog-details`
+derive these fields from the last accepted SQLite snapshot. The current bridge
+still does not export a complete rulebook or third-party content.

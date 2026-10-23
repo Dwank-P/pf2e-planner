@@ -77,7 +77,7 @@ export async function testWebsite(url) {
   }
   if (!response.ok) {
     throw Error('Website returned HTTP ' + response.status +
-      ' at /api/v1/bridge/status. Confirm both apps are updated to v0.2.2.');
+      ' at /api/v1/bridge/status. Confirm both website and module are on the latest build.');
   }
   let result;
   try { result = await response.json(); }

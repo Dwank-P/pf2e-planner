@@ -146,3 +146,26 @@ valid. Existing account addition works as before.
 - Foundry v14 native DialogV2 behavior, reverse-proxy HTTPS connectivity,
   and real-world import still require manual verification; GitHub CI exercises
   JS syntax, URL parsing and backend smoke tests, not Foundry UI rendering.
+
+## K. v0.2.4 — Visible received content and Foundry dialog test
+
+After website redeploy, sign in and select a campaign. The home screen shows:
+**system/version, Leveler version, saved class and feat counts, partial-preview
+warning and last received timestamp**. GM/owner can open **View received data &
+sync details**, which shows snapshot ID/SHA-256, compendium source counts,
+exact class progression arrays received, and a searchable/paginated sample of
+up to 1000 feat metadata entries. All counts come from the site's persisted
+catalog_previews.data_json row, not from the module's notification alone.
+
+`GET /api/v1/campaigns/{id}/catalog-summary` is membership-scoped and omits
+the full entries. `GET .../catalog-details` is GM/owner-only; a player
+must receive 403. When no preview is saved, show "No snapshot yet".
+The 1000 feat limit is deliberate and is NOT the full PF2e feats catalogue.
+
+In Foundry module v0.2.4, open the Pairing Dialog and click **Test Website**.
+It is a non-submit button INSIDE the form content, so should display the result
+inline and keep the dialog open with the entered URL/code intact. Entering a
+code and pressing Pair & Sync is still a separate explicit action.
+
+Automated CI validates read endpoints and role restrictions, build and script
+syntax, but cannot prove the remote live DB contents or Foundry dialog behavior.

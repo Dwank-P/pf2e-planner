@@ -47,7 +47,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.2.3');
+    assert.equal(health.body.version,'0.2.4');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -56,7 +56,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.2.3');
+    assert.equal(check.body.version,'0.2.4');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -134,7 +134,7 @@ test('production API: bootstrap → pair world → create player → sync → re
 
     const preview=await send('/api/v1/bridge/'+integrationId+'/catalog-preview',{
       schemaVersion:1,snapshotId:randomUUID(),
-      sourceVersions:{systemId:'pf2e',systemVersion:'8.6.1'},
+      sourceVersions:{systemId:'pf2e',systemVersion:'8.6.1',levelerVersion:'3.8.12'},
       classes:[{uuid:'Compendium.pf2e.classes.Item.Fighter',name:'Fighter',classFeatLevels:[2,4]}],
       feats:[{uuid:'Compendium.pf2e.feats-srd.Item.Demo',name:'Demonstration Feat',level:2}]
     },'',gmOrigin,'POST',paired.body.accessToken);
@@ -144,6 +144,36 @@ test('production API: bootstrap → pair world → create player → sync → re
       undefined,playerCookie,origin,'GET');
     assert.equal(catalog.status,200,JSON.stringify(catalog));
     assert.equal(catalog.body.classes.length,1);
+
+    // Server-side receipt: exact persisted counts and metadata, not bridge claims.
+    const summary=await send('/api/v1/campaigns/'+campaignId+'/catalog-summary',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(summary.status,200,JSON.stringify(summary));
+    assert.equal(summary.body.synced,true);
+    assert.equal(summary.body.ruleset.systemVersion,'8.6.1');
+    assert.equal(summary.body.ruleset.levelerVersion,'3.8.12');
+    assert.equal(summary.body.totals.classes,1);
+    assert.equal(summary.body.totals.feats,1);
+    assert.equal(summary.body.totals.savedItems,2);
+    assert.match(summary.body.sha256,/^[0-9a-f]{64}$/);
+    assert.ok(summary.body.updatedAt>0);
+    assert.equal(summary.body.sources.classes[0].label,'pf2e.classes');
+    assert.equal(summary.body.sources.feats[0].label,'pf2e.feats-srd');
+    assert.equal('feats' in summary.body,false,
+      'A player-facing summary must not dump the detailed feat catalog');
+
+    const details=await send('/api/v1/campaigns/'+campaignId+'/catalog-details',
+      undefined,ownerCookie,origin,'GET');
+    assert.equal(details.status,200,JSON.stringify(details));
+    assert.equal(details.body.classes[0].name,'Fighter');
+    assert.deepEqual(details.body.classes[0].classFeatLevels,[2,4]);
+    assert.equal(details.body.feats[0].name,'Demonstration Feat');
+    assert.equal(details.body.sha256,summary.body.sha256);
+
+    const playerDetails=await send('/api/v1/campaigns/'+campaignId+'/catalog-details',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(playerDetails.status,403,'Only site owner and campaign GMs may inspect full receipt');
+
 
     const wrongOrigin=await send('/api/v1/bridge/'+integrationId+'/refresh',
       {refreshToken:paired.body.refreshToken},'','https://untrusted.test.invalid');

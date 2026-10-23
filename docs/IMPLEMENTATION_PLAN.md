@@ -66,3 +66,11 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Fix normal player login state clearing on a GM-only roster 403.
 - [x] Foundry config submenu only; URL/IP parsing, default HTTPS, clear errors.
 - [ ] Browser E2E test with actual HTTPS proxy, Foundry v14 module UI and player logins.
+
+## v0.2.4 — Verified ruleset receipt UI
+- [x] On campaign home show received PF2e system version, Leveler version, counts, partial nature and last sync time.
+- [x] Site owner/campaign GM detail page provides server-side persisted snapshot ID, SHA-256, source packs, class progression entries and searchable feat preview.
+- [x] Separate summary endpoint (campaign members) and detailed endpoint (owner/campaign GM only); derive counts from saved SQLite JSON.
+- [x] Foundry Test Website uses non-submitting in-dialog control; remains open with inline success/error feedback.
+- [ ] Confirm in actual Foundry v14 that the dialog remains open after Test Website.
+- [ ] Confirm website displays persisted snapshot counts from real Foundry world after Portainer v0.2.4 redeploy.
