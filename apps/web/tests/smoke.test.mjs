@@ -11,7 +11,7 @@ test('production API: bootstrap → pair world → create player → sync → re
   const temp=mkdtempSync(join(tmpdir(),'pf2e-planner-smoke-'));
   const port=randomInt(40000,58000),origin=`http://127.0.0.1:${port}`;
   const bootstrap='bootstrap-test-secret-'+('z'.repeat(48));
-  const child=spawn(process.execPath,['build'],{
+  const child=spawn(process.execPath,['scripts/start.mjs'],{
     cwd:new URL('../',import.meta.url),
     env:{...process.env,NODE_ENV:'production',HOST:'127.0.0.1',PORT:String(port),
       PUBLIC_ORIGIN:origin,DB_PATH:join(temp,'planner.sqlite'),BOOTSTRAP_TOKEN:bootstrap},
