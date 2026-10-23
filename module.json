@@ -15,5 +15,7 @@
   "esmodules": [
     "scripts/main.mjs"
   ],
-  "url": "https://github.com/Dwank-P/pf2e-planner"
+  "url": "https://github.com/Dwank-P/pf2e-planner",
+  "manifest": "https://raw.githubusercontent.com/Dwank-P/pf2e-planner/foundry-release/module.json",
+  "download": "https://raw.githubusercontent.com/Dwank-P/pf2e-planner/foundry-release/module.zip"
 }
