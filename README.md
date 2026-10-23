@@ -2,7 +2,7 @@
 
 Private monorepo for a **Docker-hosted Pathfinder 2e / Starfinder 2e character planner** and an independently installable **Foundry VTT v14 bridge module**.
 
-> **Development status: v0.2.0 implementation branch.** Web login/account activation, pairing, GM-client bearer tokens and a **bounded metadata preview** are coded but not yet verified by a complete npm build, container test or real Foundry v14 integration test. This is **not yet ready for public deployment or real character imports**.
+> **Development status: v0.2.1 implementation branch.** Web login/account activation, pairing, GM-client bearer tokens and a **bounded metadata preview** are coded but not yet verified by a complete npm build, container test or real Foundry v14 integration test. This is **not yet ready for public deployment or real character imports**.
 
 ## Two applications, one repository
 
@@ -71,3 +71,11 @@ This initial preview intentionally does **not** sync full compendiums, third-par
 - Repository is private; Foundry's installer requires an accessible manifest + ZIP. See [Foundry installation](docs/FOUNDRY_INSTALLATION.md). A v0.2.0 alpha archive is packaged on `foundry-release`, but has not been tested inside a running Foundry v14 client.
 - Never include installed premium rulebooks, actor data, secrets or privately licensed content in public repository releases.
 - No public project license has been selected.
+
+### Deployment version check
+
+The Docker container startup log prints website version, source fingerprint,
+build timestamp, `PUBLIC_ORIGIN` and *requested* host bind IP. The same version and
+fingerprint are returned by `GET /health`. To verify the **effective Docker port
+binding**, inspect `docker ps` or `docker inspect` on the host. See
+[developer deployment testing](docs/DEVELOPMENT_TESTING.md).

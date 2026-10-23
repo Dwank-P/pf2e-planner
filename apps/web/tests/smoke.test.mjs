@@ -42,6 +42,15 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
+    assert.match(output,/Starting web v0\\.2\\.1/,'Boot log should include package version');
+    assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
+      'Boot log should include a source identifier');
+    const health=await send('/health',undefined,'',origin,'GET');
+    assert.equal(health.status,200);
+    assert.equal(health.body.version,'0.2.1');
+    assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
+    assert.ok(health.body.builtAt);
+
 
     const setup=await send('/api/v1/setup',{
       bootstrapToken:bootstrap,username:'test-owner',displayName:'Test Owner',

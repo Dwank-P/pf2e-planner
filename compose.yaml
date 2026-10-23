@@ -9,6 +9,7 @@ services:
       - "${PLANNER_BIND_IP:-127.0.0.1}:3000:3000"
     environment:
       HOST: "0.0.0.0"
+      PLANNER_BIND_IP: "${PLANNER_BIND_IP:-127.0.0.1}"
       PORT: "3000"
       NODE_ENV: "production"
       PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:-http://localhost:3000}"

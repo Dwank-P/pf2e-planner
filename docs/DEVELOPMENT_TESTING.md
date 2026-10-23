@@ -57,3 +57,33 @@
 - Dependency version compatibility with other Foundry or Leveler versions is not yet certified.
 - A GM's browser can be compromised by malicious scripts/extensions. Never treat its token storage as an unattended server secret.
 - SQLite uses one process and no automatic backup/checkpoint yet; arrange safe external backups.
+
+## G. Confirming deployments and the Docker host bind address (v0.2.1+)
+
+Portainer → Containers → `pf2e-planner-planner-web-1` → **Logs** shows a startup banner:
+`Starting web v0.2.1`, `Source fingerprint: <16 hex chars>`, image build time,
+container listener, the **requested** host bind address and public origin.
+
+Version is read from `apps/web/package.json`. The fingerprint hashes the application's
+source, not the Git commit; it changes when a website source file changes, even when
+Portainer's Docker build context lacks `.git`. The build date changes on rebuild.
+`GET /health` returns the same version/fingerprint/time; it must be served uncached.
+No authentication secrets are logged.
+
+**Important:** A container cannot prove its host's effective port publication.
+`PLANNER_BIND_IP` in the container reports the *requested Compose value only*.
+Confirm the **actual** mapping on the Docker host:
+
+```sh
+docker ps --format 'table {{.Names}}\t{{.Ports}}' | grep planner
+docker inspect pf2e-planner-planner-web-1 --format '{{json .NetworkSettings.Ports}}'
+curl -v http://192.168.1.40:3000/health
+```
+
+For Nginx Proxy Manager on another machine forwarding to `192.168.1.40:3000`,
+set Portainer Git-stack environment variable `PLANNER_BIND_IP=192.168.1.40`,
+then **Pull and redeploy** the stack. Confirm the port is published as
+`192.168.1.40:3000->3000/tcp`, not `127.0.0.1:3000->3000/tcp`.
+The IP must exist on the Docker host (`ip -br addr`). Use an appropriate firewall
+and restrict incoming access to the reverse proxy. Keep `PUBLIC_ORIGIN` as
+`https://level.dwank.uk`. No need to expose port 3000 to the public WAN.
