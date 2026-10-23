@@ -1,5 +1,5 @@
-import { db } from '$lib/server/db.js';
-import { respond, sessionUser } from '$lib/server/api.js';
+import { db } from '#lib/server/db.js';
+import { respond, sessionUser } from '#lib/server/api.js';
 export function GET(event) {
   const user = sessionUser(event);
   const campaigns = db().prepare(`

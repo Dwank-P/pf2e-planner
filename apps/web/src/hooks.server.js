@@ -1,4 +1,4 @@
-import { db } from '$lib/server/db.js';
+import { db } from '#lib/server/db.js';
 
 function siteOrigin() {
   return process.env.PUBLIC_ORIGIN || 'http://localhost:5173';

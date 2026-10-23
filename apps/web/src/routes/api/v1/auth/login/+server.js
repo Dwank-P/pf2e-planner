@@ -1,6 +1,6 @@
-import { db } from '$lib/server/db.js';
-import { passwordVerify, setSession, digest } from '$lib/server/security.js';
-import { input, problem, respond, throttle } from '$lib/server/api.js';
+import { db } from '#lib/server/db.js';
+import { passwordVerify, setSession, digest } from '#lib/server/security.js';
+import { input, problem, respond, throttle } from '#lib/server/api.js';
 
 export async function POST(event) {
   throttle(event, 'login-ip', 20, 600);

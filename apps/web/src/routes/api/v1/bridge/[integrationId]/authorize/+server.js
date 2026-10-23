@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { db, unix, transaction } from '$lib/server/db.js';
-import { digest, newCredential } from '$lib/server/security.js';
-import { input, respond, problem, throttle } from '$lib/server/api.js';
+import { db, unix, transaction } from '#lib/server/db.js';
+import { digest, newCredential } from '#lib/server/security.js';
+import { input, respond, problem, throttle } from '#lib/server/api.js';
 
 /** Authorize a second GM browser/device for an existing paired world.
  * Caller has a site-issued code; the associated site user must be this campaign's GM.

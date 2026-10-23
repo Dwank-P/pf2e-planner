@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { db, unix, transaction } from '$lib/server/db.js';
-import { token, digest, newCredential } from '$lib/server/security.js';
-import { input, respond, problem, throttle } from '$lib/server/api.js';
+import { db, unix, transaction } from '#lib/server/db.js';
+import { token, digest, newCredential } from '#lib/server/security.js';
+import { input, respond, problem, throttle } from '#lib/server/api.js';
 
 export async function POST(event) {
   throttle(event,'bridge-pair',10,600);

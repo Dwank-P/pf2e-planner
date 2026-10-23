@@ -1,6 +1,6 @@
-import { unix,transaction } from '$lib/server/db.js';
-import { token,digest,ACCESS_TTL,REFRESH_TTL } from '$lib/server/security.js';
-import { input,respond,problem,throttle } from '$lib/server/api.js';
+import { unix,transaction } from '#lib/server/db.js';
+import { token,digest,ACCESS_TTL,REFRESH_TTL } from '#lib/server/security.js';
+import { input,respond,problem,throttle } from '#lib/server/api.js';
 
 export async function POST(event) {
   throttle(event,'bridge-refresh',80,3600);

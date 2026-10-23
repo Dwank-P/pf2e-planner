@@ -1,6 +1,6 @@
-import { db, unix } from '$lib/server/db.js';
-import { token, digest } from '$lib/server/security.js';
-import { input, problem, respond, sessionUser, requireAnyGm, throttle } from '$lib/server/api.js';
+import { db, unix } from '#lib/server/db.js';
+import { token, digest } from '#lib/server/security.js';
+import { input, problem, respond, sessionUser, requireAnyGm, throttle } from '#lib/server/api.js';
 export async function POST(event) {
   const user = sessionUser(event);
   requireAnyGm(user);

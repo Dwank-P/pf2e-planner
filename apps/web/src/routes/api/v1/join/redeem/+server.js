@@ -1,6 +1,6 @@
-import { db, unix, transaction } from '$lib/server/db.js';
-import { digest, passwordHash, setSession } from '$lib/server/security.js';
-import { input, respond, problem, throttle, validateUsername, validatePassword } from '$lib/server/api.js';
+import { db, unix, transaction } from '#lib/server/db.js';
+import { digest, passwordHash, setSession } from '#lib/server/security.js';
+import { input, respond, problem, throttle, validateUsername, validatePassword } from '#lib/server/api.js';
 
 export async function POST(event) {
   throttle(event,'join-redeem',8,600);

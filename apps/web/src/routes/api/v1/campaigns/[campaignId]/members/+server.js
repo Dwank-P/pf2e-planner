@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { db, unix, transaction } from '$lib/server/db.js';
-import { token, digest } from '$lib/server/security.js';
-import { input, respond, sessionUser, ownerOrGm, problem, validateDisplay, throttle } from '$lib/server/api.js';
+import { db, unix, transaction } from '#lib/server/db.js';
+import { token, digest } from '#lib/server/security.js';
+import { input, respond, sessionUser, ownerOrGm, problem, validateDisplay, throttle } from '#lib/server/api.js';
 
 export function GET(event) {
   const user=sessionUser(event); ownerOrGm(user,event.params.campaignId);

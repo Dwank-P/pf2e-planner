@@ -1,5 +1,5 @@
-import { db,unix,transaction } from '$lib/server/db.js';
-import { input, respond, problem,sessionUser,ownerOrGm } from '$lib/server/api.js';
+import { db,unix,transaction } from '#lib/server/db.js';
+import { input, respond, problem,sessionUser,ownerOrGm } from '#lib/server/api.js';
 /** Admin/GM revokes this world's integration and all GM bridge tokens. */
 export async function POST(event) {
   const actor=sessionUser(event);

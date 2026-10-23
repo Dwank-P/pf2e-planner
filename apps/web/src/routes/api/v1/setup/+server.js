@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { db, unix, transaction } from '$lib/server/db.js';
-import { constantEquals, passwordHash, setSession } from '$lib/server/security.js';
-import { input, problem, respond, throttle, validatePassword, validateUsername, validateDisplay } from '$lib/server/api.js';
+import { db, unix, transaction } from '#lib/server/db.js';
+import { constantEquals, passwordHash, setSession } from '#lib/server/security.js';
+import { input, problem, respond, throttle, validatePassword, validateUsername, validateDisplay } from '#lib/server/api.js';
 
 export async function POST(event) {
   throttle(event, 'setup', 5, 3600);

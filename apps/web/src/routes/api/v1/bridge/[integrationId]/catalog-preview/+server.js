@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { db,unix,transaction } from '$lib/server/db.js';
-import { input,respond,problem,bridgeAuth } from '$lib/server/api.js';
+import { db,unix,transaction } from '#lib/server/db.js';
+import { input,respond,problem,bridgeAuth } from '#lib/server/api.js';
 
 export async function POST(event) {
   bridgeAuth(event,event.params.integrationId);
