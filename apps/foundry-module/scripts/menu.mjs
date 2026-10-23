@@ -17,9 +17,9 @@ function fields(button, dialog) {
   // versions. Prefer the DOM of this rendered dialog and a named form.
   const element = dialog?.element || button?.closest?.('.window-app') ||
     button?.closest?.('.application');
-  const form = button?.form || element?.querySelector?.('form.planner-pair-form');
-  const inputUrl = form?.elements?.namedItem?.('website');
-  const inputCode = form?.elements?.namedItem?.('code');
+  const scope = element?.querySelector?.('.planner-pair-form') || button?.form;
+  const inputUrl = scope?.querySelector?.('input[name="website"]');
+  const inputCode = scope?.querySelector?.('input[name="code"]');
   if (!inputUrl) throw Error('Unable to read the pairing form. Reload Foundry and reopen the dialog.');
   const url = normalizeWebsiteUrl(String(inputUrl.value ?? ''));
   // Reflect the normalized origin back in the dialog for clarity.
@@ -32,7 +32,7 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
     const saved = game.settings.get(MODULE_ID, 'websiteUrl') || '';
     const paired = game.settings.get(MODULE_ID, 'integrationId');
     const content = `
-      <form class="planner-pair-form" autocomplete="off">
+      <div class="planner-pair-form">
         <p>Get a one-time code from the Planner website's <strong>Generate pairing code</strong> button.</p>
         <div class="form-group">
           <label for="planner-website">Website domain or IP</label>
@@ -47,7 +47,7 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
         </div>
         <p class="hint">Status: ${paired ? 'World paired — enter a fresh code to authorize this browser.' : 'Not yet paired.'}</p>
         <p class="hint">Test Website checks the address without using your pairing code.</p>
-      </form>`;
+      </div>`;
     super({
       ...options,
       window: { ...options.window, title: 'PF2e Planner — Pair World' },
