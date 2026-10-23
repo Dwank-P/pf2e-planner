@@ -175,6 +175,93 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(playerDetails.status,403,'Only site owner and campaign GMs may inspect full receipt');
 
 
+
+    // v0.3.0 complete staged catalog: explicit variant rules, metadata, html and links.
+    const importRoute='/api/v1/bridge/'+integrationId+'/catalog-import';
+    const variants={
+      freeArchetype:true,dualClass:true,ancestralParagon:false,
+      gradualAbilityBoosts:false,automaticBonusProgression:'noABP'
+    };
+    const sourceVersions={
+      worldId:'test-world',systemId:'pf2e',systemVersion:'8.6.1',levelerVersion:'3.8.12'
+    };
+    const started=await send(importRoute+'/start',{
+      expectedCount:3,packs:['pf2e.classes','pf2e.feats-srd'],variants,
+      sourceVersions
+    },'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(started.status,201,JSON.stringify(started));
+    const entries=[
+      {uuid:'Compendium.pf2e.classes.Item.Fighter',type:'class',name:'Fighter',
+        level:1,classFeatLevels:[2,4,6],description:'<p>Fighter</p>'},
+      {uuid:'Compendium.pf2e.feats-srd.Item.Demo',type:'feat',
+        name:'Demonstration Feat',level:2,rarity:'common',traits:['fighter','attack'],
+        featType:'class',description:
+          '<p onclick="alert(1)">Select @UUID[Compendium.pf2e.feats-srd.Item.Other]{Other Feat}</p>'+
+          '<script>alert(1)</script><img src=x onerror=alert(1)>'},
+      {uuid:'Compendium.pf2e.feats-srd.Item.Other',type:'feat',
+        name:'Other Feat',level:4,rarity:'uncommon',traits:['fighter'],
+        featType:'class',description:'<p>Other Feat</p>'}
+    ];
+    const batch=await send(importRoute+'/batch',{
+      snapshotId:started.body.snapshotId,batchNumber:0,items:entries
+    },'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(batch.status,201,JSON.stringify(batch));
+    assert.equal(batch.body.staged,3);
+
+    const published=await send(importRoute+'/commit',{
+      snapshotId:started.body.snapshotId
+    },'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(published.status,201,JSON.stringify(published));
+    assert.equal(published.body.accepted,3);
+
+    const fullSummary=await send('/api/v1/campaigns/'+campaignId+'/catalog-summary',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(fullSummary.status,200,JSON.stringify(fullSummary));
+    assert.equal(fullSummary.body.complete,true);
+    assert.equal(fullSummary.body.variants.freeArchetype,true);
+    assert.equal(fullSummary.body.variants.dualClass,true);
+    assert.equal(fullSummary.body.totals.classes,1);
+    assert.equal(fullSummary.body.totals.feats,2);
+    assert.equal(fullSummary.body.totals.savedItems,3);
+
+    const listing=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-items?type=feat&rarity=common&level=2&trait=fighter&featType=class',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(listing.status,200,JSON.stringify(listing));
+    assert.equal(listing.body.total,1);
+    assert.equal(listing.body.items[0].name,'Demonstration Feat');
+
+    const detailsOne=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-item?uuid='+encodeURIComponent(entries[1].uuid),undefined,
+      playerCookie,origin,'GET');
+    assert.equal(detailsOne.status,200,JSON.stringify(detailsOne));
+    assert.ok(detailsOne.body.item.description.includes('data-pf2e-uuid='));
+    assert.ok(!detailsOne.body.item.description.includes('<script'));
+    assert.ok(!detailsOne.body.item.description.includes('onclick='));
+    assert.ok(!detailsOne.body.item.description.includes('<img'));
+
+    const fullDetails=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-details',undefined,ownerCookie,origin,'GET');
+    assert.equal(fullDetails.status,200);
+    assert.equal(fullDetails.body.classes[0].metadata.classFeatLevels[0],2);
+
+    // An incomplete next attempt must never erase the published snapshot.
+    const attempt2=await send(importRoute+'/start',{
+      expectedCount:2,packs:['pf2e.feats-srd'],variants,sourceVersions
+    },'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(attempt2.status,201);
+    const incomplete=await send(importRoute+'/batch',{
+      snapshotId:attempt2.body.snapshotId,batchNumber:0,items:[entries[1]]
+    },'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(incomplete.status,201);
+    const refused=await send(importRoute+'/commit',{
+      snapshotId:attempt2.body.snapshotId
+    },'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(refused.status,409);
+    const afterFail=await send('/api/v1/campaigns/'+campaignId+'/catalog-summary',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(afterFail.body.snapshotId,started.body.snapshotId);
+
     const wrongOrigin=await send('/api/v1/bridge/'+integrationId+'/refresh',
       {refreshToken:paired.body.refreshToken},'','https://untrusted.test.invalid');
     assert.equal(wrongOrigin.status,403);
