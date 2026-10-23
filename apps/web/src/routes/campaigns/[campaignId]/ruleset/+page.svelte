@@ -106,10 +106,10 @@
             {#each report.classes || [] as cls (cls.uuid)}
               <tr>
                 <td><strong>{cls.name}</strong><small>{cls.uuid}</small></td>
-                <td>{(cls.classFeatLevels || []).join(', ') || '—'}</td>
-                <td>{(cls.skillFeatLevels || []).join(', ') || '—'}</td>
-                <td>{(cls.generalFeatLevels || []).join(', ') || '—'}</td>
-                <td>{(cls.skillIncreaseLevels || []).join(', ') || '—'}</td>
+                <td>{(cls.classFeatLevels || cls.metadata?.classFeatLevels || []).join(', ') || '—'}</td>
+                <td>{(cls.skillFeatLevels || cls.metadata?.skillFeatLevels || []).join(', ') || '—'}</td>
+                <td>{(cls.generalFeatLevels || cls.metadata?.generalFeatLevels || []).join(', ') || '—'}</td>
+                <td>{(cls.skillIncreaseLevels || cls.metadata?.skillIncreaseLevels || []).join(', ') || '—'}</td>
               </tr>
             {/each}
           </tbody>

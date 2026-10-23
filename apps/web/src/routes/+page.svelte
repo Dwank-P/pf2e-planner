@@ -308,6 +308,9 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
               </p>
             {/if}
             <p class="muted">{ruleset.complete ? 'All feat/class Items in GM-selected packs; spell/equipment/ancestry import still pending.' : 'Only the first 1,000 core feat entries. Full descriptions and variant settings not yet imported.'}</p>
+            {#if ruleset.complete}
+              <p><a href={'/campaigns/' + encodeURIComponent(activeCampaign) + '/feats'}>Browse imported feats &amp; descriptions →</a></p>
+            {/if}
             {#if canManage}<a href={'/campaigns/' + encodeURIComponent(activeCampaign) + '/ruleset'}>View received data &amp; sync details →</a>{/if}
           {:else}
             <p>No ruleset snapshot received. Authorize this Foundry world and run Sync Now in the bridge.</p>
