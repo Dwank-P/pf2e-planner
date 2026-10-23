@@ -15,6 +15,16 @@
 - [x] Confirmed diagnostics from `pf2e-test-world`: PF2e system 8.6.1, PF2e Leveler 3.8.12 active, 34 Item compendiums including Battlezoo packs, and a successful Feats index containing 6,366 entries. This proves metadata/index access, **not** full content export or sync.
 - [ ] Test the actual Leveler 3.8.12 plan fixture and compare against newer supported module versions; do not assume format compatibility across versions.
 
+## M1a — Token-authenticated web and bridge foundation (unverified code)
+- [x] Draft threat model and pairing/login/invitation token protocol in AUTH_AND_SYNC_V1.md.
+- [x] Implement SQLite global accounts, Argon2id credential verifiers, cookie sessions, one-time player onboarding codes.
+- [x] Implement GM directory/member assignment across campaigns, pairing codes, per-browser rotating refresh/access tokens.
+- [x] Implement Foundry v14 dependency on pf2e-leveler, GM pairing dialog, IndexedDB and bounded core PF2e classes/feat preview sync.
+- [x] Add GM website console for pairing and selecting new/existing users.
+- [ ] Install Node dependencies and pass npm build/check/test; manually test Foundry v14 module (NOT YET VERIFIED).
+- [ ] Test authorization failure and race conditions; password recovery, session revocation UI and backup/restore.
+- [ ] Perform production security review before exposing website to internet.
+
 ## M1 — First vertical integration slice
 - [ ] Capture real Leveler creation and level-2 Fighter plan exports from test world.
 - [ ] Version authenticated pairing request/response and SQL models.
