@@ -53,7 +53,7 @@
       <div class="badges">
         <span class="badge">{report.ruleset.systemId?.toUpperCase() || 'Unknown system'} {report.ruleset.systemVersion || '?'}</span>
         <span class="badge">PF2e Leveler {report.ruleset.levelerVersion || 'unknown'}</span>
-        <span class="badge amber">Partial content preview</span>
+        <span class="badge amber">{report.complete ? 'Selected packs imported' : 'Partial preview'}</span>
       </div>
       <h2>Last accepted snapshot</h2>
       <div class="stats">
@@ -68,6 +68,14 @@
         <dt>Stored SHA-256</dt><dd><code>{report.sha256}</code></dd>
         <dt>Schema version</dt><dd>{report.schemaVersion}</dd>
       </dl>
+      {#if report.variants}
+        <h3>Campaign variant rules</h3>
+        <div class="chips">
+          {#each Object.entries(report.variants) as [key,value]}
+            <span class="chip">{key.replace(/([A-Z])/g,' $1')}: <strong>{value === null ? 'Unknown' : String(value)}</strong></span>
+          {/each}
+        </div>
+      {/if}
       <h3>What's missing</h3>
       <ul>{#each report.limits as limit}<li>{limit}</li>{/each}</ul>
       {#if report.note}<p class="muted">Bridge note: {report.note}</p>{/if}
@@ -108,6 +116,13 @@
         </table>
       </div>
     </section>
+    {#if report.complete}
+      <section>
+        <h2>Compendium Feat Browser</h2>
+        <p>All synchronized feat Items from the selected compendiums are available with descriptions and filters.</p>
+        <a class="badge" href={'/campaigns/' + encodeURIComponent(window.location.pathname.split('/')[2]) + '/feats'}>Browse feats &amp; descriptions →</a>
+      </section>
+    {:else}
     <section>
       <h2>Feat metadata received ({report.feats?.length ?? 0})</h2>
       <p>This is a searchable view of the first 1,000 indexed feat entries received. It is not the complete feats catalogue.</p>
@@ -143,6 +158,7 @@
       <h3>Rarities</h3>
       <div class="chips">{#each report.featRarities as rarity}<span class="chip">{rarity.label}: {rarity.count}</span>{/each}</div>
     </section>
+    {/if}
   {/if}
 </main>
 <style>

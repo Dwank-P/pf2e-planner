@@ -15,6 +15,11 @@ Hooks.once('init', () => {
     hint: 'Non-secret campaign binding.',
     scope: 'world', config: false, type: String, default: ''
   });
+  game.settings.register(MODULE_ID, 'syncedPacks', {
+    name: 'Selected additional compendium packs',
+    hint: 'JSON list of GM-approved world Item compendiums; managed in the pairing dialog.',
+    scope:'world',config:false,type:String,default:'[]'
+  });
   game.settings.registerMenu(MODULE_ID, 'connection', {
     name: 'Website Connection & Pairing',
     label: 'Open Pairing Dialog',
@@ -36,9 +41,9 @@ Hooks.once('ready', () => {
     ' — Open Configure Settings → PF2e Planner Bridge → Open Pairing Dialog.');
 
   if (game.users.activeGM?.id === game.user.id) {
-    setTimeout(() => syncNow().catch(error => {
+    setTimeout(() => syncNow({auto:true}).catch(error => {
       if (!/not authorized|Pair this Foundry world/.test(error.message)) {
-        console.warn('[PF2e Planner Bridge] Automatic preview sync not completed:', error.message);
+        console.warn('[PF2e Planner Bridge] Automatic catalog sync not completed:', error.message);
         ui.notifications.warn('PF2e Planner: Automatic sync failed — ' + error.message);
       }
     }), 1200);

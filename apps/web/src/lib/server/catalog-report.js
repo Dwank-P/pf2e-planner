@@ -1,10 +1,13 @@
 import { db } from './db.js';
+import { stats } from './catalog-import.js';
 
 /**
  * The report is always derived from the exact JSON persisted in SQLite, never
  * from a bridge-reported count or from hardcoded defaults.
  */
 export function readCatalogReport(campaignId, includeItems = false) {
+  const published=stats(campaignId);
+  if (published) return fullReport(published, includeItems);
   const row = db().prepare(`
     SELECT c.snapshot_id, c.sha256, c.data_json, c.updated_at,
       i.id AS integration_id, i.world_id AS integration_world_id,
@@ -85,4 +88,38 @@ export function readCatalogReport(campaignId, includeItems = false) {
     // This is an authenticated GM dashboard, not a public endpoint.
   }
   return report;
+}
+
+function fullReport({pub,rows}, includeItems) {
+  const packs=JSON.parse(pub.packs_json);
+  const variants=JSON.parse(pub.variants_json);
+  const versions=JSON.parse(pub.sources_json);
+  const classes=rows.filter(row=>row.type==='class').reduce((n,row)=>n+row.count,0);
+  const feats=rows.filter(row=>row.type==='feat').reduce((n,row)=>n+row.count,0);
+  const result={
+    synced:true, complete:true, completeness:'Published selected feat/class compendiums',
+    schemaVersion:2, snapshotId:pub.snapshot_id,sha256:pub.sha256,
+    updatedAt:pub.updated_at,
+    ruleset:{systemId:versions.systemId,systemVersion:versions.systemVersion,
+      levelerVersion:versions.levelerVersion,worldId:versions.worldId},
+    variants, packs,
+    totals:{classes,feats,savedItems:pub.entry_count},
+    sources:{
+      classes: rows.filter(r=>r.type==='class').map(r=>({label:r.pack,count:r.count})),
+      feats: rows.filter(r=>r.type==='feat').map(r=>({label:r.pack,count:r.count}))
+    },
+    limits:[
+      'All class and feat Items in the selected compendium packs were imported, including descriptions and metadata.',
+      'Compendium selection is controlled by the Foundry GM. Non-selected content is not imported.',
+      'Spells, equipment, ancestries, heritages and actors are not imported by this feat browser release.',
+      'Inline compendium links open details only if the target item was synchronized; dice-roll macros and rule elements are not executed.'
+    ]
+  };
+  if(includeItems){
+    // Full item browsing uses paged APIs; don't return thousands of descriptions here.
+    result.classes=db().prepare(`SELECT item_json FROM catalog_entries WHERE integration_id=?
+      AND snapshot_id=? AND type='class' ORDER BY name`)
+      .all(pub.integration_id,pub.snapshot_id).map(r=>JSON.parse(r.item_json));
+  }
+  return result;
 }

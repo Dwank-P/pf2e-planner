@@ -299,9 +299,15 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
               <div><strong>Leveler {ruleset.ruleset.levelerVersion ?? '?'}</strong><span>Module version</span></div>
               <div><strong>{ruleset.totals.classes} classes</strong><span>Saved in SQLite</span></div>
               <div><strong>{ruleset.totals.feats} feats</strong><span>Saved in SQLite</span></div>
+              <div><strong>{ruleset.complete ? 'Selected packs' : 'Preview only'}</strong><span>Sync scope</span></div>
             </div>
-            <p><span class="partial">Partial preview</span> · Last received {new Date(ruleset.updatedAt * 1000).toLocaleString()}</p>
-            <p class="muted">Only core PF2e classes and the first 1,000 feat entries. Spells, third-party content and full feat rules have not been synchronized.</p>
+            <p><span class="partial">{ruleset.complete ? 'Selected packs imported' : 'Partial preview'}</span> · Last received {new Date(ruleset.updatedAt * 1000).toLocaleString()}</p>
+            {#if ruleset.variants}
+              <p><strong>Variant rules:</strong>
+                {Object.entries(ruleset.variants).map(([key,value]) => key.replace(/([A-Z])/g,' $1') + ': ' + (value === null ? 'Unknown' : String(value))).join(' · ')}
+              </p>
+            {/if}
+            <p class="muted">{ruleset.complete ? 'All feat/class Items in GM-selected packs; spell/equipment/ancestry import still pending.' : 'Only the first 1,000 core feat entries. Full descriptions and variant settings not yet imported.'}</p>
             {#if canManage}<a href={'/campaigns/' + encodeURIComponent(activeCampaign) + '/ruleset'}>View received data &amp; sync details →</a>{/if}
           {:else}
             <p>No ruleset snapshot received. Authorize this Foundry world and run Sync Now in the bridge.</p>
