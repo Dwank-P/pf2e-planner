@@ -4,6 +4,18 @@ import { normalizeWebsiteUrl } from './url.mjs';
 
 const MODULE_ID = 'pf2e-planner-bridge';
 const CORE_PACKS = ['pf2e.classes','pf2e.feats-srd'];
+/** Include official Item packs needed to resolve linked conditions, effects
+ * and actions. Third-party packs require explicit GM selection.
+ */
+export function getRequiredPacks() {
+  return [...new Set([
+    ...CORE_PACKS,
+    ...getPackOptions()
+      .filter(p => p.collection.startsWith('pf2e.') &&
+        /(action|condition|effect)/i.test(p.collection))
+      .map(p => p.collection)
+  ])];
+}
 function requireGM(){
   if(!game.user?.isGM||!['pf2e','sf2e'].includes(game.system?.id))
     throw Error('Planner synchronization requires a GM in a PF2e or SF2e world.');
@@ -56,7 +68,8 @@ export function getPackOptions(){
   requireGM();
   return [...game.packs.values()]
     .filter(p=>p.documentName==='Item')
-    .map(p=>({collection:p.collection,label:p.metadata?.label||p.collection}))
+    .map(p=>({collection:p.collection,label:p.metadata?.label||p.collection,
+      packageName:p.metadata?.packageName||p.collection.split('.')[0]}))
     .sort((a,b)=>a.label.localeCompare(b.label));
 }
 export function getSelectedPacks(){
@@ -67,7 +80,7 @@ export function getSelectedPacks(){
     if(Array.isArray(value))extras=value.filter(x=>typeof x==='string');
   }catch{}
   const available=new Set(getPackOptions().map(p=>p.collection));
-  const selected=[...new Set([...CORE_PACKS,...extras])];
+  const selected=[...new Set([...getRequiredPacks(),...extras])];
   return selected.filter(p=>available.has(p));
 }
 export async function savePackSelection(packs){
@@ -77,7 +90,7 @@ export async function savePackSelection(packs){
   if(!packs.every(p=>typeof p==='string'&&available.has(p)))
     throw Error('Some selected compendiums are not installed in this world.');
   await game.settings.set(MODULE_ID,'syncedPacks',JSON.stringify(
-    packs.filter(p=>!CORE_PACKS.includes(p))));
+    packs.filter(p=>!getRequiredPacks().includes(p))));
   return getSelectedPacks();
 }
 
@@ -145,7 +158,8 @@ async function authorized(){
 }
 function exportItem(doc,pack){
   const type=doc.type;
-  if(!['feat','class'].includes(type))return null;
+  // Preserve all Item subtypes, including action/condition/effect references.
+  if(!/^[a-zA-Z][a-zA-Z0-9-]{0,39}$/.test(type))return null;
   const system=doc.system||{};
   const out={
     uuid:doc.uuid,name:String(doc.name||''),type,
@@ -154,7 +168,9 @@ function exportItem(doc,pack){
     rarity:system.traits?.rarity||'common',
     traits:Array.isArray(system.traits?.value)?system.traits.value:[],
     description:system.description?.value||'',
-    publication:system.publication?.title||null
+    publication:system.publication?.title||null,
+    duration:system.duration?.value??null,
+    category:system.category??null
   };
   if(type==='feat'){
     out.featType=system.category||system.featType?.value||null;
@@ -206,7 +222,7 @@ export async function syncNow({auto=false}={}){
       }
       await sleep(0);
     }
-    if(entries.length===0)throw Error('No class or feat Items were found in selected packs.');
+    if(entries.length===0)throw Error('No Items were found in selected packs.');
     if(entries.length>30000)throw Error('More than 30,000 items selected; reduce pack selection.');
     const started=await post(base,'/api/v1/bridge/'+id+'/catalog-import/start',
       {packs,variants,sourceVersions:sources,expectedCount:entries.length},
