@@ -11,8 +11,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          # Lockfile is not committed yet; enable npm caching after generating one.
       - name: Install dependencies
         working-directory: apps/web
         run: npm install --no-audit --no-fund
