@@ -186,7 +186,8 @@ test('production API: bootstrap → pair world → create player → sync → re
       worldId:'test-world',systemId:'pf2e',systemVersion:'8.6.1',levelerVersion:'3.8.12'
     };
     const started=await send(importRoute+'/start',{
-      expectedCount:3,packs:['pf2e.classes','pf2e.feats-srd'],variants,
+      expectedCount:6,packs:['pf2e.classes','pf2e.feats-srd',
+        'pf2e.conditionitems','pf2e.actionspf2e','battlezoo.options'],variants,
       sourceVersions
     },'',gmOrigin,'POST',paired.body.accessToken);
     assert.equal(started.status,201,JSON.stringify(started));
@@ -196,23 +197,35 @@ test('production API: bootstrap → pair world → create player → sync → re
       {uuid:'Compendium.pf2e.feats-srd.Item.Demo',type:'feat',
         name:'Demonstration Feat',level:2,rarity:'common',traits:['fighter','attack'],
         featType:'class',description:
-          '<p onclick="alert(1)">Select @UUID[Compendium.pf2e.feats-srd.Item.Other]{Other Feat}</p>'+
+          '<p onclick="alert(1)">Select @UUID[Compendium.pf2e.feats-srd.Item.Other]{Other Feat} '+
+          'and @UUID[Compendium.pf2e.conditionitems.Item.Frightened]{Frightened}. '+
+          'An @Template[line|distance:60] deals '+
+          '@Damage[(floor((@actor.level -1)/2) +2)d4[slashing]|options:area-damage] with '+
+          '@Check[reflex|against:kineticist|basic|options:area-effect], '+
+          'or @Action[raise-a-shield].</p>'+
           '<script>alert(1)</script><img src=x onerror=alert(1)>'},
       {uuid:'Compendium.pf2e.feats-srd.Item.Other',type:'feat',
         name:'Other Feat',level:4,rarity:'uncommon',traits:['fighter'],
-        featType:'class',description:'<p>Other Feat</p>'}
+        featType:'class',description:'<p>Other Feat</p>'},
+      {uuid:'Compendium.pf2e.conditionitems.Item.Frightened',type:'condition',
+        name:'Frightened',description:'<p>You are frightened.</p>'},
+      {uuid:'Compendium.pf2e.actionspf2e.Item.RaiseShield',type:'action',
+        name:'Raise a Shield',slug:'raise-a-shield',description:'<p>Raise your shield.</p>'},
+      {uuid:'Compendium.battlezoo.options.Item.BZFeat',type:'feat',
+        name:'Battlezoo Test',level:2,rarity:'uncommon',traits:['rare-example'],
+        description:'<p>A selected third-party feat.</p>'}
     ];
     const batch=await send(importRoute+'/batch',{
       snapshotId:started.body.snapshotId,batchNumber:0,items:entries
     },'',gmOrigin,'POST',paired.body.accessToken);
     assert.equal(batch.status,201,JSON.stringify(batch));
-    assert.equal(batch.body.staged,3);
+    assert.equal(batch.body.staged,6);
 
     const published=await send(importRoute+'/commit',{
       snapshotId:started.body.snapshotId
     },'',gmOrigin,'POST',paired.body.accessToken);
     assert.equal(published.status,201,JSON.stringify(published));
-    assert.equal(published.body.accepted,3);
+    assert.equal(published.body.accepted,6);
 
     const fullSummary=await send('/api/v1/campaigns/'+campaignId+'/catalog-summary',
       undefined,playerCookie,origin,'GET');
@@ -221,8 +234,11 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(fullSummary.body.variants.freeArchetype,true);
     assert.equal(fullSummary.body.variants.dualClass,true);
     assert.equal(fullSummary.body.totals.classes,1);
-    assert.equal(fullSummary.body.totals.feats,2);
-    assert.equal(fullSummary.body.totals.savedItems,3);
+    assert.equal(fullSummary.body.totals.feats,3);
+    assert.equal(fullSummary.body.totals.savedItems,6);
+    assert.ok(fullSummary.body.itemTypes.some(x=>x.type==='condition'&&x.count===1));
+    assert.ok(fullSummary.body.itemTypes.some(x=>x.type==='action'&&x.count===1));
+    assert.ok(fullSummary.body.packs.includes('battlezoo.options'));
 
     const listing=await send('/api/v1/campaigns/'+campaignId+
       '/catalog-items?type=feat&rarity=common&level=2&trait=fighter&featType=class',
