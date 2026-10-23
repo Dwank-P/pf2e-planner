@@ -1,4 +1,4 @@
-import { pairWebsite, testWebsite, syncNow, getPackOptions, getSelectedPacks, savePackSelection } from './sync.mjs';
+import { pairWebsite, testWebsite, syncNow, getPackOptions, getSelectedPacks, getRequiredPacks, savePackSelection } from './sync.mjs';
 import { normalizeWebsiteUrl } from './url.mjs';
 
 const MODULE_ID = 'pf2e-planner-bridge';
@@ -32,8 +32,9 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
     const saved = game.settings.get(MODULE_ID, 'websiteUrl') || '';
     const paired = game.settings.get(MODULE_ID, 'integrationId');
     const approved = new Set(getSelectedPacks());
+    const required = new Set(getRequiredPacks());
     const packChoices = getPackOptions()
-      .filter(pack => !['pf2e.classes','pf2e.feats-srd'].includes(pack.collection))
+      .filter(pack => !required.has(pack.collection))
       .map(pack => `<label style="display:block;padding:2px;">
         <input type="checkbox" class="planner-pack" value="${escapeAttribute(pack.collection)}"
           ${approved.has(pack.collection) ? 'checked' : ''}/> ${escapeAttribute(pack.label)}
@@ -55,9 +56,11 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
         </div>
         <p class="hint">Status: ${paired ? 'World paired — enter a fresh code to authorize this browser.' : 'Not yet paired.'}</p>
         <details>
-          <summary><strong>Compendium packs to import</strong> (core classes & feats always included)</summary>
+          <summary><strong>Compendium packs to import</strong> (PF2e core classes, feats, conditions, effects &amp; actions included)</summary>
           <p class="hint">Select additional packs only if campaign members are authorized to access their content.
-          Only class and feat Items are imported in this build.</p>
+          All Item subtypes are imported, including descriptions and action/effect/condition references.</p>
+          <p class="hint"><strong>Third-party module enabled?</strong> Its compendium is NOT imported automatically.
+          Find its pack below, tick it and press Sync Now. Actor or Journal packs are not Item packs.</p>
           <div style="max-height:210px;overflow:auto;padding:5px;">${packChoices}</div>
         </details>
         <div class="form-group">
