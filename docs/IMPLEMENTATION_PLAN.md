@@ -58,3 +58,11 @@
 - [ ] SF2e and third-party content compatibility test matrix.
 
 Engineering rule: **no unpaired network sync; no public unauthenticated endpoints; no automatic actor modifications from wishlist or planning.**
+
+## v0.2.3 usability iteration
+- [x] No GM-selected display name; invite code generated directly.
+- [x] Copy buttons for full player-facing invite and pairing code.
+- [x] Two-step invitation: code validation without redemption, then password/username setup.
+- [x] Fix normal player login state clearing on a GM-only roster 403.
+- [x] Foundry config submenu only; URL/IP parsing, default HTTPS, clear errors.
+- [ ] Browser E2E test with actual HTTPS proxy, Foundry v14 module UI and player logins.

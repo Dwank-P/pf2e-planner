@@ -8,7 +8,7 @@ One self-hosted Docker website serves multiple PF2e/SF2e campaign groups, create
 
 ## Accounts and campaigns
 
-- Site admin creates player accounts; invitations use one-time expiring URLs, redeemed for long-lived revocable secure browser sessions. **No permanent bearer-link logins**.
+- A campaign GM can generate a **one-time invitation code without choosing the new player's name**. The player visits /join, validates the code first, then creates their own username and password. Invites are not reusable; browser sessions are revocable. **No permanent bearer-link logins**.
 - Admin authentication should be stronger (prefer passkeys). One user can participate in multiple campaigns.
 - Campaign title defaults to synchronized world title with optional website override. Preserve world-local ID and independently generated stable integration UUID.
 - Assign GM/player roles per campaign. Bind web characters to Foundry actors explicitly, not by matching names.

@@ -125,3 +125,24 @@ redemption revalidates atomically.
 The GM still sees a pending "Invited player" membership until code
 redemption. Previously generated invitations with pending display names remain
 valid. Existing account addition works as before.
+
+## J. v0.2.3 manual browser and Foundry UI regression
+
+- Sign in as a **normal player** (not GM). Confirm that the dashboard stays
+  signed in after reload even though the GM-only members endpoint would
+  respond 403. Previously a shared error handler treated roster failure as
+  authentication failure and returned players to the login screen.
+- Sign in as GM, generate an invitation with **no display-name input**.
+  Use the copy icon to copy the **player-facing message** and verify it
+  contains /join and a one-time code.
+- On /join, first verify the code, then choose the username/password.
+  Confirm the new user remains logged in, and a second redemption fails.
+- Generate a Foundry pairing code and test its copy icon.
+- In Foundry, only **Open Pairing Dialog** should appear in Planner Bridge's
+  module settings (not a separate editable website URL). Test `level.dwank.uk`
+  and `192.168.1.40`: both should normalize to HTTPS URLs automatically;
+  HTTP should work only for localhost/127.0.0.1. Invalid inputs should
+  produce actionable notifications and must not persist.
+- Foundry v14 native DialogV2 behavior, reverse-proxy HTTPS connectivity,
+  and real-world import still require manual verification; GitHub CI exercises
+  JS syntax, URL parsing and backend smoke tests, not Foundry UI rendering.

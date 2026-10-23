@@ -86,3 +86,7 @@ Foundry **Game Settings → Configure Settings → PF2e Planner Bridge → Open 
 
 ### v0.2.3 usability fixes
 The GM dashboard can generate an invitation without pre-selecting the player's name, copy the player-facing invitation, and copy pairing codes. Invitation validation is separate from password creation. Normal players do not lose their login session when the GM-only roster endpoint rejects their access. The Foundry Bridge has one visible **Open Pairing Dialog** settings control; URL inputs accept domains/IPs with automatic HTTPS default and actionable validation errors.
+
+### Player-facing invitation flow (v0.2.3)
+
+GM chooses a campaign and clicks **Generate invitation**, no player display name needed. The one-time code appears in a formatted message addressed to the player, with a copy-to-clipboard icon. On `/join`, the player validates the code before username/password are requested. There is also a copy icon for Foundry pairing codes. Normal player sessions are not invalidated by the GM-only roster API.
