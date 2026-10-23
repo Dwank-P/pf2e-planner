@@ -19,8 +19,8 @@ export async function POST(event) {
       const row=sql.prepare(`UPDATE invitations SET consumed_at=? WHERE id=? AND consumed_at IS NULL AND expires_at>?`)
         .run(unix(),invite.id,unix());
       if (!row.changes) problem(400,'invalid_or_expired_code');
-      const activated=sql.prepare("UPDATE users SET username=?,password_hash=?,status='active' WHERE id=? AND status='pending'")
-        .run(username,hashed,invite.user_id);
+      const activated=sql.prepare("UPDATE users SET username=?,display_name=?,password_hash=?,status='active' WHERE id=? AND status='pending'")
+        .run(username,username,hashed,invite.user_id);
       if (!activated.changes) problem(400,'invalid_or_expired_code');
     });
   } catch (err) {

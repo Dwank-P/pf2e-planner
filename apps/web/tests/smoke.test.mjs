@@ -47,7 +47,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.2.2');
+    assert.equal(health.body.version,'0.2.3');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -56,7 +56,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.2.2');
+    assert.equal(check.body.version,'0.2.3');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -90,18 +90,32 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(reusedPair.status,400);
 
     const newPlayer=await send('/api/v1/campaigns/'+campaignId+'/members',
-      {displayName:'New Player'},ownerCookie);
+      {},ownerCookie);
     assert.equal(newPlayer.status,201,JSON.stringify(newPlayer));
     assert.ok(newPlayer.body.inviteCode && newPlayer.body.inviteCode.length>=40);
+
+    // Validation must not consume an invitation or require username/password.
+    const invalidCode=await send('/api/v1/join/validate',{code:'invalid-code'});
+    assert.equal(invalidCode.status,400);
+    const validation=await send('/api/v1/join/validate',{code:newPlayer.body.inviteCode});
+    assert.equal(validation.status,200,JSON.stringify(validation));
+    const validationAgain=await send('/api/v1/join/validate',{code:newPlayer.body.inviteCode});
+    assert.equal(validationAgain.status,200);
 
     const activation=await send('/api/v1/join/redeem',{
       code:newPlayer.body.inviteCode,username:'new-player',
       password:'very-long-test-password-123'
     });
     assert.equal(activation.status,201,JSON.stringify(activation));
+    const expiredByRedemption=await send('/api/v1/join/validate',{code:newPlayer.body.inviteCode});
+    assert.equal(expiredByRedemption.status,400);
     const playerCookie=activation.cookie;
     const playerMe=await send('/api/v1/me',undefined,playerCookie,origin,'GET');
     assert.equal(playerMe.status,200,JSON.stringify(playerMe));
+    assert.equal(playerMe.body.user.displayName,'new-player');
+    // The same cookie must work on a separate /me request, as after browser navigation.
+    const playerMeAgain=await send('/api/v1/me',undefined,playerCookie,origin,'GET');
+    assert.equal(playerMeAgain.status,200);
     assert.ok(playerMe.body.campaigns.some(x=>x.id===campaignId));
 
     const reusedInvitation=await send('/api/v1/join/redeem',{
@@ -110,7 +124,7 @@ test('production API: bootstrap → pair world → create player → sync → re
     });
     assert.equal(reusedInvitation.status,400);
 
-    const existingSearch=await send('/api/v1/users?q=New%20Player',undefined,ownerCookie,origin,'GET');
+    const existingSearch=await send('/api/v1/users?q=new-player',undefined,ownerCookie,origin,'GET');
     assert.equal(existingSearch.status,200,JSON.stringify(existingSearch));
     assert.ok(existingSearch.body.users.some(u=>u.username==='new-player'));
     const existingAdd=await send('/api/v1/campaigns/'+campaignId+'/members',

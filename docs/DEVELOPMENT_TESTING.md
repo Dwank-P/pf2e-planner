@@ -108,3 +108,20 @@ DevTools GM console fallback: `PF2ePlannerBridge.openPairingDialog()`,
 `PF2ePlannerBridge.status()`. Never paste or report live pairing codes or
 access/refresh tokens in diagnostic messages. The actual sync remains a limited
 preview; browser/Foundry v14 UI still requires real-world verification.
+
+## I. Simplified invitation flow (v0.2.3)
+
+GM → Campaign → Players → **Generate invite code**: creates a one-use code
+without asking the GM to name the player. The site displays a **player-facing
+invitation message** with join URL and code and a copy button. Never log or
+share the code in a public channel.
+
+Player → /join → **Step 1: enter/validate code** (POST /api/v1/join/validate,
+no consumption). **Step 2: choose username and password** (POST
+/api/v1/join/redeem, consumes exactly once). The chosen username initially
+becomes the user's display name. A validation can expire before step 2, so
+redemption revalidates atomically.
+
+The GM still sees a pending "Invited player" membership until code
+redemption. Previously generated invitations with pending display names remain
+valid. Existing account addition works as before.

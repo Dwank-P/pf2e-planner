@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { db, unix, transaction } from '#lib/server/db.js';
 import { token, digest } from '#lib/server/security.js';
-import { input, respond, sessionUser, ownerOrGm, problem, validateDisplay, throttle } from '#lib/server/api.js';
+import { input, respond, sessionUser, ownerOrGm, problem, throttle } from '#lib/server/api.js';
 
 export function GET(event) {
   const user=sessionUser(event); ownerOrGm(user,event.params.campaignId);
@@ -22,15 +22,15 @@ export async function POST(event) {
       .run(campaignId,existing.id);
     return respond({userId:existing.id,alreadyMember:result.changes===0});
   }
-  const displayName=validateDisplay(body.displayName);
+  // Invite by code only; the player chooses their own identity during activation.
   const userId=randomUUID(), inviteId=randomUUID(), code=token(), expiresAt=unix()+86400;
   transaction(sql=>{
     sql.prepare(`INSERT INTO users(id,display_name,status,site_role,created_at) VALUES(?,?,'pending','user',?)`)
-      .run(userId,displayName,unix());
+      .run(userId,'Invited player',unix());
     sql.prepare("INSERT INTO memberships(campaign_id,user_id,role) VALUES(?,?,'player')").run(campaignId,userId);
     sql.prepare(`INSERT INTO invitations(id,user_id,code_hash,expires_at,created_by) VALUES(?,?,?,?,?)`)
       .run(inviteId,userId,digest(code),expiresAt,actor.id);
   });
   // Sensitive: one-time display, never log / return from any read endpoint.
-  return respond({userId,displayName,inviteCode:code,joinUrl:(process.env.PUBLIC_ORIGIN||'http://localhost:5173')+'/join',expiresAt},201);
+  return respond({userId,inviteCode:code,joinUrl:(process.env.PUBLIC_ORIGIN||'http://localhost:5173')+'/join',expiresAt},201);
 }
