@@ -24,6 +24,9 @@ jobs:
       - name: Build production website
         working-directory: apps/web
         run: npm run build
+      - name: Smoke test production auth, pairing and player onboarding
+        working-directory: apps/web
+        run: npm run smoke
       - name: Validate Foundry JavaScript
         run: |
           for js in apps/foundry-module/scripts/*.mjs; do
