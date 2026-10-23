@@ -64,6 +64,40 @@ async function collectPreview() {
   },classes,feats};
 }
 
+/**
+ * Verify that an HTTPS URL reaches a compatible Planner API. This does not pair
+ * or consume a one-time code and never submits a secret.
+ */
+export async function testWebsite(url) {
+  requireGM();
+  const base = normalizedUrl(url);
+  let response;
+  try {
+    response = await fetch(base + '/api/v1/bridge/status', {
+      method: 'GET', mode: 'cors', cache: 'no-store',
+      credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(10000)
+    });
+  } catch (error) {
+    if (error?.name === 'TimeoutError') {
+      throw Error('Website did not respond within 10 seconds. Check DNS, HTTPS and reverse proxy.');
+    }
+    throw Error('Cannot reach ' + base + ' from this Foundry browser. Check HTTPS certificate, network and CORS.');
+  }
+  if (!response.ok) {
+    throw Error('Website returned HTTP ' + response.status +
+      ' at /api/v1/bridge/status. Confirm both apps are updated to v0.2.2.');
+  }
+  let result;
+  try { result = await response.json(); }
+  catch { throw Error('Website response was not valid JSON. Check the proxy target.'); }
+  if (result?.status !== 'ok' || result?.service !== 'pf2e-planner-web') {
+    throw Error('This address did not respond as a PF2e Planner website.');
+  }
+  ui.notifications.info('PF2e Planner: Website reachable (v' +
+    String(result.version ?? 'unknown') + ').');
+  return { url: base, version: result.version ?? null };
+}
+
 export function status() {
   if (!game.user?.isGM) return { authorized:false };
   return {
@@ -76,7 +110,7 @@ export function status() {
 }
 export async function pairWebsite(url,code) {
   requireGM();
-  const base=normalizedUrl(url);
+  const { url: base } = await testWebsite(url);
   const data=getWorldMetadata();
   const previousUrl=game.settings.get(MODULE_ID,'websiteUrl');
   const previousId=game.settings.get(MODULE_ID,'integrationId');
@@ -130,18 +164,6 @@ export async function syncNow() {
 
 export async function openPairingDialog() {
   requireGM();
-  const current=game.settings.get(MODULE_ID,'websiteUrl')||'';
-  // HTML attribute escaping; the stored website URL is not trusted HTML.
-  const safe=current.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
-  const input=await foundry.applications.api.DialogV2.input({
-    window:{title:'PF2e Planner — Pair World'},
-    content:`<p>Generate a pairing code from the Planner website while signed in as a GM.</p>
-      <div class="form-group"><label>Website URL</label><input type="url" name="website" required
-      placeholder="https://planner.example" value="${safe}" /></div>
-      <div class="form-group"><label>One-time code</label><input type="text" name="code" required autocomplete="off" /></div>`,
-    ok:{label:'Pair world'},rejectClose:false
-  });
-  if (!input) return null;
-  const value=await pairWebsite(String(input.website||''),String(input.code||'').trim());
-  return value;
+  const { PlannerConnectionMenu } = await import('./menu.mjs');
+  return new PlannerConnectionMenu().render({ force: true });
 }

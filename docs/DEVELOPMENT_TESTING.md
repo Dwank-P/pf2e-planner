@@ -87,3 +87,24 @@ then **Pull and redeploy** the stack. Confirm the port is published as
 The IP must exist on the Docker host (`ip -br addr`). Use an appropriate firewall
 and restrict incoming access to the reverse proxy. Keep `PUBLIC_ORIGIN` as
 `https://level.dwank.uk`. No need to expose port 3000 to the public WAN.
+
+## H. Pairing UI introduced in module v0.2.2
+
+The prior module exposed only a **Website URL** setting in the Foundry settings
+dialog. This was not the pairing-code entry point: it never submitted a code,
+so saving the URL alone left `integrationId` empty and the website without campaigns.
+
+In Foundry v14, open **Game Settings → Configure Settings → PF2e Planner Bridge →
+Open Connection Settings**. The new native settings submenu has **Website URL**,
+**One-time pairing code**, **Test Website**, and **Pair & Sync** buttons. Test
+checks `GET /api/v1/bridge/status` with a ten-second timeout, validates the
+returned service identity/version and reports success/failure via Foundry toast.
+Pair checks the endpoint before consuming a code. Existing saved URLs are
+displayed but cannot silently constitute a pairing. The website must also be
+updated to v0.2.2 for the status-check endpoint.
+
+DevTools GM console fallback: `PF2ePlannerBridge.openPairingDialog()`,
+`PF2ePlannerBridge.testWebsite('https://level.dwank.uk')`,
+`PF2ePlannerBridge.status()`. Never paste or report live pairing codes or
+access/refresh tokens in diagnostic messages. The actual sync remains a limited
+preview; browser/Foundry v14 UI still requires real-world verification.

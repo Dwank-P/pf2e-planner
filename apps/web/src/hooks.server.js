@@ -18,7 +18,7 @@ function bridgeCors(event) {
   if (!path.startsWith('/api/v1/bridge/')) return null;
   const origin = event.request.headers.get('origin');
   if (!origin || !candidateOrigin(origin)) return null;
-  if (path === '/api/v1/bridge/pair') return origin;
+  if (path === '/api/v1/bridge/pair' || path === '/api/v1/bridge/status') return origin;
   const id = /^\/api\/v1\/bridge\/([a-f0-9-]{36})\/(refresh|catalog-preview|authorize)$/.exec(path)?.[1];
   if (!id) return null;
   const row = db().prepare('SELECT foundry_origin, revoked_at FROM integrations WHERE id=?').get(id);
@@ -32,7 +32,7 @@ export async function handle({ event, resolve }) {
   if (isBridge && event.request.method === 'OPTIONS') {
     return cors ? new Response(null, { status: 204, headers: {
       'access-control-allow-origin': cors,
-      'access-control-allow-methods': 'POST, OPTIONS',
+      'access-control-allow-methods': 'GET, POST, OPTIONS',
       'access-control-allow-headers': 'authorization, content-type',
       'access-control-max-age': '300', vary: 'Origin'
     } }) : new Response(null, { status: 403 });

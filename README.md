@@ -2,7 +2,7 @@
 
 Private monorepo for a **Docker-hosted Pathfinder 2e / Starfinder 2e character planner** and an independently installable **Foundry VTT v14 bridge module**.
 
-> **Development status: v0.2.1 implementation branch.** Web login/account activation, pairing, GM-client bearer tokens and a **bounded metadata preview** are coded but not yet verified by a complete npm build, container test or real Foundry v14 integration test. This is **not yet ready for public deployment or real character imports**.
+> **Development status: v0.2.2 implementation branch.** Web login/account activation, pairing, GM-client bearer tokens and a **bounded metadata preview** are coded but not yet verified by a complete npm build, container test or real Foundry v14 integration test. This is **not yet ready for public deployment or real character imports**.
 
 ## Two applications, one repository
 
@@ -79,3 +79,7 @@ build timestamp, `PUBLIC_ORIGIN` and *requested* host bind IP. The same version 
 fingerprint are returned by `GET /health`. To verify the **effective Docker port
 binding**, inspect `docker ps` or `docker inspect` on the host. See
 [developer deployment testing](docs/DEVELOPMENT_TESTING.md).
+
+### Connecting a Foundry GM browser (module v0.2.2)
+
+Foundry **Game Settings → Configure Settings → PF2e Planner Bridge → Open Connection Settings** has the website URL field and the **one-time pairing code** field. Click **Test Website** to verify the URL (does not consume the code), then **Pair & Sync**. Merely saving the website URL does not pair a world. The server must also run v0.2.2 for the reachability probe. An unauthorized/no-network request displays a Foundry error notification.
