@@ -42,12 +42,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.3\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.3\.1/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.3.0');
+    assert.equal(health.body.version,'0.3.1');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -56,7 +56,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.3.0');
+    assert.equal(check.body.version,'0.3.1');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -176,7 +176,7 @@ test('production API: bootstrap → pair world → create player → sync → re
 
 
 
-    // v0.3.0 complete staged catalog: explicit variant rules, metadata, html and links.
+    // v0.3.1 complete staged catalog: explicit variant rules, metadata, html and links.
     const importRoute='/api/v1/bridge/'+integrationId+'/catalog-import';
     const variants={
       freeArchetype:true,dualClass:true,ancestralParagon:false,
@@ -255,6 +255,25 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.ok(!detailsOne.body.item.description.includes('<script'));
     assert.ok(!detailsOne.body.item.description.includes('onclick='));
     assert.ok(!detailsOne.body.item.description.includes('<img'));
+    assert.match(detailsOne.body.item.description,/data-pf2e-kind="damage"/);
+    assert.match(detailsOne.body.item.description,/data-pf2e-kind="check"/);
+    assert.match(detailsOne.body.item.description,/data-pf2e-kind="template"/);
+    assert.match(detailsOne.body.item.description,/data-pf2e-action="raise-a-shield"/);
+    assert.match(detailsOne.body.item.description,/data-pf2e-uuid="Compendium.pf2e.conditionitems.Item.Frightened"/);
+    const actionDetail=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-item?slug=raise-a-shield',undefined,playerCookie,origin,'GET');
+    assert.equal(actionDetail.status,200,JSON.stringify(actionDetail));
+    assert.equal(actionDetail.body.item.type,'action');
+    const conditionDetail=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-item?uuid='+encodeURIComponent(entries[3].uuid),
+      undefined,playerCookie,origin,'GET');
+    assert.equal(conditionDetail.status,200,JSON.stringify(conditionDetail));
+    assert.equal(conditionDetail.body.item.type,'condition');
+    const otherPack=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-items?type=feat&pack=battlezoo.options',undefined,playerCookie,origin,'GET');
+    assert.equal(otherPack.status,200);
+    assert.equal(otherPack.body.total,1);
+    assert.equal(otherPack.body.items[0].name,'Battlezoo Test');
 
     const fullDetails=await send('/api/v1/campaigns/'+campaignId+
       '/catalog-details',undefined,ownerCookie,origin,'GET');
