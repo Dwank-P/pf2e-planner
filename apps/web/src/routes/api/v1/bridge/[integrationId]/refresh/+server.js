@@ -10,6 +10,7 @@ export async function POST(event) {
   const origin=event.request.headers.get('origin');
   const hash=digest(body.refreshToken);
   const result=transaction(sql=>{
+    sql.prepare('DELETE FROM bridge_spent_refresh_tokens WHERE expires_at<?').run(unix());
     const credential=sql.prepare(`SELECT bc.*,i.foundry_origin,i.revoked_at AS integration_revoked,i.campaign_id,
        u.status AS user_status,u.site_role,m.role AS member_role
        FROM bridge_credentials bc JOIN integrations i ON i.id=bc.integration_id

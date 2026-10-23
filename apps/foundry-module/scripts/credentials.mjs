@@ -26,9 +26,12 @@ async function perform(url, integrationId, mode, value) {
         : mode === 'delete'
           ? store.delete(key(url,integrationId))
           : store.put(value,key(url,integrationId));
-      request.onsuccess = () => resolve(request.result ?? null);
+      let result;
+      request.onsuccess = () => { result = request.result ?? null; };
       request.onerror = () => reject(request.error);
+      tx.oncomplete = () => resolve(result);
       tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error ?? new Error('Browser token storage transaction aborted'));
     });
   } finally { database.close(); }
 }

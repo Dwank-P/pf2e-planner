@@ -20,6 +20,7 @@ function normalizedUrl(value) {
 async function post(base,path,data,bearer=null) {
   const response=await fetch(base+path,{
     method:'POST',mode:'cors',cache:'no-store',credentials:'omit',redirect:'error',
+    signal: AbortSignal.timeout(30000),
     headers:{'Content-Type':'application/json',...(bearer?{Authorization:'Bearer '+bearer}:{})},
     body:JSON.stringify(data)
   });
