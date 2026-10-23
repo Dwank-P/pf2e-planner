@@ -1,8 +1,8 @@
 {
   "id": "pf2e-planner-bridge",
   "title": "PF2e Planner Bridge",
-  "description": "GM-only diagnostics and future bridge to the self-hosted PF2e Planner.",
-  "version": "0.1.0",
+  "description": "Secure GM pairing and bounded PF2e catalogue preview synchronization to PF2e Planner.",
+  "version": "0.2.0",
   "authors": [
     {
       "name": "Dwank-P"
@@ -11,6 +11,15 @@
   "compatibility": {
     "minimum": "14",
     "verified": "14"
+  },
+  "relationships": {
+    "requires": [
+      {
+        "id": "pf2e-leveler",
+        "type": "module",
+        "manifest": "https://github.com/roi007leaf/pf2e-leveler/releases/latest/download/module.json"
+      }
+    ]
   },
   "esmodules": [
     "scripts/main.mjs"
