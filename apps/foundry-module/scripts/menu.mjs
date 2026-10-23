@@ -1,4 +1,4 @@
-import { pairWebsite, testWebsite } from './sync.mjs';
+import { pairWebsite, testWebsite, syncNow, getPackOptions, getSelectedPacks, savePackSelection } from './sync.mjs';
 import { normalizeWebsiteUrl } from './url.mjs';
 
 const MODULE_ID = 'pf2e-planner-bridge';
@@ -31,6 +31,14 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
   constructor(options = {}) {
     const saved = game.settings.get(MODULE_ID, 'websiteUrl') || '';
     const paired = game.settings.get(MODULE_ID, 'integrationId');
+    const approved = new Set(getSelectedPacks());
+    const packChoices = getPackOptions()
+      .filter(pack => !['pf2e.classes','pf2e.feats-srd'].includes(pack.collection))
+      .map(pack => `<label style="display:block;padding:2px;">
+        <input type="checkbox" class="planner-pack" value="${escapeAttribute(pack.collection)}"
+          ${approved.has(pack.collection) ? 'checked' : ''}/> ${escapeAttribute(pack.label)}
+        <small>(${escapeAttribute(pack.collection)})</small>
+      </label>`).join('');
     const content = `
       <div class="planner-pair-form">
         <p>Get a one-time code from the Planner website's <strong>Generate pairing code</strong> button.</p>
@@ -46,6 +54,20 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
             placeholder="Paste your code here" spellcheck="false" autocapitalize="off" />
         </div>
         <p class="hint">Status: ${paired ? 'World paired — enter a fresh code to authorize this browser.' : 'Not yet paired.'}</p>
+        <details>
+          <summary><strong>Compendium packs to import</strong> (core classes & feats always included)</summary>
+          <p class="hint">Select additional packs only if campaign members are authorized to access their content.
+          Only class and feat Items are imported in this build.</p>
+          <div style="max-height:210px;overflow:auto;padding:5px;">${packChoices}</div>
+        </details>
+        <div class="form-group">
+          <button type="button" id="planner-sync-now" ${paired ? '' : 'disabled'}>
+            <i class="fa-solid fa-arrows-rotate"></i> Sync Now (no code needed)
+          </button>
+          <p id="planner-sync-result" class="hint" role="status">
+            Refresh selected packs and variant rules. Requires this GM browser to be authorized.
+          </p>
+        </div>
         <div class="form-group">
           <button id="planner-test-website" type="button">
             <i class="fa-solid fa-wifi"></i> Test Website
@@ -72,8 +94,9 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
               if (!/^[A-Za-z0-9_-]{40,70}$/.test(code)) {
                 throw Error('Enter a valid one-time pairing code from the Planner website.');
               }
+              await this.#applyPacks();
               const result = await pairWebsite(url, code);
-              ui.notifications.info('PF2e Planner: World paired and preview synchronized.');
+              ui.notifications.info('PF2e Planner: World paired and compendiums imported.');
               return result;
             } catch (error) { notifyError(error); return null; }
           }
@@ -88,6 +111,12 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
    * DialogV2 footer buttons submit and close the dialog, regardless of
    * the callback's return value; this control must not do that.
    */
+  async #applyPacks() {
+    const scope=this.element?.querySelector('.planner-pair-form');
+    const chosen=[...scope.querySelectorAll('.planner-pack:checked')].map(x=>x.value);
+    await savePackSelection(chosen);
+  }
+
   async _onRender(context, options) {
     await super._onRender(context, options);
     const button = this.element?.querySelector('#planner-test-website');
@@ -113,5 +142,26 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
         button.disabled = false;
       }
     });
+
+    // Explicit manual sync is not a DialogV2 submit action: never closes the dialog.
+    const syncButton=this.element?.querySelector('#planner-sync-now');
+    const resultLine=this.element?.querySelector('#planner-sync-result');
+    if(syncButton&&resultLine){
+      syncButton.addEventListener('click',async event=>{
+        event.preventDefault();event.stopPropagation();
+        if(syncButton.disabled)return;
+        syncButton.disabled=true;
+        resultLine.textContent='Saving pack choices and synchronizing…';
+        try{
+          await this.#applyPacks();
+          const result=await syncNow();
+          resultLine.textContent='Sync complete: '+result.accepted+' Items saved.'+
+            ' You can safely close this dialog.';
+        }catch(error){
+          resultLine.textContent='Sync failed: '+(error?.message||String(error));
+          notifyError(error);
+        }finally{syncButton.disabled=false;}
+      });
+    }
   }
 }
