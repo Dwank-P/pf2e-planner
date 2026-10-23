@@ -178,7 +178,7 @@ export async function syncNow({auto=false}={}){
   if(game.system.id!=='pf2e')throw Error('SF2e full compendium import is not yet supported.');
   syncing=true;
   try{
-    const {base,id,auth}=await authorized();
+    let {base,id,auth}=await authorized();
     const packs=getSelectedPacks();
     const available=packs.map(name=>game.packs.get(name)).filter(Boolean);
     const variants=getVariants();
@@ -212,6 +212,9 @@ export async function syncNow({auto=false}={}){
       {packs,variants,sourceVersions:sources,expectedCount:entries.length},
       auth.accessToken);
     for(let offset=0,batchNumber=0;offset<entries.length;offset+=15,batchNumber++){
+      if(auth.accessExpiresAt<Math.floor(Date.now()/1000)+120){
+        auth=(await authorized()).auth;
+      }
       await post(base,'/api/v1/bridge/'+id+'/catalog-import/batch',
         {snapshotId:started.snapshotId,batchNumber,items:entries.slice(offset,offset+15)},
         auth.accessToken);

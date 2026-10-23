@@ -20,6 +20,8 @@ export function GET(event){
   if(level!==null && level!==''){const n=Number(level);if(!Number.isInteger(n)||n<0||n>25)problem(400,'invalid_level');clauses.push('level=?');values.push(n);}
   if(rarity){clauses.push('rarity=?');values.push(rarity);}
   if(pack){clauses.push('pack=?');values.push(pack);}
+  const featType=event.url.searchParams.get('featType')||'';
+  if(featType){clauses.push("json_extract(item_json,'$.metadata.featType')=?");values.push(featType);}
   if(trait){clauses.push('EXISTS(SELECT 1 FROM json_each(traits_json) WHERE value=?)');values.push(trait);}
   const where=clauses.join(' AND ');
   const count=db().prepare('SELECT COUNT(*) AS n FROM catalog_entries WHERE '+where).get(...values).n;

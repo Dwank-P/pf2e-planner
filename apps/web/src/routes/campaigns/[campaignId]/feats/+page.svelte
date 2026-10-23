@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  let campaignId = '';
+  let campaignId = $state('');
   let report = $state(null);
   let feats = $state([]);
   let total = $state(0);
@@ -164,7 +164,7 @@
 
   {#if selected}
     <div class="overlay" role="presentation" onclick={(event)=>{if(event.target===event.currentTarget)close();}}>
-      <article class="detail" role="dialog" aria-modal="true" aria-label={selected.name}>
+      <div class="detail" role="dialog" aria-modal="true" aria-label={selected.name}>
         <div class="detail-nav">
           <button type="button" class="quiet" disabled={!history.length||detailLoading} onclick={back}>← Back</button>
           <button type="button" class="quiet" onclick={close} aria-label="Close feat details">✕ Close</button>
@@ -183,7 +183,7 @@
         <hr/>
         <small>UUID: {selected.uuid}</small>
         <p class="small">Compendium links open other synchronized Items. Foundry rolls, conditions and inline effects are shown as text, not executed.</p>
-      </article>
+      </div>
     </div>
   {/if}
 </main>
