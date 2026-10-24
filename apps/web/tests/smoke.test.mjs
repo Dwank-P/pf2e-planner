@@ -432,6 +432,9 @@ test('production API: bootstrap → pair world → create player → sync → re
         feats:{'class-2':entries[1].uuid,
           'general-3':'Compendium.unselected.feats.Item.Missing'},
         equipment:[entries[4].uuid],
+        abilityBoosts:{'free-1':['str','dex','con','wis']},
+        creationChoices:{subclass:{name:'Test Subclass'},
+          kineticGateMode:'single-gate',skills:['athletics','arcana']},
         modifiers:{str:3,dex:2,con:4,int:0,wis:1,cha:0}
       }
     };
@@ -443,6 +446,9 @@ test('production API: bootstrap → pair world → create player → sync → re
       '/characters/'+imported.body.characterId,undefined,ownerCookie,origin,'GET');
     assert.equal(importedDetails.status,200);
     assert.equal(importedDetails.body.character.name,'Kineticist Test');
+    assert.equal(importedDetails.body.character.build.creationChoices.subclass.name,'Test Subclass');
+    assert.deepEqual(importedDetails.body.character.build.abilityBoosts['free-1'],
+      ['str','dex','con','wis']);
     assert.deepEqual(Object.keys(importedDetails.body.character.build.feats),['class-2']);
     const playerCannotRead=await send('/api/v1/campaigns/'+campaignId+
       '/characters/'+imported.body.characterId,undefined,playerCookie,origin,'GET');
