@@ -1,6 +1,7 @@
 import { getWorldMetadata } from './snapshot.mjs';
 import { credentials } from './credentials.mjs';
 import { normalizeWebsiteUrl } from './url.mjs';
+import { createLevelerProgressions } from './leveler-adapter.mjs';
 
 const MODULE_ID = 'pf2e-planner-bridge';
 const CORE_PACKS = ['pf2e.classes','pf2e.feats-srd'];
@@ -238,15 +239,28 @@ export async function syncNow({auto=false}={}){
         return {skipped:'unchanged'};
     }
     const entries=[];
+    const classDocs=[];
     for(const pack of available){
       ui.notifications.info('PF2e Planner: Reading '+(pack.metadata?.label||pack.collection)+'…');
       const documents=await pack.getDocuments();
       for(const doc of documents){
+        if(doc.type==='class')classDocs.push(doc);
         const entry=exportItem(doc,pack);
         if(entry)entries.push(entry);
       }
       await sleep(0);
     }
+    // Use the installed Leveler to produce class advancement choices.
+    // Do not silently replace Leveler's decisions with hand-coded feat schedules.
+    const progression=await createLevelerProgressions(classDocs,variants);
+    for(const entry of entries) {
+      if(entry.type!=='class')continue;
+      entry.levelerProgression=progression.get(entry.uuid)??null;
+    }
+    if(classDocs.length&&!progression.size)
+      throw Error('PF2e Leveler did not resolve any class progression definitions.');
+    ui.notifications.info('PF2e Planner: Exported Leveler advancement schemas for '+
+      progression.size+' of '+classDocs.length+' imported classes.');
     if(entries.length===0)throw Error('No Items were found in selected packs.');
     if(entries.length>30000)throw Error('More than 30,000 items selected; reduce pack selection.');
     const started=await post(base,'/api/v1/bridge/'+id+'/catalog-import/start',
