@@ -2,6 +2,10 @@
   import {onMount} from 'svelte';
   import ItemInspector from '../../../../../lib/ItemInspector.svelte';
   import ThemePicker from '../../../../../lib/ThemePicker.svelte';
+  import {
+    levelerChoiceSlots, selectedBoosts, setBoost, choiceComplete,
+    isCompletionSlot, SKILL_LABELS
+  } from '../../../../../lib/leveler-progression.js';
   import {checkFeat,checkHeritage,isSpellAvailable,rankChoices,slugOf,abilities as ABILITY_LABELS}
     from '../../../../../lib/eligibility.js';
 
@@ -70,32 +74,17 @@
       .sort((a,b)=>a.eligibility.severity-b.eligibility.severity||a.name.localeCompare(b.name));
     return results.map(item=>({...item,eligibility:{severity:0,reasons:[]}}));
   });
-  const classSlots=$derived(schedules(primary?.metadata?.classFeatLevels,[2,4,6,8,10,12,14,16,18,20]));
-  const skillSlots=$derived(schedules(primary?.metadata?.skillFeatLevels,[2,4,6,8,10,12,14,16,18,20]));
-  const generalSlots=$derived(schedules(primary?.metadata?.generalFeatLevels,[3,7,11,15,19]));
-  const ancestrySlots=[1,5,9,13,17];
-  const slots=$derived.by(()=>{
-    const groups=[];
-    for(let n=1;n<=20;n++){
-      if(ancestrySlots.includes(n))groups.push({key:'ancestry-'+n,kind:'ancestry',label:'Ancestry feat',level:n});
-      if(classSlots.includes(n))groups.push({key:'class-'+n,kind:'class',label:'Class feat',level:n});
-      if(skillSlots.includes(n))groups.push({key:'skill-'+n,kind:'skill',label:'Skill feat',level:n});
-      if(generalSlots.includes(n))groups.push({key:'general-'+n,kind:'general',label:'General feat',level:n});
-      if(freeArchetype && n>=2 && n%2===0)
-        groups.push({key:'archetype-'+n,kind:'archetype',label:'Free Archetype feat',level:n});
-    }
-    return groups;
-  });
+  // The choice schedule is produced by PF2e Leveler's live code inside
+  // Foundry and synchronized as part of each class document.
+  const progression=$derived(levelerChoiceSlots(primary,second,variants));
+  const slots=$derived(progression.slots);
   const visibleSlots=$derived(slots.filter(s=>s.level===viewLevel));
-  const chosenCount=$derived(slots.filter(s=>build.feats?.[s.key]&&s.level<=level).length);
-  const availableCount=$derived(slots.filter(s=>s.level<=level).length);
+  const completionSlots=$derived(slots.filter(s=>s.level<=level&&isCompletionSlot(s)));
+  const chosenCount=$derived(completionSlots.filter(s=>choiceComplete(s,build)).length);
+  const availableCount=$derived(completionSlots.length);
   const availablePacks=$derived((facets?.packs||[]).filter(p=>
     kind==='feat'?!!(catalogue?.sources?.feats||[]).find(f=>f.label===p.label):true));
 
-  function schedules(value,fallback){
-    if(!Array.isArray(value)||!value.length)return fallback;
-    return [...new Set(value.map(Number).filter(n=>Number.isInteger(n)&&n>=1&&n<=20))];
-  }
   const root=$derived('/api/v1/campaigns/'+encodeURIComponent(campaignId));
   function labelFor(uuid){return itemNames[uuid]||'Selected item';}
   async function api(url,body,method='GET'){
@@ -178,8 +167,14 @@
     viewLevel=n;
     mark();
   }
-  function setModifier(stat,value){
-    character.build.modifiers[stat]=Math.max(-5,Math.min(10,Number(value)||0));
+  function chooseAbility(slot,ability){
+    setBoost(character.build,slot.key,ability,slot.count);
+    mark();
+  }
+  function chooseSkill(slot,skill){
+    character.build.skillIncreases??={};
+    if(skill)character.build.skillIncreases[slot.key]=skill;
+    else delete character.build.skillIncreases[slot.key];
     mark();
   }
   function begin(target,slot=null){
@@ -191,6 +186,8 @@
     // Free Archetype feats commonly use the PF2e "class" category, but have
     // the "archetype" trait. Filter by that trait instead of category.
     if(category==='archetype'){category='';trait='archetype';}
+    if(category==='dual-class')category='class';
+    if(category==='mythic'){category='';trait='mythic';}
     if(target==='heritage'&&!ancestryItem)
       pickerWarning='Choose an ancestry first to see compatible heritages.';
     search();
@@ -366,7 +363,7 @@
       <aside class="sidebar">
         <div class="side-heading kicker">Build overview</div>
         <div class="completion">
-          <strong>{chosenCount} <span>/ {availableCount} feat slots</span></strong>
+          <strong>{chosenCount} <span>/ {availableCount} choices</span></strong>
           <div class="bar"><div style:width={(availableCount?Math.round(100*chosenCount/availableCount):0)+'%'}></div></div>
           <small>Choices through level {level}</small>
         </div>
@@ -374,7 +371,7 @@
           <button class:active={tab==='progression'} onclick={()=>{tab='progression';picker=null;}}>◇ Progression</button>
           <button class:active={tab==='equipment'} onclick={()=>{tab='equipment';picker=null;}}>⚒ Equipment</button>
           {#if caster}<button class:active={tab==='spells'} onclick={()=>{tab='spells';picker=null;}}>✧ Spells</button>{/if}
-          <button class:active={tab==='abilities'} onclick={()=>{tab='abilities';picker=null;}}>◈ Attributes</button>
+          <!-- Attribute boosts are now included at their advancement levels alongside feats. -->
           <button class:active={tab==='notes'} onclick={()=>{tab='notes';picker=null;}}>✎ Notes</button>
         </div>
         {#if tab==='progression'}
@@ -385,7 +382,7 @@
                 onclick={()=>{viewLevel=n;picker=null;}}>
                 <span>{String(n).padStart(2,'0')}</span>
                 <span class="dots">{#each slots.filter(s=>s.level===n) as s}
-                  <i class:filled={!!build.feats?.[s.key]}></i>
+                  <i class:filled={choiceComplete(s,build)}></i>
                 {/each}</span>
               </button>
             {/each}
@@ -464,7 +461,8 @@
             {#if pickerError}<p class="banner">{pickerError}</p>{/if}
             {#if pickerWarning}<p class="banner">{pickerWarning}</p>{/if}
             {#if picker.target==='feat'}
-              <p class="muted">Recommended choices appear first. Other choices remain selectable
+              <p class="muted">Initial compatibility hints appear first; full Leveler actor-based prerequisite
+                 verification is not active on the website yet. Other choices remain selectable
                 and are highlighted when prerequisites or class restrictions need review.</p>
             {/if}
             <div class="results">
@@ -478,7 +476,7 @@
                       <small class="eligibility" title={result.eligibility.reasons.join('; ')}>
                         ⚠ {result.eligibility.reasons.join(' · ')}
                       </small>
-                    {:else if picker.target==='feat'}<small class="recommended">✓ No obvious conflicts detected</small>{/if}
+                    {:else if picker.target==='feat'}<small class="recommended">✓ No basic-filter conflict detected (not Leveler-validated)</small>{/if}
                   </div>
                   <div class="result-actions">
                     <button type="button" class="text-button" onclick={()=>inspect(result.uuid)}>Details</button>
@@ -532,6 +530,18 @@
             {/if}
           </section>
           <section>
+            {#if primary}
+              {#if progression.ready}
+                <p class="leveler-source">✦ Advancement schedule from PF2e Leveler
+                  {progression.version||'installed version'}.
+                  Attributes, skill increases and feats share one level track.</p>
+              {:else}
+                <div class="banner" role="status">{progression.error} The older
+                  compendium snapshot doesn't contain Leveler's progression decisions.</div>
+              {/if}
+            {:else}
+              <p class="notice">Select a class to load Leveler's level-by-level advancement choices.</p>
+            {/if}
             <div class="level-header">
               <div><div class="kicker">Advancement</div><h2>Level {viewLevel} choices</h2></div>
               <div class="level-pager">
@@ -545,30 +555,94 @@
             {#if visibleSlots.length}
               <div class="slot-stack">
                 {#each visibleSlots as slot (slot.key)}
-                  <div class="slot-card" class:chosen={!!build.feats?.[slot.key]}
-                    class:incompatible={!!build.feats?.[slot.key]&&selectedIssue(build.feats[slot.key],slot).severity>0}>
-                    <div class="slot-level">{String(slot.level).padStart(2,'0')}</div>
-                    <div class="slot-label">
-                      <span>{slot.label}</span>
-                      <strong>{build.feats?.[slot.key]?labelFor(build.feats[slot.key]):'Choose a feat'}</strong>
-                      {#if build.feats?.[slot.key]&&selectedIssue(build.feats[slot.key],slot).reasons.length}
-                        <small class="eligibility">⚠ {selectedIssue(build.feats[slot.key],slot).reasons.join(' · ')}</small>
-                      {/if}
+                  {#if slot.type==='ability'}
+                    <div class="slot-card boost-card" class:chosen={choiceComplete(slot,build)}>
+                      <div class="slot-level">◈</div>
+                      <div class="boost-content">
+                        <div class="boost-heading">
+                          <div class="slot-label">
+                            <span>{slot.label}</span>
+                            <strong>{selectedBoosts(build,slot.key).length} / {slot.count} selected</strong>
+                          </div>
+                          <small class="muted">Choose {slot.count} different {slot.count===1?'attribute':'attributes'}</small>
+                        </div>
+                        <div class="ability-options" role="group" aria-label={slot.label}>
+                          {#each abilities as [key,label]}
+                            <button type="button" class:active={selectedBoosts(build,slot.key).includes(key)}
+                              aria-pressed={selectedBoosts(build,slot.key).includes(key)}
+                              onclick={()=>chooseAbility(slot,key)}>
+                              <span>{key.toUpperCase()}</span><small>{label}</small>
+                            </button>
+                          {/each}
+                        </div>
+                        {#if slot.level===1}
+                          <small class="muted">Level 1 uses Leveler's character creation boost sources.
+                            Ancestry, background and class constraints need actor-backed validation.</small>
+                        {:else}
+                          <small class="muted">This {slot.count}-boost choice and its level come from PF2e Leveler.</small>
+                        {/if}
+                      </div>
                     </div>
-                    <div class="slot-actions">
-                      {#if build.feats?.[slot.key]}
-                        <button class="text-button" onclick={()=>inspect(build.feats[slot.key])}>View</button>
-                        <button class="text-button" onclick={()=>clearSlot(slot)}>Remove</button>
-                      {/if}
-                      <button class="choose" onclick={()=>begin('feat',slot)}> {build.feats?.[slot.key]?'Change':'Choose'} →</button>
+                  {:else if slot.type==='skill'}
+                    <div class="slot-card" class:chosen={choiceComplete(slot,build)}>
+                      <div class="slot-level">◆</div>
+                      <div class="slot-label"><span>{slot.label}</span>
+                        <strong>{SKILL_LABELS[build.skillIncreases?.[slot.key]]||'Choose skill to increase'}</strong>
+                      </div>
+                      <label class="skill-choice">Skill
+                        <select value={build.skillIncreases?.[slot.key]||''}
+                          onchange={e=>chooseSkill(slot,e.currentTarget.value)}>
+                          <option value="">Choose a skill…</option>
+                          {#each Object.entries(SKILL_LABELS).filter(([key])=>!slot.allowedSkills?.length||slot.allowedSkills.includes(key)) as [key,label]}
+                            <option value={key}>{label}</option>
+                          {/each}
+                        </select>
+                      </label>
                     </div>
-                  </div>
+                  {:else if slot.type==='feat'}
+                    <div class="slot-card" class:chosen={!!build.feats?.[slot.key]}
+                      class:incompatible={!!build.feats?.[slot.key]&&selectedIssue(build.feats[slot.key],slot).severity>0}>
+                      <div class="slot-level">{String(slot.level).padStart(2,'0')}</div>
+                      <div class="slot-label">
+                        <span>{slot.label}</span>
+                        <strong>{build.feats?.[slot.key]?labelFor(build.feats[slot.key]):'Choose a feat'}</strong>
+                        {#if build.feats?.[slot.key]&&selectedIssue(build.feats[slot.key],slot).reasons.length}
+                          <small class="eligibility">⚠ {selectedIssue(build.feats[slot.key],slot).reasons.join(' · ')}</small>
+                        {/if}
+                      </div>
+                      <div class="slot-actions">
+                        {#if build.feats?.[slot.key]}
+                          <button class="text-button" onclick={()=>inspect(build.feats[slot.key])}>View</button>
+                          <button class="text-button" onclick={()=>clearSlot(slot)}>Remove</button>
+                        {/if}
+                        <button class="choose" onclick={()=>begin('feat',slot)}> {build.feats?.[slot.key]?'Change':'Choose'} →</button>
+                      </div>
+                    </div>
+                  {:else if slot.type==='spells'}
+                    <div class="slot-card">
+                      <div class="slot-level">✧</div>
+                      <div class="slot-label"><span>{slot.label}</span>
+                        <strong>Spellcasting choices available</strong>
+                        <small class="muted">Leveler reports a spellcasting progression step.</small>
+                      </div>
+                      <button class="choose" onclick={()=>tab='spells'}>Browse spells →</button>
+                    </div>
+                  {:else}
+                    <div class="slot-card">
+                      <div class="slot-level">✧</div>
+                      <div class="slot-label"><span>{slot.label}</span>
+                        <strong>Requires a Foundry actor to calculate</strong>
+                      </div>
+                    </div>
+                  {/if}
                 {/each}
               </div>
             {:else}
-              <div class="empty-result">No feat-selection slots are scheduled at this level from the available progression data.</div>
+              <div class="empty-result">No progression choices at this level in the synchronized Leveler plan.</div>
             {/if}
-            <div class="notice subtle">Slots are derived from imported class progression where available. Prerequisites, class-specific exceptions and dual-class interactions are not fully enforced yet.</div>
+            <div class="notice subtle">The advancement slots are exported from Leveler's actual progression logic.
+              Complete prerequisite evaluation, proficiency ranks and boost legality still require a Leveler
+              build-state calculation with a Foundry actor. Invalid choices remain visible for planning.</div>
           </section>
         {:else if tab==='spells'}
           <section>
@@ -616,19 +690,6 @@
                 </div>
               {:else}
                 <div class="empty-result">No equipment selected yet.</div>
-              {/each}
-            </div>
-          </section>
-        {:else if tab==='abilities'}
-          <section>
-            <div class="panel-title"><div class="kicker">Attributes</div><h2>Ability modifiers</h2>
-              <p class="muted">Edit modifiers for planning. Automatic boost allocation, proficiencies and derived combat statistics will follow in a later rules-engine release.</p></div>
-            <div class="ability-grid">
-              {#each abilities as [key,label]}
-                <label class="ability-card"><span>{label}</span>
-                  <input type="number" min="-5" max="10" value={build.modifiers?.[key]??0}
-                    onchange={e=>setModifier(key,e.currentTarget.value)}/>
-                </label>
               {/each}
             </div>
           </section>
@@ -767,4 +828,21 @@
     .slot-card,.result-row{flex-wrap:wrap}.slot-actions,.result-actions{margin-left:auto}
     .filters .wide{grid-column:span 1}
   }
+  .leveler-source{padding:.7rem 1rem;border-left:3px solid var(--accent);
+    background:var(--accent-bg);color:var(--text);font-size:.79rem;border-radius:8px;margin:0 0 1.2rem}
+  .boost-card{align-items:flex-start}
+  .boost-content{flex:1;min-width:0}
+  .boost-heading{display:flex;justify-content:space-between;align-items:center;gap:.7rem;flex-wrap:wrap}
+  .ability-options{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));
+    gap:.38rem;margin:.85rem 0 .55rem}
+  .ability-options button{background:var(--surface-hover);border:1px solid var(--line);
+    border-radius:9px;color:var(--text);display:grid;justify-items:center;
+    gap:1px;padding:.5rem .3rem;min-width:0}
+  .ability-options button.active{background:var(--accent-bg);border-color:var(--accent);
+    color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+  .ability-options button span{font-weight:800;font-size:.85rem}
+  .ability-options button small{font-size:.65rem;opacity:.8;overflow:hidden;text-overflow:ellipsis}
+  .skill-choice{font-size:.72rem;color:var(--muted);min-width:180px}
+  .skill-choice select{display:block;width:100%;margin-top:.25rem;background:var(--surface-hover)}
+  @media(max-width:620px){.ability-options{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>
