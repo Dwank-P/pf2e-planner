@@ -31,14 +31,8 @@ const extraKey=s=>String(s??'').trim().toLowerCase()
 
 export function levelerChoiceSlots(primary,secondary=null,variants={}) {
   const data=primary?.metadata?.levelerProgression;
-  if(data?.provider!=='pf2e-leveler'||!data.levels) {
-    return {ready:false,source:'none',slots:[],error:'Sync the Foundry world again to import PF2e Leveler advancement choices.'};
-  }
-  const secondData=secondary?.metadata?.levelerProgression;
-  const dual=variants.dualClass===true&&secondData?.provider==='pf2e-leveler';
-  const slots=[
-    // Leveler's character creation wizard handles level-one origin boosts
-    // independently from its level-up model (levels 2-20).
+  const creation=[
+    // Level-one options remain available even before the class is selected.
     {key:'ancestry-1',type:'feat',kind:'ancestry',label:'Ancestry feat',level:1,source:'creation'},
     ...[
       ['ancestry','Ancestry boosts',2],
@@ -47,8 +41,17 @@ export function levelerChoiceSlots(primary,secondary=null,variants={}) {
       ['free','Free boosts',4]
     ].map(([source,label,count])=>({
       key:source+'-1',type:'ability',kind:'abilityBoosts',label,level:1,count,source:'creation'
-    }))
+    })),
+    ...(data?.spellcasting?[{key:'spells-1',type:'spells',kind:'spells',
+      label:'Starting spells',level:1,source:'creation'}]:[])
   ];
+  if(data?.provider!=='pf2e-leveler'||!data.levels) {
+    return {ready:false,source:'creation-only',slots:creation,
+      error:'Select a class, then synchronize Leveler progression from Foundry to unlock levels 2–20.'};
+  }
+  const secondData=secondary?.metadata?.levelerProgression;
+  const dual=variants.dualClass===true&&secondData?.provider==='pf2e-leveler';
+  const slots=[...creation];
   for(let level=2;level<=20;level++){
     const primaryChoices=data.levels[level]??data.levels[String(level)]??[];
     const secondaryChoices=dual?(secondData.levels[level]??[]):[];
