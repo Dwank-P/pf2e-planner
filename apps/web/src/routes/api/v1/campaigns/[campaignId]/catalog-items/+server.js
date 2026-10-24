@@ -29,10 +29,78 @@ export function GET(event){
   const featType=event.url.searchParams.get('featType')||'';
   if(featType){clauses.push("json_extract(item_json,'$.metadata.featType')=?");values.push(featType);}
   if(trait){clauses.push('EXISTS(SELECT 1 FROM json_each(traits_json) WHERE value=?)');values.push(trait);}
+
+  const ancestryUuid=event.url.searchParams.get('ancestryUuid')||'';
+  const ancestrySlug=event.url.searchParams.get('ancestrySlug')||'';
+  if(type==='heritage'&&ancestryUuid){
+    if(!/^Compendium\\.[\\w-]+\\.[\\w-]+\\.Item\\.[\\w-]+$/.test(ancestryUuid))
+      problem(400,'invalid_ancestry_reference');
+    const showAll=event.url.searchParams.get('showAll')==='true';
+    if(!showAll){
+      clauses.push(`(json_extract(item_json,'$.metadata.ancestryUuid')=?
+        OR json_extract(item_json,'$.metadata.ancestrySlug')=?
+        OR json_extract(item_json,'$.metadata.versatile')=1
+        OR (json_extract(item_json,'$.metadata.ancestryUuid') IS NULL
+           AND json_extract(item_json,'$.metadata.ancestrySlug') IS NULL))`);
+      values.push(ancestryUuid,ancestrySlug.slice(0,100));
+    }
+  }
+  const bgBoosts=event.url.searchParams.get('bgBoosts')||'';
+  if(type==='background'&&bgBoosts){
+    const boosts=bgBoosts.split(',').filter(Boolean);
+    if(!boosts.length||!boosts.every(x=>/^(str|dex|con|int|wis|cha)$/.test(x)))
+      problem(400,'invalid_background_boosts');
+    clauses.push(`EXISTS(
+       SELECT 1 FROM json_each(item_json,'$.metadata.boostChoices') groups
+       JOIN json_each(groups.value) boost ON 1=1
+       WHERE json_array_length(groups.value)<6 AND boost.value IN (${boosts.map(()=>'?').join(',')})
+    )`);
+    values.push(...boosts);
+  }
+  const bgSkill=(event.url.searchParams.get('bgSkill')||'').trim().toLowerCase().slice(0,50);
+  if(type==='background'&&bgSkill){
+    clauses.push(`(EXISTS(SELECT 1 FROM json_each(item_json,'$.metadata.trainedSkills')
+      WHERE LOWER(value) LIKE ?)
+      OR EXISTS(SELECT 1 FROM json_each(item_json,'$.metadata.loreSkills')
+      WHERE LOWER(value) LIKE ?))`);
+    values.push('%'+bgSkill+'%','%'+bgSkill+'%');
+  }
+  const bgFeat=(event.url.searchParams.get('bgFeat')||'').trim().toLowerCase().slice(0,65);
+  if(type==='background'&&bgFeat){
+    clauses.push(`EXISTS(SELECT 1 FROM json_each(item_json,'$.metadata.grantedFeats')
+      WHERE LOWER(value) LIKE ?)`);
+    values.push('%'+bgFeat+'%');
+  }
+  const tradition=event.url.searchParams.get('tradition')||'';
+  if(type==='spell'&&tradition){
+    if(!/^(arcane|divine|primal|occult)$/.test(tradition))problem(400,'invalid_spell_tradition');
+    clauses.push(`EXISTS(SELECT 1 FROM json_each(item_json,'$.metadata.spellTraditions')
+      WHERE value=?)`);
+    values.push(tradition);
+  }
+  const maxRank=event.url.searchParams.get('maxRank');
+  if(type==='spell'&&maxRank!==null){
+    const n=Number(maxRank);
+    if(!Number.isInteger(n)||n<0||n>10)problem(400,'invalid_spell_rank');
+    clauses.push('(level<=? OR EXISTS(SELECT 1 FROM json_each(traits_json) WHERE value=\'cantrip\'))');
+    values.push(n);
+  }
+  const classTrait=event.url.searchParams.get('classTrait')||'';
+  if(classTrait && !/^[a-z][a-z0-9-]{0,60}$/.test(classTrait))problem(400,'invalid_class_trait');
+
   const where=clauses.join(' AND ');
   const count=db().prepare('SELECT COUNT(*) AS n FROM catalog_entries WHERE '+where).get(...values).n;
-  const rows=db().prepare(`SELECT uuid,name,level,rarity,traits_json,pack FROM catalog_entries
-    WHERE ${where} ORDER BY level,name COLLATE NOCASE LIMIT 50 OFFSET ?`)
-    .all(...values,(page-1)*50).map(row=>({...row,traits:JSON.parse(row.traits_json)}));
+  // Where possible, list relevant class/ancestry feats ahead of unrelated
+  // options without hiding those others; they remain selectable with warnings.
+  const sort=`ORDER BY ${classTrait&&type==='feat'?
+    `CASE WHEN EXISTS(SELECT 1 FROM json_each(traits_json) WHERE value='${classTrait}') THEN 0 ELSE 1 END,`:
+    ''} level,name COLLATE NOCASE`;
+  const rows=db().prepare(`SELECT uuid,name,level,rarity,traits_json,pack,item_json
+    FROM catalog_entries WHERE ${where} ${sort} LIMIT 50 OFFSET ?`)
+    .all(...values,(page-1)*50).map(row=>{
+      const item=JSON.parse(row.item_json);
+      return {uuid:row.uuid,name:row.name,level:row.level,rarity:row.rarity,
+        pack:row.pack,traits:JSON.parse(row.traits_json),metadata:item.metadata};
+    });
   return respond({items:rows,total:count,page,pageSize:50,pages:Math.ceil(count/50)});
 }
