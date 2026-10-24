@@ -1,6 +1,6 @@
 import { getWorldMetadata, previewItemPack } from './snapshot.mjs';
 import { openPairingDialog, pairWebsite, testWebsite, syncNow, status } from './sync.mjs';
-import { PlannerConnectionMenu } from './menu.mjs';
+import { PlannerConnectionMenu, PlannerSyncMenu, PlannerPackMenu } from './menu.mjs';
 
 const MODULE_ID = 'pf2e-planner-bridge';
 
@@ -17,16 +17,27 @@ Hooks.once('init', () => {
   });
   game.settings.register(MODULE_ID, 'syncedPacks', {
     name: 'Selected additional compendium packs',
-    hint: 'JSON list of GM-approved world Item compendiums; managed in the pairing dialog.',
+    hint: 'Selected Item pack collections; managed under Select Compendium Collections.',
     scope:'world',config:false,type:String,default:'[]'
   });
   game.settings.registerMenu(MODULE_ID, 'connection', {
-    name: 'Website Connection & Pairing',
-    label: 'Open Pairing Dialog',
-    hint: 'The only connection control: enter a URL or IP, test reachability, and pair the world.',
+    name: 'Pair World',
+    label: 'Pair World',
+    hint: 'Enter a website URL and one-time pairing code; tests stay open.',
     icon: 'fa-solid fa-link',
     type: PlannerConnectionMenu,
     restricted: true
+  });
+  game.settings.registerMenu(MODULE_ID, 'sync', {
+    name:'Sync Now', label:'Sync Now',
+    hint:'Manually import saved selected compendium collections without pairing again.',
+    icon:'fa-solid fa-arrows-rotate',
+    type:PlannerSyncMenu, restricted:true
+  });
+  game.settings.registerMenu(MODULE_ID, 'packs', {
+    name:'Select Compendiums',label:'Select Compendium Collections',
+    hint:'Search and select whole Foundry content collections. Official PF2e is included.',
+    icon:'fa-solid fa-book-open',type:PlannerPackMenu,restricted:true
   });
 });
 
@@ -38,7 +49,7 @@ Hooks.once('ready', () => {
   });
   console.info('[PF2e Planner Bridge] v' +
     game.modules.get(MODULE_ID)?.version +
-    ' — Open Configure Settings → PF2e Planner Bridge → Open Pairing Dialog.');
+    ' — Open Configure Settings → PF2e Planner Bridge → Pair World / Select Compendiums / Sync Now.');
 
   if (game.users.activeGM?.id === game.user.id) {
     setTimeout(() => syncNow({auto:true}).catch(error => {
