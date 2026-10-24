@@ -1,6 +1,8 @@
 import { getWorldMetadata, previewItemPack } from './snapshot.mjs';
 import { openPairingDialog, pairWebsite, testWebsite, syncNow, status } from './sync.mjs';
 import { PlannerConnectionMenu, PlannerSyncMenu, PlannerPackMenu } from './menu.mjs';
+import {registerLevelerButtons} from './actor-menu.mjs';
+import {refreshLevelerPacks} from './sync.mjs';
 
 const MODULE_ID = 'pf2e-planner-bridge';
 
@@ -47,6 +49,9 @@ Hooks.once('ready', () => {
     getWorldMetadata, previewItemPack, openPairingDialog,
     pairWebsite, testWebsite, syncNow, status
   });
+  registerLevelerButtons();
+  refreshLevelerPacks().catch(error=>
+    console.warn('[PF2e Planner Bridge] Leveler catalog selection:',error.message));
   console.info('[PF2e Planner Bridge] v' +
     game.modules.get(MODULE_ID)?.version +
     ' — Open Configure Settings → PF2e Planner Bridge → Pair World / Select Compendiums / Sync Now.');
