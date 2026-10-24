@@ -272,3 +272,34 @@ re-sync the site cannot know an imported heritage's source ancestry.
 7. Confirm selected spells outside the imported catalogue still fail backend
    reference validation. Automatic repertoire limits and every prerequisite
    are not enforced yet.
+
+## N. v0.5.0 — Leveler-powered progression smoke
+
+1. Update both Docker site and Foundry module to **v0.5.0**. Keep existing
+   website database and pairing; no character migration/drop is needed.
+2. In Foundry configure the campaign's Free Archetype, Dual Class,
+   Gradual Ability Boosts or other variants, then use **Sync Now**.
+   The module should report how many Leveler class advancement schedules
+   were exported. If Leveler changed its internal module layout, the bridge
+   should fail with an actionable error rather than fabricate progression.
+3. Open a class's synced item detail in the API or character workshop.
+   Its metadata should include `levelerProgression.provider =
+   "pf2e-leveler"`, version, and `levels` choice arrays.
+4. In the character's **Progression** tab, choose level 1 and confirm
+   Ancestry, Background, Class and Free ability boosts are interleaved
+   with the ancestry feat. There must be NO separate Attributes tab.
+5. Levels 5/10/15/20 should use Leveler Boost choices; under gradual
+   boosts the class's Leveler schedule should instead distribute them.
+   Dual Class, Free Archetype and Mythic slots must match Leveler results
+   exported at synchronization time.
+6. Save and reload, confirm planned boosts, skill increases and feat
+   selections persist. Spellcasters should show Leveler spell-rank slot
+   progression where the class definition provides it.
+7. Verify advanced prerequisites, skill rank maximums and Level 1
+   source-boost legality are labeled as **not yet actor-validated**.
+   The website must not represent heuristic results as Leveler's own
+   prerequisite decisions.
+
+CI can test the pure website projection and persisted model, but cannot
+test Foundry's live module imports without a Foundry v14 world and the
+actual installed PF2e Leveler modules.

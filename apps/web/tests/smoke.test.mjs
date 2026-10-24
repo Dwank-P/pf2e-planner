@@ -47,7 +47,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.4.1');
+    assert.equal(health.body.version,'0.5.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -56,7 +56,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.4.1');
+    assert.equal(check.body.version,'0.5.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -176,7 +176,7 @@ test('production API: bootstrap → pair world → create player → sync → re
 
 
 
-    // v0.4.1 complete staged catalog: explicit variant rules, metadata, html and links.
+    // v0.5.0 complete staged catalog: explicit variant rules, metadata, html and links.
     const importRoute='/api/v1/bridge/'+integrationId+'/catalog-import';
     const variants={
       freeArchetype:true,dualClass:true,ancestralParagon:false,

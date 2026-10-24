@@ -138,3 +138,30 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
   dedication lockouts, class-specific feat requirements and feature gates.
 - [ ] Full class-specific spell-slot table, focus spell pools, prepared casting,
   signature spells and automatic bonus progression.
+
+## v0.5.0 — Refactor around Leveler
+
+- [x] Inspect PF2e Leveler upstream `classes/progression.js`,
+  `classes/registry.js`, `classes/ensure.js`, `plan/build-state.js`,
+  `plan/plan-validator.js` and `creation/creation-model.js`.
+- [x] Dynamically import installed Leveler's real `ClassRegistry`,
+  `ensureClassItemRegistered` and `getChoicesForLevel` **inside Foundry**;
+  serialize progression by class and level at sync time.
+- [x] Retain Leveler's world variant scheduling, including
+  Free Archetype, Dual Class, Ancestral Paragon, Mythic, gradual boosts,
+  skill increases, spellcasting and ABP.
+- [x] Website uses Leveler-imported slots instead of fabricated periodic
+  default schedules. Existing old import clearly prompts GM for re-sync.
+- [x] Integrate Level 1 boost sources + per-level attribute choices into
+  the same flow as feats; persist boosts and skill increases, not merely
+  editable raw ability modifiers.
+- [x] Read spell ranks/slots from Leveler's class spellcasting definition
+  where available.
+- [x] Regression-test exported progression metadata, ability boosts,
+  dual-class options and skill increases.
+- [ ] Connect Leveler's actor-dependent `computeBuildState`,
+  `checkPrerequisites`, `validatePlan`, class creation handlers and
+  item/feat grant application through an authorized Foundry-side validation
+  service. Do not claim full rule parity before this is operational.
+- [ ] Manual Foundry integration check for current installed Leveler version,
+  selected third-party class packs and existing characters.

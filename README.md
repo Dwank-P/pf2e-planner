@@ -191,3 +191,30 @@ Group selections are saved separately from manual sync.
   **Sync Now** after updating the Foundry Bridge, because existing catalogue
   snapshots from v0.4.0 **do not contain** heritage ancestry, background
   boosts, class saves/spellcasting or spell tradition fields.
+
+## v0.5.0 — PF2e Leveler advancement integration
+
+The Planner Bridge now imports the **real code of the installed** PF2e Leveler
+at runtime, calling its `ClassRegistry` and `getChoicesForLevel()`. At sync
+time, each imported class gets a `levelerProgression` metadata object with
+the actual level-2–20 options for the Foundry campaign's active variant rules,
+including Ability Boosts, Skill Increases, Class/Skill/General/Ancestry feats,
+Free Archetype, Dual Class, Mythic, ABP and spellcasting. Class key abilities
+and Leveler's per-level spell slots are included.
+
+On the website, **attributes are not a separate tab**. Level 1 source boosts
+and later Leveler-derived ability boosts appear in the SAME progression list as
+feats, skill increases and spellcasting steps. Planned boost allocations are
+saved to the player's character in SQLite. Old characters are preserved, but
+Leveler choices will not appear until the GM performs **Sync Now** with the new
+Foundry Bridge.
+
+This is a compatibility adapter rather than a duplicate PF2e rules engine:
+the Foundry Bridge relies on Leveler's installed code, while the website
+renders its serialized advancement choices. Full prerequisites and derived
+build state still require the character's Foundry actor and a later
+actor-backed validation integration; the Planner does not claim to have
+ported `computeBuildState()` or `validatePlan()` to a Node web server.
+Existing browser-side eligibility messages remain advisory only. Some
+advanced first-level ability boosts and skill rank restrictions cannot be
+validated without actor context.
