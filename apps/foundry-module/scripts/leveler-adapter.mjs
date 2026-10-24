@@ -97,3 +97,35 @@ export async function createLevelerProgressions(classDocs,variants){
   }
   return schema;
 }
+
+/**
+ * Leveler's own Compendium Manager decides which packs contain the available
+ * character options. A selected pack is not inferred from package activation.
+ * The caller may opt into additional packs explicitly through Planner settings.
+ */
+export async function getLevelerCatalogPacks() {
+  if(!game.modules.get('pf2e-leveler')?.active)
+    throw Error('PF2e Leveler is not active.');
+  const catalog=await import(LEVELER_ROOT+'/compendiums/catalog.js');
+  const categories=catalog.getCompendiumCategoryKeys();
+  const selected=new Set();
+  for(const category of categories){
+    for(const key of catalog.getCompendiumKeysForCategory(category))
+      if(typeof key==='string'&&game.packs.get(key)?.documentName==='Item')
+        selected.add(key);
+  }
+  return [...selected].sort();
+}
+
+/**
+ * Leveler's content guidance is applied at export time, so content
+ * explicitly marked disallowed by the GM isn't copied to the website.
+ */
+export async function getLevelerGuidance() {
+  const guidance=await import(LEVELER_ROOT+'/access/content-guidance.js');
+  return document=>{
+    const result=guidance.resolveGuidanceStatus(document);
+    return ['allowed','recommended','not-recommended','disallowed'].includes(result?.status)
+      ? result.status : 'default';
+  };
+}
