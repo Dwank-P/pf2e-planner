@@ -2,6 +2,8 @@
   import {onMount} from 'svelte';
   import ItemInspector from '../../../../../lib/ItemInspector.svelte';
   import ThemePicker from '../../../../../lib/ThemePicker.svelte';
+  import {checkFeat,checkHeritage,isSpellAvailable,rankChoices,slugOf,abilities}
+    from '../../../../../lib/eligibility.js';
 
   let campaignId=$state('');
   let characterId=$state('');
@@ -17,6 +19,15 @@
   let tab=$state('progression');
   let primary=$state(null);
   let second=$state(null);
+  let ancestryItem=$state(null);
+  let heritageItem=$state(null);
+  let detailCache=$state({});
+  let showIncompatible=$state(false);
+  let bgBoosts=$state([]);
+  let bgSkill=$state('');
+  let bgFeat=$state('');
+  let spellRank=$state(0);
+  let pickerWarning=$state('');
   let itemNames=$state({});
   let inspector=$state(null);
   let history=$state([]);
@@ -43,6 +54,22 @@
   const variants=$derived(catalogue?.variants||{});
   const freeArchetype=$derived(variants.freeArchetype===true);
   const dualClass=$derived(variants.dualClass===true);
+  const caster=$derived(Boolean(primary?.metadata?.spellcasting));
+  const spellTradition=$derived(primary?.metadata?.spellTradition||'');
+  const maxSpellRank=$derived(Math.min(10,Math.ceil(level/2)));
+  const spellChoices=$derived((build.spells||{})[spellRank===0?'cantrip':'rank-'+spellRank]||[]);
+  const pickerContext=$derived({
+    classItem:primary,secondClass:second,ancestry:ancestryItem,heritage:heritageItem,
+    slotLevel:picker?.slot?.level||level,slotKind:picker?.slot?.kind||''
+  });
+  const rankedResults=$derived.by(()=>{
+    if(picker?.target==='feat')return rankChoices(results,pickerContext);
+    if(picker?.target==='heritage')return results.map(item=>({...item,eligibility:checkHeritage(item,ancestryItem)}))
+      .sort((a,b)=>a.eligibility.severity-b.eligibility.severity||a.name.localeCompare(b.name));
+    if(picker?.target==='spell')return results.map(item=>({...item,eligibility:isSpellAvailable(item,spellTradition,maxSpellRank)}))
+      .sort((a,b)=>a.eligibility.severity-b.eligibility.severity||a.name.localeCompare(b.name));
+    return results.map(item=>({...item,eligibility:{severity:0,reasons:[]}}));
+  });
   const classSlots=$derived(schedules(primary?.metadata?.classFeatLevels,[2,4,6,8,10,12,14,16,18,20]));
   const skillSlots=$derived(schedules(primary?.metadata?.skillFeatLevels,[2,4,6,8,10,12,14,16,18,20]));
   const generalSlots=$derived(schedules(primary?.metadata?.generalFeatLevels,[3,7,11,15,19]));
@@ -82,7 +109,15 @@
   async function lookup(uuid){
     const result=await api(root+'/catalog-item?uuid='+encodeURIComponent(uuid));
     itemNames={...itemNames,[uuid]:result.item.name};
+    detailCache={...detailCache,[uuid]:result.item};
     return result.item;
+  }
+  async function loadIdentity(){
+    ancestryItem=null;heritageItem=null;
+    try{
+      if(character?.build.ancestryUuid)ancestryItem=await lookup(character.build.ancestryUuid);
+      if(character?.build.heritageUuid)heritageItem=await lookup(character.build.heritageUuid);
+    }catch{notice='Some ancestry or heritage details are not in the current catalog.';}
   }
   async function loadClass(){
     primary=null;second=null;
@@ -104,10 +139,11 @@
         api(root+'/catalog-filters').catch(()=>null)
       ]);
       catalogue=summary;facets=filters;
-      await loadClass();
+      await Promise.all([loadClass(),loadIdentity()]);
       const uuids=[...new Set([
         ...Object.values(build.feats||{}),...(build.equipment||[]),
-        build.ancestryUuid,build.heritageUuid,build.backgroundUuid].filter(Boolean))];
+        build.ancestryUuid,build.heritageUuid,build.backgroundUuid,
+        ...Object.values(build.spells||{}).flat()].filter(Boolean))];
       for(const uuid of uuids.slice(0,110)){
         if(!itemNames[uuid])lookup(uuid).catch(()=>{itemNames={...itemNames,[uuid]:'Unavailable item'};});
       }
@@ -149,11 +185,14 @@
   function begin(target,slot=null){
     picker={target,slot};
     q='';rarity='';pack='';trait='';page=1;onlyLevel=true;
+    showIncompatible=false;bgBoosts=[];bgSkill='';bgFeat='';pickerWarning='';
     kind=target==='equipment'?'equipment':target==='feat'?'feat':target==='secondClass'?'class':target;
     category=slot?.kind||'';
     // Free Archetype feats commonly use the PF2e "class" category, but have
     // the "archetype" trait. Filter by that trait instead of category.
     if(category==='archetype'){category='';trait='archetype';}
+    if(target==='heritage'&&!ancestryItem)
+      pickerWarning='Choose an ancestry first to see compatible heritages.';
     search();
   }
   async function search(){
@@ -168,6 +207,24 @@
       if(trait.trim())params.set('trait',trait.trim().toLowerCase());
       if(kind==='feat' && category)params.set('featType',category);
       if(onlyLevel && kind==='feat')params.set('maxLevel',String(picker.slot?.level||level));
+      if(kind==='feat'&&picker.slot?.kind==='class'&&primary)
+        params.set('classTrait',slugOf(primary));
+      if(kind==='heritage'&&ancestryItem){
+        params.set('ancestryUuid',ancestryItem.uuid);
+        params.set('ancestrySlug',slugOf(ancestryItem));
+        if(showIncompatible)params.set('showAll','true');
+      }
+      if(kind==='background'){
+        if(bgBoosts.length)params.set('bgBoosts',bgBoosts.join(','));
+        if(bgSkill)params.set('bgSkill',bgSkill);
+        if(bgFeat)params.set('bgFeat',bgFeat);
+      }
+      if(kind==='spell'){
+        if(spellTradition)params.set('tradition',spellTradition);
+        // Cantrips are recognized by their cantrip trait, regardless of rank.
+        if(spellRank===0)params.set('trait','cantrip');
+        else params.set('maxRank',String(spellRank));
+      }
       const data=await api(root+'/catalog-items?'+params);
       if(request===searchSeq){results=data.items;count=data.total;pages=data.pages||1;}
     }catch(e){if(request===searchSeq){pickerError=e.message;results=[];}}
@@ -194,21 +251,64 @@
       character.build.feats[picker.slot.key]=result.uuid;
     }else if(target==='equipment'){
       if(!character.build.equipment.includes(result.uuid))character.build.equipment.push(result.uuid);
+    }else if(target==='spell'){
+      character.build.spells||={};
+      const key=spellRank===0?'cantrip':'rank-'+spellRank;
+      character.build.spells[key]||=[];
+      if(!character.build.spells[key].includes(result.uuid))
+        character.build.spells[key].push(result.uuid);
     }else{
       const key=target==='class'?'classUuid':target==='secondClass'?'secondClassUuid':
         target==='ancestry'?'ancestryUuid':target==='heritage'?'heritageUuid':'backgroundUuid';
       character.build[key]=result.uuid;
       if(target==='class'||target==='secondClass')await loadClass();
+      if(target==='ancestry'||target==='heritage')await loadIdentity();
     }
     itemNames={...itemNames,[result.uuid]:result.name};
     mark();
     picker=null;
     inspect(result.uuid);
   }
+  function removeSpell(uuid){
+    const key=spellRank===0?'cantrip':'rank-'+spellRank;
+    character.build.spells[key]=(character.build.spells[key]||[]).filter(x=>x!==uuid);
+    mark();
+  }
+  function toggleBoost(key){
+    bgBoosts=bgBoosts.includes(key)?bgBoosts.filter(x=>x!==key):[...bgBoosts,key];
+    filterChanged();
+  }
+  function selectedIssue(uuid,slot){
+    const item=detailCache[uuid];
+    return item?checkFeat(item,{
+      classItem:primary,secondClass:second,ancestry:ancestryItem,heritage:heritageItem,
+      slotKind:slot.kind,slotLevel:slot.level
+    }):{severity:1,reasons:['Eligibility is not yet confirmed.']};
+  }
+  function classProgression(item){
+    if(!item)return [];
+    const m=item.metadata||{};
+    const text=levels=>{
+      if(!Array.isArray(levels)||!levels.length)return 'Not provided';
+      if(levels.length>=4 && levels.slice(1).every((v,i)=>v-levels[i]===2))
+        return 'Level '+levels[0]+' and every 2 levels';
+      return levels.join(', ');
+    };
+    return [
+      ['Key attribute',(m.keyAbility||[]).map(x=>abilities[x]||x.toUpperCase()).join(' or ')||'Not provided'],
+      ['Class feats',text(m.classFeatLevels)],
+      ['Skill feats',text(m.skillFeatLevels)],
+      ['General feats',text(m.generalFeatLevels)],
+      ['Starting saves',Object.entries(m.savingThrows||{})
+        .map(([k,v])=>k+': '+(['Untrained','Trained','Expert','Master','Legendary'][v]||v)).join(' · ')||'Not provided'],
+      ['Perception',(['Untrained','Trained','Expert','Master','Legendary'][m.perception]||m.perception??'Not provided')]
+    ];
+  }
   function clearSlot(slot){delete character.build.feats[slot.key];mark();}
   function clearIdentity(key){
     character.build[key]=null;
     if(key==='classUuid'||key==='secondClassUuid')loadClass();
+    if(key==='ancestryUuid'||key==='heritageUuid')loadIdentity();
     mark();
   }
   function removeEquipment(uuid){character.build.equipment=character.build.equipment.filter(x=>x!==uuid);mark();}
@@ -274,6 +374,7 @@
         <div class="side-nav">
           <button class:active={tab==='progression'} onclick={()=>{tab='progression';picker=null;}}>◇ Progression</button>
           <button class:active={tab==='equipment'} onclick={()=>{tab='equipment';picker=null;}}>⚒ Equipment</button>
+          {#if caster}<button class:active={tab==='spells'} onclick={()=>{tab='spells';picker=null;}}>✧ Spells</button>{/if}
           <button class:active={tab==='abilities'} onclick={()=>{tab='abilities';picker=null;}}>◈ Attributes</button>
           <button class:active={tab==='notes'} onclick={()=>{tab='notes';picker=null;}}>✎ Notes</button>
         </div>
@@ -313,6 +414,22 @@
               {/if}
               <label class="wide">Search <input placeholder="Name or slug…" type="search"
                 bind:value={q} oninput={searchChanged}/></label>
+              {#if picker.target==='heritage'&&ancestryItem}
+                <label class="toggle"><input type="checkbox" bind:checked={showIncompatible}
+                    onchange={filterChanged}/> Show incompatible heritages</label>
+              {/if}
+              {#if picker.target==='background'}
+                <fieldset class="boost-filter"><legend>Background attribute boost (any selected)</legend>
+                  {#each Object.entries(abilities) as [key,label]}
+                    <button type="button" class:active={bgBoosts.includes(key)}
+                      onclick={()=>toggleBoost(key)}>{label}</button>
+                  {/each}
+                </fieldset>
+                <label>Trained skill<input placeholder="e.g. Society" bind:value={bgSkill}
+                  oninput={searchChanged}/></label>
+                <label>Granted feat<input placeholder="e.g. Battle Medicine" bind:value={bgFeat}
+                  oninput={searchChanged}/></label>
+              {/if}
               {#if picker.target==='feat'}
                 <label>Feat category
                   <select bind:value={category} onchange={filterChanged}>
@@ -346,12 +463,23 @@
             <div class="result-header"><strong>{searching?'Searching…':count+' results'}</strong>
               <button type="button" class="text-button" onclick={()=>{q='';pack='';rarity='';trait='';category='';filterChanged();}}>Clear filters</button></div>
             {#if pickerError}<p class="banner">{pickerError}</p>{/if}
+            {#if pickerWarning}<p class="banner">{pickerWarning}</p>{/if}
+            {#if picker.target==='feat'}
+              <p class="muted">Recommended choices appear first. Other choices remain selectable
+                and are highlighted when prerequisites or class restrictions need review.</p>
+            {/if}
             <div class="results">
-              {#each results as result (result.uuid)}
-                <div class="result-row">
+              {#each rankedResults as result (result.uuid)}
+                <div class="result-row" class:incompatible={result.eligibility.severity===2}
+                  class:review={result.eligibility.severity===1}>
                   <div class="result-copy">
                     <strong>{result.name}</strong>
                     <small>Level {result.level??'—'} · {result.rarity||'common'} · {result.traits?.slice(0,4).join(', ')||'—'}</small>
+                    {#if result.eligibility.reasons?.length}
+                      <small class="eligibility" title={result.eligibility.reasons.join('; ')}>
+                        ⚠ {result.eligibility.reasons.join(' · ')}
+                      </small>
+                    {:else if picker.target==='feat'}<small class="recommended">✓ No obvious conflicts detected</small>{/if}
                   </div>
                   <div class="result-actions">
                     <button type="button" class="text-button" onclick={()=>inspect(result.uuid)}>Details</button>
@@ -376,9 +504,14 @@
               <p class="muted">Start with the essentials. Select an option to inspect its full rules.</p></div>
             <div class="identity-grid">
               {#each identities.filter(x=>x.key!=='secondClassUuid'||dualClass) as identity}
-                <div class="identity-card">
+                <div class="identity-card" class:incompatible={identity.key==='heritageUuid'&&
+                  !!heritageItem&&checkHeritage(heritageItem,ancestryItem).severity===2}>
                   <span>{identity.label}</span>
                   <strong>{build[identity.key]?labelFor(build[identity.key]):'Not selected'}</strong>
+                  {#if identity.key==='heritageUuid'&&heritageItem&&
+                      checkHeritage(heritageItem,ancestryItem).severity>0}
+                    <small class="eligibility">⚠ {checkHeritage(heritageItem,ancestryItem).reasons.join(' ')}</small>
+                  {/if}
                   <div class="card-controls">
                     <button type="button" onclick={()=>begin(identity.type)}> {build[identity.key]?'Change':'Choose'} </button>
                     {#if build[identity.key]}
@@ -389,6 +522,15 @@
                 </div>
               {/each}
             </div>
+            {#if primary}
+              <details class="class-details"><summary>Class advancement & starting proficiencies</summary>
+                <dl>
+                  {#each classProgression(primary) as [label,value]}
+                    <dt>{label}</dt><dd>{value}</dd>
+                  {/each}
+                </dl>
+              </details>
+            {/if}
           </section>
           <section>
             <div class="level-header">
@@ -404,11 +546,15 @@
             {#if visibleSlots.length}
               <div class="slot-stack">
                 {#each visibleSlots as slot (slot.key)}
-                  <div class="slot-card" class:chosen={!!build.feats?.[slot.key]}>
+                  <div class="slot-card" class:chosen={!!build.feats?.[slot.key]}
+                    class:incompatible={!!build.feats?.[slot.key]&&selectedIssue(build.feats[slot.key],slot).severity>0}>
                     <div class="slot-level">{String(slot.level).padStart(2,'0')}</div>
                     <div class="slot-label">
                       <span>{slot.label}</span>
                       <strong>{build.feats?.[slot.key]?labelFor(build.feats[slot.key]):'Choose a feat'}</strong>
+                      {#if build.feats?.[slot.key]&&selectedIssue(build.feats[slot.key],slot).reasons.length}
+                        <small class="eligibility">⚠ {selectedIssue(build.feats[slot.key],slot).reasons.join(' · ')}</small>
+                      {/if}
                     </div>
                     <div class="slot-actions">
                       {#if build.feats?.[slot.key]}
@@ -424,6 +570,38 @@
               <div class="empty-result">No feat-selection slots are scheduled at this level from the available progression data.</div>
             {/if}
             <div class="notice subtle">Slots are derived from imported class progression where available. Prerequisites, class-specific exceptions and dual-class interactions are not fully enforced yet.</div>
+          </section>
+        {:else if tab==='spells'}
+          <section>
+            <div class="panel-title">
+              <div class="kicker">{spellTradition?spellTradition+' tradition':'Spellcasting tradition pending'}</div>
+              <h2>Spell repertoire</h2>
+              <p class="muted">Select spells from imported PF2e spell compendiums.
+                The browser filters your tradition and available ranks.
+                Spell slots, known-spell limits and special focus spell rules
+                still require manual verification.</p>
+            </div>
+            <div class="spell-ranks">
+              {#each Array.from({length:maxSpellRank+1},(_,i)=>i) as n}
+                <button class:active={spellRank===n} onclick={()=>spellRank=n}>
+                  {n===0?'Cantrips':'Rank '+n}</button>
+              {/each}
+            </div>
+            <button class="primary-action" onclick={()=>begin('spell')}>+ Browse
+              {spellRank===0?'cantrips':'rank '+spellRank+' spells'}</button>
+            <div class="slot-stack">
+              {#each spellChoices as uuid}
+                <div class="slot-card">
+                  <div class="slot-level">✧</div><strong>{labelFor(uuid)}</strong>
+                  <div class="slot-actions">
+                    <button class="text-button" onclick={()=>inspect(uuid)}>Details</button>
+                    <button class="text-button" onclick={()=>removeSpell(uuid)}>Remove</button>
+                  </div>
+                </div>
+              {:else}
+                <div class="empty-result">No spells selected for this rank.</div>
+              {/each}
+            </div>
           </section>
         {:else if tab==='equipment'}
           <section>
@@ -465,7 +643,7 @@
           </section>
         {/if}
       </main>
-      <aside class="right-panel">
+      <aside class="right-panel" class:mobile-open={!!inspector} aria-label="Item details panel">
         <ItemInspector item={inspector} {campaignId} {level}
           onOpen={inspectorOpen} onBack={inspectorBack}
           onClose={()=>{inspector=null;history=[];}} canBack={history.length>0}/>
@@ -558,6 +736,22 @@
   @media(max-width:1170px){.workspace{grid-template-columns:190px minmax(0,1fr)}
     .right-panel{grid-column:1/-1;min-height:360px;max-height:620px;border-top:1px solid var(--line)}
     .content{min-height:650px;max-height:calc(100vh - 110px)}}
+  .incompatible{border-color:#d78989!important;background:color-mix(in srgb,var(--danger) 11%,var(--surface))!important}
+  .review{border-color:#b99a67!important;background:color-mix(in srgb,#f3c77b 9%,var(--surface))!important}
+  .eligibility{display:block;color:var(--danger);font-size:.73rem;margin-top:.32rem;line-height:1.4}
+  .recommended{color:var(--good);font-size:.72rem}
+  .boost-filter{display:flex;gap:.35rem;flex-wrap:wrap;grid-column:1/-1;border:1px solid var(--line);
+    border-radius:9px;padding:.75rem}
+  .boost-filter legend{color:var(--muted);font-size:.78rem;font-weight:750}
+  .boost-filter button,.spell-ranks button{border:1px solid var(--line);background:var(--surface-hover);
+    color:var(--text);border-radius:8px;padding:.43rem .65rem;font-size:.75rem}
+  .boost-filter button.active,.spell-ranks button.active{background:var(--accent-bg);border-color:var(--accent);
+    color:var(--accent)}
+  .spell-ranks{display:flex;gap:.4rem;overflow:auto;flex-wrap:wrap;margin:1rem 0}
+  .class-details{margin-top:1rem;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:.8rem 1rem}
+  .class-details summary{cursor:pointer;font-weight:750}
+  .class-details dl{display:grid;grid-template-columns:minmax(110px,.5fr) minmax(0,1fr);gap:.45rem 1rem;font-size:.82rem}
+  .class-details dt{color:var(--muted)}.class-details dd{margin:0}
   @media(max-width:700px){
     .builder-shell{height:auto;min-height:100vh}.builder-header{padding:1rem;gap:.65rem}
     .character-title{order:3;width:100%}.name{width:60%;font-size:1.3rem}
@@ -565,7 +759,12 @@
     .workspace{display:block}.sidebar{max-height:300px;overflow-y:auto;border-right:0;border-bottom:1px solid var(--line)}
     .level-track{grid-template-columns:repeat(10,minmax(0,1fr))}.level-track button{font-size:.7rem;padding:.4rem .2rem;justify-content:center}
     .dots{display:none}.side-heading{display:none}.completion{margin-bottom:.5rem}.side-nav{display:flex;overflow:auto;white-space:nowrap;padding-bottom:.2rem}
-    .content{max-height:none;min-height:unset;padding:1.2rem}.right-panel{height:400px;max-height:none}
+    .content{max-height:none;min-height:unset;padding:1.2rem}
+    .right-panel{display:none}
+    .right-panel.mobile-open{display:block;position:fixed;inset:0;z-index:1400;
+      width:100vw;height:100dvh;max-height:none;overflow:hidden;background:var(--surface-strong);
+      border:0;box-shadow:0 0 0 999px #0009}
+    .right-panel.mobile-open :global(.inspector){height:100dvh}
     .slot-card,.result-row{flex-wrap:wrap}.slot-actions,.result-actions{margin-left:auto}
     .filters .wide{grid-column:span 1}
   }
