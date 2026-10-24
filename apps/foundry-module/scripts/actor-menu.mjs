@@ -1,4 +1,4 @@
-import {importActorToPlanner} from './sync.mjs';
+import {importActorToPlanner,getSiteCharacterOwners} from './sync.mjs';
 const escape=value=>String(value??'').replaceAll('&','&amp;')
   .replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 
@@ -24,6 +24,12 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
         </div>
         <div class="form-group"><label>Character</label>
           <select name="actor" class="planner-actor" style="width:100%;">${list}</select>
+        </div>
+        <div class="form-group"><label>Website character owner</label>
+          <select class="planner-site-owner" style="width:100%" disabled>
+            <option>Loading campaign players…</option>
+          </select>
+          <p class="hint">Choose whose website account can open and edit the imported character.</p>
         </div>
         <label><input type="checkbox" class="planner-overwrite"/> Replace an existing imported
           website build with current Foundry choices</label>
@@ -53,6 +59,24 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
     });
     const button=form.querySelector('.planner-import');
     const status=form.querySelector('.planner-status');
+    const membersSelect=form.querySelector('.planner-site-owner');
+    button.disabled=true;
+    try{
+      const members=await getSiteCharacterOwners();
+      membersSelect.replaceChildren();
+      for(const member of members){
+        const option=document.createElement('option');
+        option.value=member.id;
+        option.textContent=member.displayName+
+          (member.role==='gm'?' (GM)':' (Player)');
+        membersSelect.append(option);
+      }
+      membersSelect.disabled=members.length===0;
+      button.disabled=members.length===0;
+      if(!members.length)status.textContent='No active website accounts available for this campaign.';
+    }catch(error){
+      status.textContent='Cannot load website players: '+(error.message||String(error));
+    }
     button?.addEventListener('click',async event=>{
       event.preventDefault();button.disabled=true;
       try{
@@ -64,7 +88,8 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
         const relevant=this.context?.actor?.id===id?this.context:null;
         const result=await importActorToPlanner(actor,{
           plan:relevant?.plan??null,
-          overwrite:form.querySelector('.planner-overwrite').checked
+          overwrite:form.querySelector('.planner-overwrite').checked,
+          ownerUserId:membersSelect.value
         });
         const reason=result.existing&&!result.updated
           ? 'Existing website build preserved.': 'Character synchronized.';
