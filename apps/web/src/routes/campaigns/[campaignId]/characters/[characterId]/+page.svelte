@@ -222,8 +222,7 @@
       if(kind==='spell'){
         if(spellTradition)params.set('tradition',spellTradition);
         // Cantrips are recognized by their cantrip trait, regardless of rank.
-        if(spellRank===0)params.set('trait','cantrip');
-        else params.set('maxRank',String(spellRank));
+        params.set('spellRank',String(spellRank));
       }
       const data=await api(root+'/catalog-items?'+params);
       if(request===searchSeq){results=data.items;count=data.total;pages=data.pages||1;}
