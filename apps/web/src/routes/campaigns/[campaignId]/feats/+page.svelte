@@ -1,4 +1,6 @@
 <script>
+  import ThemePicker from '../../../../lib/ThemePicker.svelte';
+  import ItemInspector from '../../../../lib/ItemInspector.svelte';
   import { onMount } from 'svelte';
   let campaignId = $state('');
   let report = $state(null);
@@ -18,6 +20,7 @@
   let detailError = $state('');
   let history = $state([]);
   let detailLoading = $state(false);
+  let previewLevel = $state(10);
   let timer;
 
   async function get(path) {
@@ -102,8 +105,14 @@
 
 <svelte:head><title>Feat Compendium Browser — PF2e Planner</title></svelte:head>
 <main>
-  <nav><a href={'/campaigns/'+encodeURIComponent(campaignId)+'/ruleset'}>← Ruleset details</a> <a href="/">Campaigns</a></nav>
+  <nav><a href={'/campaigns/'+encodeURIComponent(campaignId)+'/ruleset'}>← Ruleset details</a>
+    <a href="/">Campaigns</a> <ThemePicker/></nav>
   <h1>Feat Compendium Browser</h1>
+  <label class="preview-level">Preview calculations at level
+    <select bind:value={previewLevel}>
+      {#each Array.from({length:20},(_,i)=>i+1) as n}<option value={n}>{n}</option>{/each}
+    </select>
+  </label>
   <p>Search the feat Items imported from this Foundry world's selected compendiums.</p>
   {#if report?.synced}
     <p class="small">System: <strong>{report.ruleset.systemId} {report.ruleset.systemVersion}</strong> ·
@@ -173,46 +182,31 @@
   </section>
 
   {#if selected}
-    <div class="overlay" role="presentation" onclick={(event)=>{if(event.target===event.currentTarget)close();}}>
+    <div class="overlay" role="presentation" onclick={event=>{if(event.target===event.currentTarget)close();}}>
       <div class="detail" role="dialog" aria-modal="true" aria-label={selected.name}>
-        <div class="detail-nav">
-          <button type="button" class="quiet" disabled={!history.length||detailLoading} onclick={back}>← Back</button>
-          <button type="button" class="quiet" onclick={close} aria-label="Close feat details">✕ Close</button>
-        </div>
-        <h2>{selected.name}</h2>
-        <p><strong>{badge(selected.type).toUpperCase()}</strong> · Level {badge(selected.level)} · {badge(selected.rarity)} ·
-           {selected.pack} · {badge(selected.metadata?.featType)}</p>
-        <div class="traits">{#each selected.traits || [] as t}<span>{t}</span>{/each}</div>
-        {#if selected.metadata?.prerequisites?.length}
-          <p><strong>Prerequisites:</strong> {selected.metadata.prerequisites.join(', ')}</p>
-        {/if}
-        {#if detailError}<p class="error" role="alert">{detailError}</p>{/if}
-        <div class="description" onclick={descriptionClick} role="presentation">
-          {@html selected.description || '<p>No description in imported source.</p>'}
-        </div>
-        <hr/>
-        <small>UUID: {selected.uuid}</small>
-        <p class="small">Compendium references open other synchronized Items. Damage, checks and area templates are visual representations, not rolls or automated effects. Dynamic actor formulas require a character.</p>
+        <ItemInspector item={selected} {campaignId} level={Number(previewLevel)}
+          onOpen={item=>{history=[...history,selected.uuid];selected=item;}}
+          onBack={back} onClose={close} canBack={history.length>0}/>
       </div>
     </div>
   {/if}
 </main>
 <style>
- :global(body){margin:0;background:#101820;color:#eff4f7;font:16px system-ui,sans-serif}
- main{max-width:1150px;margin:auto;padding:2rem}h1{font-size:2.5rem}a{color:#afdafa}nav{display:flex;gap:2rem}
- section{padding:1.2rem;background:#1c2a35;border:1px solid #496070;border-radius:8px;margin:1rem 0}
+ :global(body){margin:0;background:var(--page-bg);color:var(--text);font:16px system-ui,sans-serif}
+ main{max-width:1150px;margin:auto;padding:2rem}h1{font-size:2.5rem}a{color:var(--accent)}nav{display:flex;gap:2rem}
+ section{padding:1.2rem;background:var(--surface);border:1px solid var(--line);border-radius:8px;margin:1rem 0}
  .search{display:flex;flex-wrap:wrap;align-items:end;gap:1rem}
  label{display:block;flex:1 1 145px;font-weight:650}.wide{flex-basis:240px}
- input,select{width:100%;box-sizing:border-box;padding:.7rem;margin-top:.4rem;background:#101c27;color:#fff;border:1px solid #668395;border-radius:4px}
- button{font:inherit;cursor:pointer;border:0;border-radius:5px;padding:.7rem 1rem;background:#b6d6e7;color:#172936}
- button:disabled{opacity:.45;cursor:not-allowed}.quiet{border:1px solid #6d8a9b;background:transparent;color:#eff4f7}
+ input,select{width:100%;box-sizing:border-box;padding:.7rem;margin-top:.4rem;background:var(--page-bg);color:var(--text);border:1px solid var(--line);border-radius:4px}
+ button{font:inherit;cursor:pointer;border:0;border-radius:5px;padding:.7rem 1rem;background:var(--accent);color:var(--button-text)}
+ button:disabled{opacity:.45;cursor:not-allowed}.quiet{border:1px solid var(--line);background:transparent;color:var(--text)}
  .header,.pager{display:flex;justify-content:space-between;align-items:center;gap:1rem}
  .results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem}
- .feat{text-align:left;display:flex;justify-content:space-between;align-items:center;gap:.8rem;background:#2a4050;color:#fff}
- .feat:hover,.feat:focus{background:#3a576b}.feat small,.rank small{display:block;color:#c0cdd5;margin-top:.25rem}
- .rank{text-align:right;white-space:nowrap}.small{font-size:.9rem;color:#bed0dd}.warning{color:#ffcf9a}.error{color:#ffc0c0}
+ .feat{text-align:left;display:flex;justify-content:space-between;align-items:center;gap:.8rem;background:var(--surface-hover);color:var(--text)}
+ .feat:hover,.feat:focus{background:var(--accent-bg)}.feat small,.rank small{display:block;color:var(--muted);margin-top:.25rem}
+ .rank{text-align:right;white-space:nowrap}.small{font-size:.9rem;color:var(--muted)}.warning{color:var(--danger)}.error{color:var(--danger)}
  .pager{margin-top:1.2rem}.overlay{position:fixed;inset:0;background:#070c12c7;display:flex;align-items:center;justify-content:center;padding:1rem;z-index:1000}
- .detail{max-width:800px;width:100%;max-height:85vh;overflow:auto;padding:1.7rem;background:#233543;border:1px solid #81a4b5;border-radius:9px}
+ .detail{max-width:800px;width:100%;height:86vh;overflow:hidden;padding:0;background:var(--surface-strong);border:1px solid var(--line);border-radius:9px}
  .detail-nav{display:flex;justify-content:space-between;gap:1rem}.traits{display:flex;gap:.35rem;flex-wrap:wrap}
  .traits span{padding:.3rem .6rem;border:1px solid #8babbe;border-radius:5px}
  .description{line-height:1.65;overflow-wrap:anywhere}.description :global(a[data-uuid]),.description :global(a[data-pf2e-uuid]){cursor:pointer;color:#80cef7;text-decoration:underline}
@@ -227,4 +221,7 @@
  .description :global(.pf2e-action){color:#8bd0f3;text-decoration:underline;cursor:pointer}
  .description :global(.pf2e-unresolved){border-bottom:1px dashed #aaa;color:#b6c3ca}
  @media(max-width:750px){.results{grid-template-columns:1fr}main{padding:1rem}}
+ .preview-level{display:flex;align-items:center;gap:.7rem;margin:0 0 1rem;color:var(--muted);font-size:.85rem}
+ .preview-level select{width:auto;margin:0;min-width:70px}
+ nav{align-items:center;flex-wrap:wrap}
 </style>

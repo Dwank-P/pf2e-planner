@@ -1,4 +1,5 @@
 <script>
+  import ThemePicker from '../../../../lib/ThemePicker.svelte';
   import { onMount } from 'svelte';
 
   let report = $state(null);
@@ -39,7 +40,7 @@
 
 <svelte:head><title>Ruleset Sync Details — PF2e Planner</title></svelte:head>
 <main>
-  <nav><a href="/">← Back to campaigns</a> <button type="button" onclick={load} disabled={loading}>Refresh report</button></nav>
+  <nav><a href="/">← Back to campaigns</a> <button type="button" onclick={load} disabled={loading}>Refresh report</button> <ThemePicker/></nav>
   <h1>Ruleset &amp; Synchronization</h1>
   <p>Administrator view of what this site's SQLite database actually received from the Foundry bridge.</p>
   {#if loading}
@@ -170,23 +171,23 @@
   {/if}
 </main>
 <style>
-  :global(body){background:#101820;color:#e9f1f5;font:16px system-ui,sans-serif;margin:0}
+  :global(body){background:var(--page-bg);color:var(--text);font:16px system-ui,sans-serif;margin:0}
   main{max-width:1140px;margin:0 auto;padding:2rem}h1{font-size:2.5rem}h2{margin-top:0}
-  section{background:#1e2b36;border:1px solid #415260;border-radius:8px;padding:1.5rem;margin:1.2rem 0;}
+  section{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:1.5rem;margin:1.2rem 0;}
   nav{display:flex;justify-content:space-between;gap:1rem;align-items:center}
-  a{color:#a4d9f6}button{cursor:pointer;background:#bbd8e5;color:#13232c;border:0;border-radius:4px;padding:.6rem .9rem;font:inherit}
+  a{color:var(--accent)}button{cursor:pointer;background:var(--accent);color:var(--button-text);border:0;border-radius:4px;padding:.6rem .9rem;font:inherit}
   button:disabled{opacity:.5}.badges,.chips{display:flex;flex-wrap:wrap;gap:.5rem}
-  .badge,.chip{border:1px solid #648b9d;background:#253f4e;padding:.3rem .65rem;border-radius:4px}
+  .badge,.chip{border:1px solid var(--line);background:var(--accent-bg);padding:.3rem .65rem;border-radius:4px}
   .amber{border-color:#bb9447;color:#ffe1a1;background:#45381f}
   .stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin:1rem 0}
-  .stats>div{padding:1rem;background:#132634;border-radius:6px}.stats strong{display:block;font-size:2rem}
-  .stats span,.muted,small{color:#b3c3cd}.metadata{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.7rem 1rem}
-  dt{color:#9dbbd0}dd{margin:0;overflow-wrap:anywhere}.cols{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
-  .metric{display:flex;justify-content:space-between;gap:1rem;border-bottom:1px solid #415260;padding:.6rem 0}
-  .scroll{overflow:auto}table{width:100%;border-collapse:collapse}td,th{padding:.75rem .6rem;border-bottom:1px solid #415260;text-align:left;vertical-align:top}
+  .stats>div{padding:1rem;background:var(--surface-hover);border-radius:6px}.stats strong{display:block;font-size:2rem}
+  .stats span,.muted,small{color:var(--muted)}.metadata{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:.7rem 1rem}
+  dt{color:var(--accent)}dd{margin:0;overflow-wrap:anywhere}.cols{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem}
+  .metric{display:flex;justify-content:space-between;gap:1rem;border-bottom:1px solid var(--line);padding:.6rem 0}
+  .scroll{overflow:auto}table{width:100%;border-collapse:collapse}td,th{padding:.75rem .6rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
   td small{display:block;overflow-wrap:anywhere;font:11px monospace;margin-top:.4rem}
   code{overflow-wrap:anywhere;font-size:.8rem}.filters{display:flex;gap:1rem;flex-wrap:wrap}
-  label{display:block}input,select{display:block;margin-top:.4rem;background:#122631;color:#fff;border:1px solid #7894a7;padding:.7rem;border-radius:4px;min-width:190px}
-  .pagination{display:flex;gap:.7rem;margin-top:1rem}.error{background:#61272c}
+  label{display:block}input,select{display:block;margin-top:.4rem;background:var(--surface-hover);color:var(--text);border:1px solid var(--line);padding:.7rem;border-radius:4px;min-width:190px}
+  .pagination{display:flex;gap:.7rem;margin-top:1rem}.error{background:var(--surface-hover)}
   @media(max-width:740px){.cols,.stats{grid-template-columns:1fr}.metadata{grid-template-columns:1fr}main{padding:1rem}}
 </style>

@@ -1,4 +1,5 @@
 <script>
+  import ThemePicker from '../../lib/ThemePicker.svelte';
   let step = $state('code');
   let code = $state('');
   let username = $state('');
@@ -57,7 +58,7 @@
 </script>
 
 <svelte:head><title>Join PF2e Planner</title></svelte:head>
-<main>
+<main><div class="join-theme"><ThemePicker/></div>
   <p class="eyebrow">PF2E PLANNER · INVITATION</p>
   {#if step === 'code'}
     <div class="step">Step 1 of 2</div>
@@ -103,16 +104,17 @@
   <footer>Already have an account? <a href="/">Sign in</a></footer>
 </main>
 <style>
-  :global(body){margin:0;background:#101820;color:#f0f4f6;font:16px system-ui,sans-serif;}
-  main{max-width:530px;margin:8vh auto;padding:2rem;background:#1d2934;border:1px solid #415260;border-radius:10px;}
-  .eyebrow{color:#9abfd1;font-size:.78rem;font-weight:700;letter-spacing:.12em;}
-  .step{display:inline-block;border-radius:30px;background:#274558;padding:.35rem .8rem;color:#b7deed;font-size:.82rem;font-weight:600;}
+  :global(body){margin:0;background:var(--page-bg);color:var(--text);font:16px system-ui,sans-serif;}
+  main{max-width:530px;margin:8vh auto;padding:2rem;background:var(--surface);border:1px solid var(--line);border-radius:10px;}
+  .eyebrow{color:var(--accent);font-size:.78rem;font-weight:700;letter-spacing:.12em;}
+  .step{display:inline-block;border-radius:30px;background:var(--accent-bg);padding:.35rem .8rem;color:var(--accent);font-size:.82rem;font-weight:600;}
   h1{font-size:2rem;margin:1rem 0 .5rem;}p{line-height:1.6;}
   label{display:block;margin:1.25rem 0;font-weight:600;}
-  input{display:block;box-sizing:border-box;width:100%;padding:.8rem;margin-top:.4rem;background:#09151e;color:#fff;border:1px solid #6d889b;border-radius:5px;font:inherit;}
-  button,.button{display:inline-block;background:#b7d6e7;color:#102029;padding:.75rem 1.1rem;border:0;border-radius:5px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;}
-  button:disabled{opacity:.65;cursor:not-allowed;}button.quiet{background:transparent;color:#eff6fb;border:1px solid #8199aa;}
+  input{display:block;box-sizing:border-box;width:100%;padding:.8rem;margin-top:.4rem;background:var(--page-bg);color:var(--text);border:1px solid var(--line);border-radius:5px;font:inherit;}
+  button,.button{display:inline-block;background:var(--accent);color:var(--button-text);padding:.75rem 1.1rem;border:0;border-radius:5px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;}
+  button:disabled{opacity:.65;cursor:not-allowed;}button.quiet{background:transparent;color:#eff6fb;border:1px solid var(--line);}
   .actions{display:flex;gap:.75rem;}
-  .error{padding:.8rem;border:1px solid #d88989;background:#602729;border-radius:5px;}
-  a{color:#addaff;}footer{margin-top:2.5rem;color:#a3b2bc;}
+  .error{padding:.8rem;border:1px solid var(--danger-border);background:var(--surface-hover);border-radius:5px;}
+  a{color:var(--accent);}footer{margin-top:2.5rem;color:var(--muted);}
+ .join-theme{display:flex;justify-content:flex-end;margin-bottom:1.2rem}
 </style>
