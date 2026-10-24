@@ -67,6 +67,16 @@ export function db() {
       expected_count INTEGER NOT NULL, packs_json TEXT NOT NULL, variants_json TEXT NOT NULL,
       sources_json TEXT NOT NULL, created_at INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS catalog_pack_digests (
+      integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
+      pack TEXT NOT NULL, sha256 TEXT NOT NULL, count INTEGER NOT NULL,
+      PRIMARY KEY(integration_id,pack)
+    );
+    CREATE TABLE IF NOT EXISTS catalog_import_digests (
+      integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
+      import_id TEXT NOT NULL, pack TEXT NOT NULL, sha256 TEXT NOT NULL, count INTEGER NOT NULL,
+      PRIMARY KEY(integration_id,import_id,pack)
+    );
     CREATE TABLE IF NOT EXISTS catalog_staging (
       integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
       snapshot_id TEXT NOT NULL, batch_number INTEGER NOT NULL, uuid TEXT NOT NULL,
