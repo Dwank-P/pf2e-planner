@@ -8,14 +8,13 @@ const CORE_PACKS = ['pf2e.classes','pf2e.feats-srd'];
  * and actions. Third-party packs require explicit GM selection.
  */
 export function getRequiredPacks() {
-  return [...new Set([
-    ...CORE_PACKS,
-    ...getPackOptions()
-      .filter(p => p.collection.startsWith('pf2e.') &&
-        /(action|condition|effect)/i.test(p.collection))
-      .map(p => p.collection)
-  ])];
+  // The official PF2e system's Item packs are selected by default. This includes
+  // classes, feats, ancestry content, equipment and effect/action references.
+  // Enabling a third-party package does not authorize its import.
+  return getPackOptions().filter(p=>p.collection.startsWith('pf2e.'))
+    .map(p=>p.collection);
 }
+
 function requireGM(){
   if(!game.user?.isGM||!['pf2e','sf2e'].includes(game.system?.id))
     throw Error('Planner synchronization requires a GM in a PF2e or SF2e world.');
@@ -85,7 +84,7 @@ export function getSelectedPacks(){
 }
 export async function savePackSelection(packs){
   requireGM();
-  if(!Array.isArray(packs)||packs.length>40)throw Error('Select at most 40 compendiums.');
+  if(!Array.isArray(packs)||packs.length>160)throw Error('Select at most 160 Item compendiums.');
   const available=new Set(getPackOptions().map(p=>p.collection));
   if(!packs.every(p=>typeof p==='string'&&available.has(p)))
     throw Error('Some selected compendiums are not installed in this world.');
@@ -139,9 +138,8 @@ export async function pairWebsite(url,code){
   });
   await game.settings.set(MODULE_ID,'websiteUrl',base);
   await game.settings.set(MODULE_ID,'integrationId',result.integrationId);
-  ui.notifications.info('PF2e Planner paired. Starting compendium import.');
-  const sync=await syncNow();
-  return {integrationId:result.integrationId,campaignId:result.campaignId,sync};
+  ui.notifications.info('PF2e Planner paired. Use Sync Now in module settings to import compendiums.');
+  return {integrationId:result.integrationId,campaignId:result.campaignId};
 }
 async function authorized(){
   const base=game.settings.get(MODULE_ID,'websiteUrl'),
