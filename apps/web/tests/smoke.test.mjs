@@ -280,6 +280,56 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(fullDetails.status,200);
     assert.equal(fullDetails.body.classes[0].metadata.classFeatLevels[0],2);
 
+    // v0.4 character workshop: private saved builds and optimistic revisions.
+    const charRoute='/api/v1/campaigns/'+campaignId+'/characters';
+    const created=await send(charRoute,{name:'Guardian / Fighter',level:1,build:{}},playerCookie);
+    assert.equal(created.status,201,JSON.stringify(created));
+    const charId=created.body.character.id;
+    assert.equal(created.body.character.build.modifiers.wis,0);
+    const ownCharacters=await send(charRoute,undefined,playerCookie,origin,'GET');
+    assert.equal(ownCharacters.status,200);
+    assert.equal(ownCharacters.body.characters.length,1);
+    const charDetail=charRoute+'/'+charId;
+    const saved=await send(charDetail,{
+      name:'Guardian / Fighter',level:10,revision:created.body.character.revision,
+      build:{
+        classUuid:entries[0].uuid,
+        feats:{'class-2':entries[1].uuid,'archetype-4':entries[2].uuid},
+        equipment:[entries[4].uuid],modifiers:{str:4,dex:0,con:3,int:0,wis:2,cha:0}
+      }
+    },playerCookie,origin,'PATCH');
+    assert.equal(saved.status,200,JSON.stringify(saved));
+    assert.equal(saved.body.character.level,10);
+    assert.equal(saved.body.character.build.feats['class-2'],entries[1].uuid);
+    const existing=await send(charDetail,undefined,playerCookie,origin,'GET');
+    assert.equal(existing.status,200);
+    assert.equal(existing.body.character.revision,2);
+    const stale=await send(charDetail,{
+      name:'Clobbered',level:10,revision:1,build:{}
+    },playerCookie,origin,'PATCH');
+    assert.equal(stale.status,409,'Concurrent edits must not be overwritten');
+    const unknownSelection=await send(charDetail,{
+      name:'Invalid',level:10,revision:2,
+      build:{feats:{'class-2':'Compendium.pf2e.not-synced.Item.NoSuchFeat'}}
+    },playerCookie,origin,'PATCH');
+    assert.equal(unknownSelection.status,400,'Unimported item selections must be rejected');
+    const gmCharacters=await send(charRoute,undefined,ownerCookie,origin,'GET');
+    assert.equal(gmCharacters.status,200);
+    assert.equal(gmCharacters.body.characters.length,1);
+    const facets=await send('/api/v1/campaigns/'+campaignId+'/catalog-filters',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(facets.status,200,JSON.stringify(facets));
+    assert.ok(facets.body.types.some(x=>x.label==='feat'));
+    const noHigherLevel=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-items?type=feat&maxLevel=2',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(noHigherLevel.status,200);
+    assert.equal(noHigherLevel.body.total,2,'At level 2, level-4 feat is excluded');
+    const deleted=await send(charDetail,{},playerCookie,origin,'DELETE');
+    assert.equal(deleted.status,200);
+    const afterDelete=await send(charDetail,undefined,playerCookie,origin,'GET');
+    assert.equal(afterDelete.status,404);
+
     // An incomplete next attempt must never erase the published snapshot.
     const attempt2=await send(importRoute+'/start',{
       expectedCount:2,packs:['pf2e.feats-srd'],variants,sourceVersions
