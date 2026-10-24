@@ -16,8 +16,14 @@ export function GET(event){
   if(!/^[a-z][a-zA-Z0-9-]{0,39}$/.test(type))problem(400,'invalid_item_type');
   const clauses=['integration_id=?','snapshot_id=?','type=?'];
   const values=[pub.integration_id,pub.snapshot_id,type];
-  if(q){clauses.push("LOWER(name) LIKE ? ESCAPE '\\'");values.push('%'+q.replace(/[\\%_]/g,v=>'\\'+v)+'%');}
+  if(q){clauses.push("(LOWER(name) LIKE ? ESCAPE '\\' OR LOWER(json_extract(item_json,'$.metadata.slug')) LIKE ? ESCAPE '\\')");const term='%'+q.replace(/[\\%_]/g,v=>'\\'+v)+'%';values.push(term,term);}
   if(level!==null && level!==''){const n=Number(level);if(!Number.isInteger(n)||n<0||n>25)problem(400,'invalid_level');clauses.push('level=?');values.push(n);}
+  const maxLevel=event.url.searchParams.get('maxLevel');
+  if(maxLevel!==null&&maxLevel!==''){
+    const n=Number(maxLevel);
+    if(!Number.isInteger(n)||n<1||n>20)problem(400,'invalid_max_level');
+    clauses.push('(level IS NULL OR level<=?)');values.push(n);
+  }
   if(rarity){clauses.push('rarity=?');values.push(rarity);}
   if(pack){clauses.push('pack=?');values.push(pack);}
   const featType=event.url.searchParams.get('featType')||'';
