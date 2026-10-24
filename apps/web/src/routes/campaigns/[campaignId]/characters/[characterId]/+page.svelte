@@ -2,7 +2,7 @@
   import {onMount} from 'svelte';
   import ItemInspector from '../../../../../lib/ItemInspector.svelte';
   import ThemePicker from '../../../../../lib/ThemePicker.svelte';
-  import {checkFeat,checkHeritage,isSpellAvailable,rankChoices,slugOf,abilities}
+  import {checkFeat,checkHeritage,isSpellAvailable,rankChoices,slugOf,abilities as ABILITY_LABELS}
     from '../../../../../lib/eligibility.js';
 
   let campaignId=$state('');
@@ -294,7 +294,7 @@
       return levels.join(', ');
     };
     return [
-      ['Key attribute',(m.keyAbility||[]).map(x=>abilities[x]||x.toUpperCase()).join(' or ')||'Not provided'],
+      ['Key attribute',(m.keyAbility||[]).map(x=>ABILITY_LABELS[x]||x.toUpperCase()).join(' or ')||'Not provided'],
       ['Class feats',text(m.classFeatLevels)],
       ['Skill feats',text(m.skillFeatLevels)],
       ['General feats',text(m.generalFeatLevels)],
@@ -419,7 +419,7 @@
               {/if}
               {#if picker.target==='background'}
                 <fieldset class="boost-filter"><legend>Background attribute boost (any selected)</legend>
-                  {#each Object.entries(abilities) as [key,label]}
+                  {#each Object.entries(ABILITY_LABELS) as [key,label]}
                     <button type="button" class:active={bgBoosts.includes(key)}
                       onclick={()=>toggleBoost(key)}>{label}</button>
                   {/each}
