@@ -164,3 +164,30 @@ The Foundry GM settings expose three distinct controls:
 **Select Compendium Collections** (searchable groups by parent package;
 official PF2e Item packs selected by default, third-party opt-in).
 Group selections are saved separately from manual sync.
+
+### v0.4.1 — Character selection and mobile usability
+
+- When the viewport is <=700px, **Details** opens a fixed full-screen panel
+  on top of the builder with a clearly visible close button; the user is not
+  scrolled down to a description below the level track.
+- The Heritage picker defaults to **ancestry-compatible or versatile**
+  heritages based on imported heritage ancestry UUID/slug. **Show incompatible
+  heritages** exposes others when planning homebrew combinations, highlighted
+  in light red with a warning (also reflected on selected heritage cards).
+- Class/ancestry feats rank compatible options first. Class traits, feat
+  category, level and textual prerequisites generate warnings rather than
+  blocking intentionally unconventional combinations. Full PF2e prerequisite
+  evaluation is **not yet implemented**.
+- Background picker supports **OR matching** of constrained attribute boost
+  choices (e.g. STR or CON), trained skill search and granted-feat search.
+  The free ability boost is not treated as a background's fixed boost.
+- Class profile expands to show imported key attribute, progression feat
+  levels, initial saves and Perception proficiency.
+- Spellcasting classes (including Bard) get a **Spells** view for saving a
+  repertoire of cantrips and ranked spells, filtered by imported spell
+  traditions and spell rank. This first pass is **a selectable spell list**,
+  not a full spell-slot/repertoire-limit validator.
+- Website/Foundry versions must match **v0.4.1**, and the GM must run
+  **Sync Now** after updating the Foundry Bridge, because existing catalogue
+  snapshots from v0.4.0 **do not contain** heritage ancestry, background
+  boosts, class saves/spellcasting or spell tradition fields.

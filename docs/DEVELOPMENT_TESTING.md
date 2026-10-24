@@ -245,3 +245,30 @@ reset. Keep the SQLite volume intact.
 Automated CI exercises Svelte compilation, production API smoke tests, server
 database transactions and level-expression parsing. Full Foundry v14
 application behavior and real third-party modules require manual verification.
+
+## N. v0.4.1 manual browser checks
+
+Use an existing test world with an Anadi ancestry and a Bard. Update the website
+and Bridge and **Sync Now**. The importer now extracts new fields; without the
+re-sync the site cannot know an imported heritage's source ancestry.
+
+1. On a phone viewport <700px, open Details while choosing a feat; verify
+   description overlays the current view rather than appearing below it, then
+   close via the X without losing the picker state.
+2. Choose Anadi: Adaptive Anadi should appear; Abyssal Merfolk must be absent
+   unless **Show incompatible heritages** is checked. Selecting it after
+   override must preserve the selection and flag it red.
+3. Select Bard: Bard-tagged class feats should be presented ahead of
+   Fighter-tagged class feats. Deliberately select a Fighter feat and verify
+   the warning persists; an enigma-muse-only Bard feat should be flagged
+   as requiring prerequisite verification.
+4. Filter backgrounds by STR or CON; options with either constrained boost
+   appear. Backgrounds matching only through their free boost should NOT
+   appear. Filter by skill and granted feat to confirm both operate.
+5. Expand Bard class details; confirm key attribute CHA, trained/expert saves
+   and level schedules agree with imported class fields.
+6. Open Spells for Bard, compare cantrips and rank-1 occult spells. Select
+   Soothe, save, refresh, and verify the chosen spell persists.
+7. Confirm selected spells outside the imported catalogue still fail backend
+   reference validation. Automatic repertoire limits and every prerequisite
+   are not enforced yet.

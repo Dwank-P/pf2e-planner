@@ -123,3 +123,18 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [ ] Complete prerequisite evaluator, ancestry boosts and skill proficiencies.
 - [ ] Full class mechanics, equipment statistics, spell preparation and leveler
   Dual-Class/Free Archetype exceptions before calling it a validated character sheet.
+
+## v0.4.1 — Builder usability and metadata completion
+- [x] Small-screen fixed modal Item Inspector.
+- [x] Exact ancestry/heritage UUID and slug metadata; versatile heritage flag.
+- [x] Compatible heritage filter with explicit show-incompatible override.
+- [x] Conservative feat issue indications and preference sorting, rather than
+  rejecting homebrew/illegal choices.
+- [x] Background OR ability boosts, trained skills and granted feat filtering.
+- [x] Class progression, starting saves, Perception and key attribute details.
+- [x] Spellcasting-class spell repertoire UI with imported tradition/level data.
+- [x] Add reusable eligibility/unit checks and HTTP catalog-filter smoke tests.
+- [ ] Comprehensive PF2e legality engine for ancestry-adopted feats, archetype
+  dedication lockouts, class-specific feat requirements and feature gates.
+- [ ] Full class-specific spell-slot table, focus spell pools, prepared casting,
+  signature spells and automatic bonus progression.
