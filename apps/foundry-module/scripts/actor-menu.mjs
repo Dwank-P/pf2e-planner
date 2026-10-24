@@ -90,6 +90,7 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
         const relevant=this.context?.actor?.id===id?this.context:null;
         const result=await importActorToPlanner(actor,{
           plan:relevant?.plan??null,
+          creation:relevant?.data??null,
           overwrite:form.querySelector('.planner-overwrite').checked,
           ownerUserId:membersSelect.value
         });
