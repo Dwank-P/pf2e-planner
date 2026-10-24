@@ -303,3 +303,34 @@ re-sync the site cannot know an imported heritage's source ancestry.
 CI can test the pure website projection and persisted model, but cannot
 test Foundry's live module imports without a Foundry v14 world and the
 actual installed PF2e Leveler modules.
+
+## O. v0.6.0 — Incremental and Leveler content test
+
+1. Update website and Bridge to v0.6.0. Back up SQLite before initial
+   migration. Old module v0.5 sends a legacy manifest and cannot sync
+   against the new server until updated.
+2. Check PF2e Leveler's own Compendium Manager: select your Battlezoo Dragons
+   Item packs **there**, or explicitly add them in Planner's collection
+   selector. Choose content you are authorized to distribute. Sync Now.
+3. The first v0.6.0 sync sends the full selected catalog; the next sync
+   with no content/config changes should upload 0 Items. Changing one
+   pack should upload that pack only; the website copies all other
+   Item rows from the last published version inside a transaction.
+4. Mark a test feat disallowed in Leveler's GM Content Guidance, resync,
+   verify it is absent on the website. Change to not-recommended and
+   verify its label and position. No unrelated packs should re-upload.
+5. Open PF2e Leveler's Character Wizard and Level Planner as **GM**. Look
+   for **PF2e Planner** in the application header. Select a world Actor,
+   then its website player, and Import & Open Character Builder.
+6. Confirm repeat imports return the existing linked character. Only
+   selecting the overwrite checkbox should replace its website choices.
+   Confirm an imported player-owned character is visible in that player's
+   website account and not in unrelated users' accounts.
+7. Confirm level 1 has Boost choices adjacent to feats even before a class
+   is chosen; class key ability restrictions update when selecting class.
+   Check level-dependent boosts, spell slots and ancestry lockout indicators.
+8. Critical limitation: GM actor sync imports **only supported choices**;
+   it does not serialize the complete internal Leveler actor document.
+   All ability boosts, class-specific selections, trained skills, ancestry
+   exceptions and prepared spells still need Leveler's full actor-backed
+   validation for definitive build legality.

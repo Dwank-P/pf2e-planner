@@ -218,3 +218,50 @@ ported `computeBuildState()` or `validatePlan()` to a Node web server.
 Existing browser-side eligibility messages remain advisory only. Some
 advanced first-level ability boosts and skill rank restrictions cannot be
 validated without actor context.
+
+## v0.6.0 — Delta compendium sync, Leveler selections and Foundry character import
+
+**Source of content:** The Bridge now directly invokes PF2e Leveler's
+`getCompendiumCategoryKeys()` and `getCompendiumKeysForCategory()` inside
+Foundry to obtain the packs **actually selected in Leveler's Compendium
+Manager**. Additional packs explicitly selected in the Planner remain additive.
+GM `resolveGuidanceStatus()` rules from Leveler's content guidance exclude
+`disallowed` Items entirely. `recommended` and `not-recommended`
+guidance is preserved to label/rank feat choices. A module being enabled
+without its pack being selected in Leveler or Planner is not enough to export
+its content.
+
+**Content-addressed delta sync:** Every sync scans selected Items locally
+and calculates SHA-256 digests of normalized exported data **per pack**,
+including Leveler progression and GM guidance metadata. Only packs whose
+digest or count changed transmit their Items; unchanged packs are copied
+server-side from the previously published SQLite revision. A transactional
+commit swaps all content, preventing partial publication. When everything is
+unchanged, no Items are uploaded at all. New installations use a full initial
+import. **Per-Item** delta inside a changed pack is not yet implemented.
+
+**Leveler dialog integration:** The Bridge adds a **PF2e Planner** button
+to PF2e Leveler's character creation wizard and level planner in Foundry for
+**GMs**. It opens a searchable selector of character Actors in the current
+world and a campaign-member assignment selector from the website. Choosing
+a character sends only its name, level, synchronized Item UUID references,
+basic ability modifiers and selected Leveler progression choices (if the
+open Leveler planner belongs to that Actor). The matching website character
+opens in a browser tab. Private GM notes, biographies, secrets, Rule
+Elements and whole actor documents are not exported. A repeat import
+preserves existing website edits unless the GM explicitly requests overwrite.
+Unmatched or unselected Item UUIDs are skipped and reported.
+
+The website now warns clearly for ancestry feats whose published
+Leveler-style creature/ancestry traits exclude the selected ancestry.
+Illegal choices remain visible and can be selected for future planning,
+as requested. Level-one ability boosts are visible alongside feats
+**even before selecting a class**. Class-key and background-boost restrictions
+use imported class/background metadata. Spell selection uses Leveler's
+class spell-rank slot progression where available.
+
+**Still requires development:** importing a Foundry Actor's completed
+Leveler creation selections, validating PF2e Leveler `computeBuildState`,
+`checkPrerequisites` and `validatePlan` against a real actor, applying
+spellbook/class-specific choices and advanced ancestry access rules. Current
+frontend warnings are not a replacement for Leveler's actor-based legality.

@@ -165,3 +165,25 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
   service. Do not claim full rule parity before this is operational.
 - [ ] Manual Foundry integration check for current installed Leveler version,
   selected third-party class packs and existing characters.
+
+## v0.6.0 — GM-selected content and character integration
+
+- [x] Use Leveler's runtime Compendium Manager category selection
+  rather than treating all enabled third-party packs as available content.
+- [x] Preserve Leveler GM disallowed content restrictions at import time
+  and recommended/not-recommended status for feat ranking.
+- [x] Content-addressed SHA-256 **pack-level** incremental sync; server-side
+  copy-on-import for unchanged packs; transactional publication and digest DB.
+- [x] Add GM-only character import button to Leveler wizard/planner V14
+  ApplicationV2 windows; searchable Foundry Actor selector and website
+  campaign player assignment, no new pairing code.
+- [x] Persist explicit actor/website links, avoid duplicate character
+  creation, don't overwrite website edits without explicit opt-in.
+- [x] Show Level 1 creation boosts before class selection; use
+  class key ability/background boost restrictions where available.
+- [x] Stronger ancestry-feat trait lockout detection with 3p ancestry tags.
+- [ ] Validate real Leveler window hook injection and actor plan projection
+  in Foundry v14 (CI cannot run Foundry GUI).
+- [ ] Implement Leveler actor-backed full build-state and prerequisite
+  validation plus creation wizard class-specific spell/feat choice steps.
+- [ ] Optional per-Item delta inside changed packs to further cut uploads.
