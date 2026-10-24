@@ -378,7 +378,7 @@ test('production API: bootstrap → pair world → create player → sync → re
         classUuid:entries[0].uuid,
         feats:{'class-2':entries[1].uuid,'archetype-4':entries[2].uuid},
         equipment:[entries[4].uuid],
-        abilityBoosts:{'ancestry-1':['str','dex'],
+        abilityBoosts:{'ancestry-boost-1':['str','dex'],
           'background-1':['str','con'],
           'class-1':['str'],'free-1':['str','dex','con','wis'],
           'level-5':['str','dex','con','wis']},

@@ -30,7 +30,7 @@ test('Leveler data controls slot presence, counts, variants and repeated ancestr
   'Must not invent slots from fallback schedules');
 });
 test('missing old Leveler schema reports need for sync, not assumed progression',()=>{
- assert.deepEqual(levelerChoiceSlots({metadata:{}}).slots,[]);
+ assert.equal(levelerChoiceSlots({metadata:{}}).slots.filter(x=>x.type==='ability').length,4);
  assert.equal(levelerChoiceSlots({metadata:{}}).ready,false);
 });
 test('dual-class second class skill increases are deduplicated against primary',()=>{

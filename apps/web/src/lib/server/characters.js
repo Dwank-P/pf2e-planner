@@ -27,7 +27,7 @@ export function validateBuild(value) {
       Object.keys(boostInput).length>90)problem(400,'invalid_ability_boosts');
   result.abilityBoosts={};
   for(const [key,boosts] of Object.entries(boostInput)){
-    if(!/^(ancestry|background|class|free)-1$|^level-([2-9]|1[0-9]|20)(?:-[2-9])?$/.test(key)||
+    if(!/^(ancestry-boost|background|class|free)-1$|^level-([2-9]|1[0-9]|20)(?:-[2-9])?$/.test(key)||
        !Array.isArray(boosts)||boosts.length>6||
        !boosts.every(x=>['str','dex','con','int','wis','cha'].includes(x))||
        new Set(boosts).size!==boosts.length)problem(400,'invalid_ability_boost_selection');

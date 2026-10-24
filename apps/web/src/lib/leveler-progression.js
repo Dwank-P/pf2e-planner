@@ -40,7 +40,7 @@ export function levelerChoiceSlots(primary,secondary=null,variants={}) {
       ['class','Class key ability',1],
       ['free','Free boosts',4]
     ].map(([source,label,count])=>({
-      key:source+'-1',type:'ability',kind:'abilityBoosts',label,level:1,count,source:'creation'
+      key:(source==='ancestry'?'ancestry-boost':source)+'-1',type:'ability',kind:'abilityBoosts',label,level:1,count,source:'creation'
     })),
     ...(data?.spellcasting?[{key:'spells-1',type:'spells',kind:'spells',
       label:'Starting spells',level:1,source:'creation'}]:[])
