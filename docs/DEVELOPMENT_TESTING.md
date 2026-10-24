@@ -215,3 +215,33 @@ reset. Keep the SQLite volume intact.
    when every campaign user who can browse them is authorized to view that
    content. The planner's authenticated membership currently allows all
    campaign members access to the explicitly selected compendium data.
+
+## M. v0.4.0 — Character workshop acceptance checklist
+
+1. Update the Docker site to v0.4.0 using existing SQLite volume and Foundry
+   module to v0.4.0 from its release manifest.
+2. Select a campaign → **Open character builder** → create a level-1 hero.
+   Choose ancestry, heritage, background and class using imported Item packs.
+3. With Free Archetype and Dual Class enabled in Foundry, confirm the campaign
+   reports them and the builder presents appropriate extra controls.
+   Verify GM ruleset flags are not guessed when absent.
+4. Set character level 10, select a feat and revisit the character after
+   refreshing the browser; ensure name, level, feats and equipment persist.
+5. Filter feats by rarity, trait, source, category and level. Test Battlezoo
+   Dragons only after selecting that third-party collection in Foundry.
+6. Test the Kineticist example at level 1 (2d4), level 10 (6d4), and
+   level 20 (11d4). These are displayed counts, NOT applied effects.
+7. Hover an imported @UUID compendium link: preview is shown. Click to open
+   details, Back returns. Ctrl-click opens a separate popup/tab.
+8. Change the color theme and reload; verify saved preference applies
+   across dashboard, signup, feat browser and character workshop.
+9. In Foundry Configure Settings → Bridge, confirm three buttons:
+   **Pair World**, **Sync Now**, **Select Compendium Collections**.
+   Test website should not close the pairing window; collection search should
+   select whole module/package groups; default PF2e content is checked.
+10. Confirm character CRUD security: player owns a build; another ordinary
+   player cannot read or overwrite it; GM/site owner can manage campaign builds.
+
+Automated CI exercises Svelte compilation, production API smoke tests, server
+database transactions and level-expression parsing. Full Foundry v14
+application behavior and real third-party modules require manual verification.

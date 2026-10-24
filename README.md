@@ -129,3 +129,38 @@ to the site's players. Select its Item compendium packs in the Foundry
 Bridge's **Compendium packs to import** section and run **Sync Now**.
 Only selected/required packs are synced; module-specific client-side
 data outside Item compendiums is not automatically exported.
+
+## v0.4.0 — Character Workshop
+
+Visit your synced campaign home and choose **Open character builder**.
+Characters are saved per player/campaign in the existing persistent SQLite
+volume (no database reset). The workspace provides:
+- Editable character name and actual level 1–20; ancestry, heritage, background,
+  primary class and optional Dual-Class second class.
+- A Pathbuilder-inspired **level progression** based on imported class
+  class/skill/general feat schedules (falling back to typical schedules if
+  missing), with Ancestry feats and Free Archetype slots where Foundry's
+  synchronized ruleset reports those options enabled.
+- Searchable feats with GM-imported source pack, rarity, feat type, trait and
+  level filters. Equipment/items can be added to a character inventory.
+- Optional user-entered ability modifiers and personal notes, with auto-save,
+  revision conflict detection and a GM-visible character roster.
+- Hover previews for inline Item links, click-through details with Back, and
+  Ctrl-click/⌘-click to open a small standalone item window.
+- Supported `@Damage` level expressions, e.g.
+  `(floor((@actor.level - 1)/2) +2)d4[slashing]`, evaluated **only as
+  read-only dice counts at the selected character level** (not an actual roll).
+- Four persistent color themes: Moonstone, Parchment, Verdant and Amethyst.
+
+**Rules-engine limitations:** Build records store choices but do not yet enforce
+every prerequisite, apply all class features, calculate derived AC/saves/HP,
+implement complete spellcasting or execute Foundry Rule Elements. A choice
+listed by level/category is not proof of character eligibility. Do not use the
+planner as a rules validator until its full mechanics engine is implemented.
+
+The Foundry GM settings expose three distinct controls:
+**Pair World** (website URL + OTC, Test Website/Pair buttons),
+**Sync Now** (authorized manual import without new code), and
+**Select Compendium Collections** (searchable groups by parent package;
+official PF2e Item packs selected by default, third-party opt-in).
+Group selections are saved separately from manual sync.

@@ -100,3 +100,26 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [ ] **Manual Foundry v14 confirmation**, including the exact Kineticist example, selected Battlezoo packs and in-description navigation.
 - [ ] Expand other inline syntaxes and optional action-system macro descriptions beyond imported standalone Item documents.
 - [ ] Model advanced rule elements, actor-specific formulas and spell/equipment semantics for character planning; the browser does not execute Foundry effects.
+
+## v0.4.0 — Functional character workshop and themed UI
+
+- [x] Persistent character builds scoped by campaign and owner; revision-safe
+  PATCH updates; ability modifiers, inventory and 1–20 level.
+- [x] Ancestry, heritage, background and primary/secondary class Item selection.
+- [x] Feat slots for ancestry/class/skill/general and Free Archetype variants,
+  using imported class advancement arrays where present.
+- [x] Deep searchable feat/item picker (rarity, source pack, level cap, category,
+  trait, searchable names and slugs).
+- [x] Level-specific supported inline damage dice formula evaluation
+  using a safe arithmetic parser (no eval, rolls or macros).
+- [x] Hover previews, clickable inline Item references, Back and Ctrl/⌘-click
+  popup Item details.
+- [x] Responsive dashboard redesign and four persistent dark/light themes.
+- [x] Separate Foundry v14 GM settings menus for Pair, Sync and
+  searchable grouped Compendium Collections, core selected by default.
+- [x] Character REST endpoint regression coverage and formula unit tests.
+- [ ] Manual Foundry v14 check of three settings submenu classes.
+- [ ] Manual HTTPS/browser check of character builder, autosave and popouts.
+- [ ] Complete prerequisite evaluator, ancestry boosts and skill proficiencies.
+- [ ] Full class mechanics, equipment statistics, spell preparation and leveler
+  Dual-Class/Free Archetype exceptions before calling it a validated character sheet.
