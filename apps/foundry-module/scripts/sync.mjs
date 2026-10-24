@@ -1,6 +1,7 @@
 import { getWorldMetadata } from './snapshot.mjs';
 import { credentials } from './credentials.mjs';
 import { normalizeWebsiteUrl } from './url.mjs';
+import {getLevelerCatalogPacks,getLevelerGuidance} from './leveler-adapter.mjs';
 import { createLevelerProgressions } from './leveler-adapter.mjs';
 
 const MODULE_ID = 'pf2e-planner-bridge';
@@ -8,12 +9,21 @@ const CORE_PACKS = ['pf2e.classes','pf2e.feats-srd'];
 /** Include official Item packs needed to resolve linked conditions, effects
  * and actions. Third-party packs require explicit GM selection.
  */
-export function getRequiredPacks() {
-  // The official PF2e system's Item packs are selected by default. This includes
-  // classes, feats, ancestry content, equipment and effect/action references.
-  // Enabling a third-party package does not authorize its import.
-  return getPackOptions().filter(p=>p.collection.startsWith('pf2e.'))
-    .map(p=>p.collection);
+let levelerPackCache=null;
+export async function refreshLevelerPacks(){
+  requireGM();
+  const keys=await getLevelerCatalogPacks();
+  if(!keys.length)throw Error('PF2e Leveler has no available Item compendium packs.');
+  levelerPackCache=keys;
+  return keys;
+}
+export function getRequiredPacks(){
+  const installed=new Set(getPackOptions().map(x=>x.collection));
+  // Before Leveler's catalog is asynchronously loaded, the settings panel
+  // can show official defaults. All real syncs refresh the exact Leveler list.
+  const keys=levelerPackCache??getPackOptions()
+    .filter(p=>p.collection.startsWith('pf2e.')).map(p=>p.collection);
+  return keys.filter(k=>installed.has(k));
 }
 
 function requireGM(){
@@ -221,6 +231,7 @@ export async function syncNow({auto=false}={}){
   syncing=true;
   try{
     let {base,id,auth}=await authorized();
+    await refreshLevelerPacks();
     const packs=getSelectedPacks();
     const available=packs.map(name=>game.packs.get(name)).filter(Boolean);
     const variants=getVariants();
@@ -230,24 +241,27 @@ export async function syncNow({auto=false}={}){
       systemVersion:game.system.version,
       levelerVersion:game.modules.get('pf2e-leveler')?.version||null
     };
-    if(auto){
-      const last=await post(base,'/api/v1/bridge/'+id+'/catalog-import/status',
-        {},auth.accessToken);
-      if(last.synced&&JSON.stringify(last.sources)===JSON.stringify(sources)&&
-         JSON.stringify(last.variants)===JSON.stringify(variants)&&
-         JSON.stringify(last.packs)===JSON.stringify(packs))
-        return {skipped:'unchanged'};
-    }
+    const last=await post(base,'/api/v1/bridge/'+id+'/catalog-import/status',
+      {},auth.accessToken);
+    const guidance=await getLevelerGuidance();
     const entries=[];
+    const byPack=new Map();
     const classDocs=[];
+    let bannedSkipped=0;
     for(const pack of available){
       ui.notifications.info('PF2e Planner: Reading '+(pack.metadata?.label||pack.collection)+'…');
       const documents=await pack.getDocuments();
+      const packEntries=[];
       for(const doc of documents){
+        // Leveler's guidance includes item-specific, category and publication
+        // rules; a GM-marked disallowed item is never exported.
+        const status=guidance(doc);
+        if(status==='disallowed'){bannedSkipped++;continue;}
         if(doc.type==='class')classDocs.push(doc);
         const entry=exportItem(doc,pack);
-        if(entry)entries.push(entry);
+        if(entry){entry.guidance=status;entries.push(entry);packEntries.push(entry);}
       }
+      byPack.set(pack.collection,packEntries);
       await sleep(0);
     }
     // Use the installed Leveler to produce class advancement choices.
@@ -261,27 +275,52 @@ export async function syncNow({auto=false}={}){
       throw Error('PF2e Leveler did not resolve any class progression definitions.');
     ui.notifications.info('PF2e Planner: Exported Leveler advancement schemas for '+
       progression.size+' of '+classDocs.length+' imported classes.');
-    if(entries.length===0)throw Error('No Items were found in selected packs.');
+    if(entries.length===0)throw Error('No permitted Items were found in selected packs.');
     if(entries.length>30000)throw Error('More than 30,000 items selected; reduce pack selection.');
+    // Compare hashes of the serialized export, including Leveler progression
+    // and GM guidance. Only changed packs are sent over HTTPS.
+    const packDigests={};
+    const changed=[];
+    const reusePacks=[];
+    for(const pack of packs){
+      const packEntries=(byPack.get(pack)||[]).sort((a,b)=>a.uuid.localeCompare(b.uuid));
+      const encoded=new TextEncoder().encode(JSON.stringify(packEntries));
+      const hash=await crypto.subtle.digest('SHA-256',encoded);
+      const sha256=Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('');
+      packDigests[pack]={sha256,count:packEntries.length};
+      const old=last.packDigests?.[pack];
+      if(last.synced&&old?.sha256===sha256&&old?.count===packEntries.length){
+        reusePacks.push(pack);
+      }else changed.push(...packEntries);
+    }
+    if(!changed.length&&last.synced&&
+       JSON.stringify(last.sources)===JSON.stringify(sources)&&
+       JSON.stringify(last.variants)===JSON.stringify(variants)&&
+       JSON.stringify(last.packs)===JSON.stringify(packs)){
+      ui.notifications.info('PF2e Planner: All '+entries.length+' Items unchanged; no upload needed.');
+      return {skipped:'unchanged',reused:entries.length,uploaded:0};
+    }
     const started=await post(base,'/api/v1/bridge/'+id+'/catalog-import/start',
-      {packs,variants,sourceVersions:sources,expectedCount:entries.length},
-      auth.accessToken);
-    for(let offset=0,batchNumber=0;offset<entries.length;offset+=15,batchNumber++){
+      {packs,variants,sourceVersions:sources,expectedCount:entries.length,
+        packDigests,reusePacks},auth.accessToken);
+    for(let offset=0,batchNumber=0;offset<changed.length;offset+=15,batchNumber++){
       if(auth.accessExpiresAt<Math.floor(Date.now()/1000)+120){
         auth=(await authorized()).auth;
       }
       await post(base,'/api/v1/bridge/'+id+'/catalog-import/batch',
-        {snapshotId:started.snapshotId,batchNumber,items:entries.slice(offset,offset+15)},
+        {snapshotId:started.snapshotId,batchNumber,items:changed.slice(offset,offset+15)},
         auth.accessToken);
       if(batchNumber%20===0)
-        ui.notifications.info('PF2e Planner: Uploaded '+Math.min(offset+15,entries.length)+
-          '/'+entries.length+' items.');
+        ui.notifications.info('PF2e Planner: Uploaded '+Math.min(offset+15,changed.length)+
+          '/'+changed.length+' changed items; '+(started.reused||0)+' reused.');
       await sleep(0);
     }
     const result=await post(base,'/api/v1/bridge/'+id+'/catalog-import/commit',
       {snapshotId:started.snapshotId},auth.accessToken);
-    ui.notifications.info('PF2e Planner: Saved '+result.accepted+' Items and campaign variant rules.');
-    return result;
+    ui.notifications.info('PF2e Planner: '+result.accepted+' Items published ('+
+      changed.length+' uploaded, '+(started.reused||0)+' reused, '+
+      bannedSkipped+' disallowed excluded).');
+    return {...result,uploaded:changed.length,reused:started.reused||0,bannedSkipped};
   }finally{syncing=false;}
 }
 export async function openPairingDialog(){
