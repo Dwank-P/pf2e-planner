@@ -77,6 +77,12 @@ export async function createLevelerProgressions(classDocs,variants){
     schema.set(doc.uuid,{
       provider:'pf2e-leveler',version:game.modules.get('pf2e-leveler')?.version??null,
       slug,levels,
+      keyAbility:Array.isArray(classDef.keyAbility)?classDef.keyAbility.slice(0,6):[],
+      spellcasting:classDef.spellcasting
+        ? {tradition:classDef.spellcasting.tradition??null,
+           type:classDef.spellcasting.type??null,
+           slots:classDef.spellcasting.slots??{}}
+        : null,
       // Leveler's normalized class definition is used to compose additional
       // secondary-class skill slots in the browser for Dual Class.
       classFeatures:(classDef.classFeatures||[])
