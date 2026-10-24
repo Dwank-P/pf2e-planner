@@ -11,7 +11,7 @@ export function verifyEntry(entry) {
     if(!['uuid','name','type','description','traits'].includes(key))metadata[key]=value;
   }
   const plain=JSON.stringify(metadata);
-  if(plain.length>9000)problem(413,'oversized_catalog_metadata');
+  if(plain.length>50000)problem(413,'oversized_catalog_metadata');
   const cleaned=entry.name.trim();
   if(!cleaned)problem(400,'invalid_catalog_entry');
   return {
