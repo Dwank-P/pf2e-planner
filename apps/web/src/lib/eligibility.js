@@ -71,14 +71,35 @@ export function checkFeat(feat,context={}){
       reasons.push('No class trait was supplied; verify eligibility.');
     }
   }
-  if(type==='ancestry' && ancestry){
-    const selected=slugOf(ancestry);
-    const ancestryTag=t.includes(selected);
-    const heritage=slugOf(context.heritage);
-    const accessible=ancestryTag||(heritage&&t.includes(heritage));
-    if(!accessible){
+  if(type==='ancestry') {
+    const access=m.ancestryAccess;
+    if(!ancestry){
       severity=Math.max(severity,1);
-      reasons.push('Does not list '+ancestry.name+' (or your heritage) as an allowed ancestry trait.');
+      reasons.push('Select an ancestry to evaluate ancestry feat access.');
+    }else if(access && typeof access==='object'){
+      const allowed=new Set([slugOf(ancestry),slugOf(context.heritage)]
+        .filter(Boolean));
+      const required=Array.isArray(access.restrictedTo)
+        ? access.restrictedTo.map(x=>String(x).toLowerCase()) : [];
+      const valid=access.universal===true||required.some(tag=>allowed.has(tag));
+      if(!valid&&required.length){
+        severity=2;
+        reasons.push('Ancestry locked: requires '+required.join(' or ')+
+          ', but your ancestry is '+ancestry.name+'.');
+      }else if(!valid){
+        severity=Math.max(severity,1);
+        reasons.push('Ancestry access needs Leveler actor validation.');
+      }
+    }else{
+      const selected=slugOf(ancestry);
+      const allowed=new Set([selected,slugOf(context.heritage)].filter(Boolean));
+      // Legacy imports without Leveler trait classification only provide
+      // a conservative warning, never mislabel an unclassified feat as legal.
+      if(!t.some(tag=>allowed.has(tag))){
+        severity=Math.max(severity,1);
+        reasons.push('Ancestry traits not verified for '+ancestry.name+
+          '; re-sync Leveler metadata.');
+      }
     }
   }
   const prerequisites=Array.isArray(m.prerequisites)?m.prerequisites:[];
