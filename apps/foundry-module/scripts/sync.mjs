@@ -425,12 +425,14 @@ export function exportCharacterActor(actor,plan=null,creation=null){
     }
     for(const [source,value] of Object.entries(sourceCreation.boosts||{})){
       const key={ancestry:'ancestry-boost-1',background:'background-1',
-        class:'class-1',free:'free-1',dualClass:'level-1'}[source];
+        class:'class-1',free:'free-1'}[source];
       if(key && Array.isArray(value)){
         boosts[key]=[...new Set(value.map(x=>String(x).toLowerCase())
           .filter(x=>['str','dex','con','int','wis','cha'].includes(x)))];
       }
     }
+    if(Array.isArray(sourceCreation.boosts?.dualClass))
+      creationChoices.dualClassBoosts=[...sourceCreation.boosts.dualClass];
     for(const key of creationFields){
       const value=sourceCreation[key];
       if(value===undefined||value===null)continue;
