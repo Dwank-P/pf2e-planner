@@ -170,6 +170,33 @@ function exportItem(doc,pack){
     duration:system.duration?.value??null,
     category:system.category??null
   };
+  if(type==='heritage'){
+    out.ancestrySlug=system.ancestry?.slug??null;
+    out.ancestryUuid=system.ancestry?.uuid??null;
+    out.versatile=system.ancestry==null;
+  }
+  if(type==='background'){
+    out.boostChoices=Object.values(system.boosts||{}).map(x=>Array.isArray(x?.value)?x.value:[]);
+    out.trainedSkills=system.trainedSkills?.value??[];
+    out.loreSkills=system.trainedSkills?.lore??[];
+    out.grantedFeats=Object.values(system.items||{}).map(x=>x.name||'').filter(Boolean);
+  }
+  if(type==='class'){
+    out.savingThrows=system.savingThrows??null;
+    out.perception=system.perception??null;
+    out.trainedSkills=system.trainedSkills?.value??[];
+    out.spellcasting=Boolean(system.spellcasting);
+    // Specific traditions can also depend on class choices (e.g. sorcerer).
+    out.spellTradition={
+      bard:'occult',wizard:'arcane',druid:'primal',cleric:'divine',
+      oracle:'divine',psychic:'occult',magus:'arcane',
+      animist:'divine',summoner:null,sorcerer:null,witch:null
+    }[String(system.slug||doc.name).toLowerCase()]??null;
+  }
+  if(type==='spell'){
+    out.spellRank=system.level?.value??null;
+    out.spellTraditions=Array.isArray(system.traits?.traditions)?system.traits.traditions:[];
+  }
   if(type==='feat'){
     out.featType=system.category||system.featType?.value||null;
     out.actionType=system.actionType?.value||null;
