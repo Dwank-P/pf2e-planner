@@ -8,6 +8,7 @@
   } from '../../../../../lib/leveler-progression.js';
   import {checkFeat,checkHeritage,isSpellAvailable,rankChoices,slugOf,abilities as ABILITY_LABELS}
     from '../../../../../lib/eligibility.js';
+  import {levelerPlanExport,levelerCreationExport} from '../../../../../lib/leveler-format.js';
 
   let campaignId=$state('');
   let characterId=$state('');
@@ -155,12 +156,16 @@
     if(saving||!dirty||!character)return;
     saving=true;
     dirty=false;
-    const body={name:character.name,level:character.level,build:JSON.parse(JSON.stringify(build)),
+    // creationChoices are display-only (stored in Leveler's creation document).
+    const {creationChoices,...edited}=build;
+    const body={name:character.name,level:character.level,build:JSON.parse(JSON.stringify(edited)),
       revision:character.revision};
     try{
       const response=await api(root+'/characters/'+encodeURIComponent(characterId),body,'PATCH');
       character.revision=response.character.revision;
       character.updatedAt=response.character.updatedAt;
+      character.leveler=response.character.leveler;
+      character.format=response.character.format;
       notice='Saved';
       errorText='';
     }catch(e){dirty=true;errorText='Save failed: '+e.message;}
@@ -353,6 +358,18 @@
     if(key==='ancestryUuid'||key==='heritageUuid'||key==='backgroundUuid')loadIdentity();
     mark();
   }
+  // Files match PF2e Leveler's own Import buttons (Level Planner / Character Wizard).
+  function downloadLeveler(kind){
+    const doc={leveler:character?.leveler};
+    const text=kind==='plan'?levelerPlanExport(doc):levelerCreationExport(doc);
+    if(!text){errorText='Save the build with a class selected before exporting a Leveler plan.';return;}
+    const name=(character.name||'character').replace(/[^a-z0-9-]+/gi,'-').toLowerCase();
+    const link=document.createElement('a');
+    link.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));
+    link.download=name+'-leveler-'+kind+'.json';
+    link.click();
+    setTimeout(()=>URL.revokeObjectURL(link.href),1000);
+  }
   function removeEquipment(uuid){character.build.equipment=character.build.equipment.filter(x=>x!==uuid);mark();}
   async function deleteCharacter(){
     if(!window.confirm('Permanently delete this character build?'))return;
@@ -400,6 +417,20 @@
       <div class="header-actions">
         <span class:unsaved={dirty} class="save-state">{saving?'Saving…':dirty?'Unsaved changes':notice||'Up to date'}</span>
         <button class="primary-action" type="button" disabled={saving||!dirty} onclick={save}>Save</button>
+        <details class="leveler-export">
+          <summary title="Stored as PF2e Leveler creation and plan data">Leveler ▾</summary>
+          <div class="leveler-menu">
+            {#if character.format==='legacy'}
+              <small class="muted">Saving converts this build to Leveler's format.</small>
+            {/if}
+            <button type="button" class="text-button" disabled={dirty||!character.leveler?.plan}
+              onclick={()=>downloadLeveler('plan')}>Download level plan</button>
+            <button type="button" class="text-button" disabled={dirty||!character.leveler?.creation}
+              onclick={()=>downloadLeveler('creation')}>Download creation</button>
+            <small class="muted">In Foundry, a GM can also use <strong>Pull from Planner</strong>
+              in Leveler's planner window.</small>
+          </div>
+        </details>
         <ThemePicker/>
       </div>
     </header>
@@ -790,6 +821,12 @@
   .level-edit select{padding:.4rem;background:var(--surface-hover);font-weight:800}
   .header-actions{display:flex;align-items:center;gap:.7rem}.save-state{font-size:.75rem;color:var(--good)}
   .save-state.unsaved{color:var(--danger)}
+  .leveler-export{position:relative;font-size:.78rem}
+  .leveler-export summary{cursor:pointer;list-style:none;color:var(--accent);font-weight:700;padding:.4rem}
+  .leveler-menu{position:absolute;right:0;top:110%;z-index:20;display:flex;flex-direction:column;
+    align-items:flex-start;gap:.25rem;min-width:15rem;padding:.6rem;border-radius:.5rem;
+    background:var(--surface-strong);border:1px solid var(--line);
+    box-shadow:0 8px 24px rgb(0 0 0 / .25)}
   .workspace{display:grid;grid-template-columns:224px minmax(0,1fr) minmax(290px,355px);
     flex:1;min-height:0}
   .sidebar{padding:1.4rem .85rem;overflow-y:auto;border-right:1px solid var(--line);background:var(--surface)}

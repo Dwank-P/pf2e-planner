@@ -1,9 +1,17 @@
 import { db } from './db.js';
 import {problem} from './api.js';
+import {levelerChoiceSlots} from '../leveler-progression.js';
+import {applyView,emptyDocument,isCharacterDocument,projectView,viewUuids}
+  from '../leveler-format.js';
 
 const UUID=/^Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+$/;
 const BASE_KEYS=['classUuid','secondClassUuid','ancestryUuid','heritageUuid','backgroundUuid'];
-export function validateBuild(value) {
+/**
+ * Validate a slot-keyed builder view. creationChoices are read-only on the
+ * website (they live in the Leveler creation document), so they are accepted
+ * only from the bridge's legacy actor import (acceptCreationChoices).
+ */
+export function validateBuild(value,{acceptCreationChoices=false}={}) {
   if(!value||typeof value!=='object'||Array.isArray(value))problem(400,'invalid_character_build');
   const result={};
   for(const key of BASE_KEYS) {
@@ -68,7 +76,7 @@ export function validateBuild(value) {
     if(!Number.isInteger(n)||n< -5||n>10)problem(400,'invalid_modifier');
     result.modifiers[stat]=n;
   }
-  const creation=value.creationChoices??{};
+  const creation=acceptCreationChoices?value.creationChoices??{}:{};
   if(!creation||typeof creation!=='object'||Array.isArray(creation)||
      Object.keys(creation).length>32||JSON.stringify(creation).length>18000)
     problem(400,'invalid_leveler_creation_choices');
@@ -90,24 +98,90 @@ export function validateBuild(value) {
   // prerequisites/boost math or auto-apply Rule Elements.
   return result;
 }
-export function validateReferences(campaignId, build) {
-  const ids=[...new Set([
-    ...['classUuid','secondClassUuid','ancestryUuid','heritageUuid','backgroundUuid']
-      .map(k=>build[k]).filter(Boolean),
-    ...Object.values(build.feats), ...build.equipment,
-    ...Object.values(build.spells??{}).flat()
-  ])];
+/**
+ * Reject Item references that are not in the published catalog. Only uuids that
+ * are new relative to `previous` are checked, so Leveler entries imported from
+ * Foundry whose packs are not synchronized do not block unrelated edits.
+ */
+export function validateReferences(campaignId, build, previous=null) {
+  const before=new Set(previous?viewUuids(previous):[]);
+  const ids=viewUuids(build).filter(uuid=>!before.has(uuid));
   if(!ids.length)return;
-  const publication=db().prepare(`SELECT p.integration_id,p.snapshot_id
+  const catalog=catalogFor(campaignId);
+  if(!catalog)problem(409,'sync_compendiums_before_selecting_items');
+  for(const uuid of ids)
+    if(!catalog.has(uuid))problem(400,'build_contains_item_not_in_synced_catalog');
+}
+/** Published-catalog lookups for one campaign, or null before the first sync. */
+export function catalogFor(campaignId) {
+  const publication=db().prepare(`SELECT p.integration_id,p.snapshot_id,p.variants_json
     FROM catalog_publications p JOIN integrations i ON i.id=p.integration_id
     WHERE i.campaign_id=? AND i.revoked_at IS NULL`).get(campaignId);
-  if(!publication)problem(409,'sync_compendiums_before_selecting_items');
-  const find=db().prepare(`SELECT 1 FROM catalog_entries
+  if(!publication)return null;
+  const find=db().prepare(`SELECT item_json FROM catalog_entries
     WHERE integration_id=? AND snapshot_id=? AND uuid=?`);
-  for(const uuid of ids) {
-    if(!find.get(publication.integration_id,publication.snapshot_id,uuid))
-      problem(400,'build_contains_item_not_in_synced_catalog');
+  const cache=new Map();
+  const resolve=uuid=>{
+    if(typeof uuid!=='string'||!UUID.test(uuid))return null;
+    if(!cache.has(uuid)){
+      const row=find.get(publication.integration_id,publication.snapshot_id,uuid);
+      cache.set(uuid,row?JSON.parse(row.item_json):null);
+    }
+    return cache.get(uuid);
+  };
+  let variants={};
+  try{variants=JSON.parse(publication.variants_json||'{}');}catch{}
+  return {resolve,has:uuid=>!!resolve(uuid),variants,
+    integrationId:publication.integration_id};
+}
+/** Leveler schedule/spell context used when writing view edits into a plan. */
+function mergeContext(catalog, view) {
+  if(!catalog)return {};
+  const primary=view.classUuid?catalog.resolve(view.classUuid):null;
+  const second=view.secondClassUuid?catalog.resolve(view.secondClassUuid):null;
+  return {
+    resolve:catalog.resolve,
+    slots:levelerChoiceSlots(primary,second,catalog.variants).slots,
+    spellSlots:primary?.metadata?.levelerProgression?.spellcasting?.slots??null
+  };
+}
+/** Canonical document of a row; pre-v2 rows hold a bare builder view. */
+export function readDocument(row) {
+  const stored=JSON.parse(row.build_json);
+  return isCharacterDocument(stored)?{doc:stored,view:projectView(stored)}:{doc:null,view:stored};
+}
+/** Merge a validated builder view into the row's document (migrating legacy rows). */
+export function mergeView(campaignId, current, view) {
+  const base=current??emptyDocument();
+  return applyView(base,view,mergeContext(catalogFor(campaignId),view));
+}
+const MAX_LEVELER_BYTES=900000;
+function depthOk(value,depth=0){
+  if(depth>24)return false;
+  if(Array.isArray(value))return value.length<=2000&&value.every(v=>depthOk(v,depth+1));
+  if(value&&typeof value==='object'){
+    const keys=Object.keys(value);
+    return keys.length<=500&&keys.every(k=>k!=='__proto__'&&depthOk(value[k],depth+1));
   }
+  return true;
+}
+/** Leveler creation/plan documents from Foundry: plain bounded JSON, stored verbatim. */
+export function validateLevelerDocuments(value) {
+  if(value===null||value===undefined)return {creation:null,plan:null};
+  if(typeof value!=='object'||Array.isArray(value))problem(400,'invalid_leveler_documents');
+  const text=JSON.stringify(value);
+  if(text.length>MAX_LEVELER_BYTES)problem(413,'oversized_leveler_documents');
+  const parsed=JSON.parse(text);
+  if(!depthOk(parsed))problem(400,'invalid_leveler_documents');
+  const creation=parsed.creation??null,plan=parsed.plan??null;
+  if(creation!==null&&(typeof creation!=='object'||Array.isArray(creation)))
+    problem(400,'invalid_leveler_creation');
+  if(plan!==null&&(typeof plan!=='object'||Array.isArray(plan)||
+     !plan.levels||typeof plan.levels!=='object'||Array.isArray(plan.levels)||
+     Object.keys(plan.levels).some(k=>!/^([1-9]|1\d|20)$/.test(k))||
+     (plan.classSlug!==null&&plan.classSlug!==undefined&&typeof plan.classSlug!=='string')))
+    problem(400,'invalid_leveler_plan');
+  return {creation,plan};
 }
 export function characterAccess(user, row) {
   if(!row)problem(404,'character_not_found');
@@ -117,8 +191,11 @@ export function characterAccess(user, row) {
     if(membership?.role!=='gm')problem(403,'character_owner_or_gm_required');
   }
 }
-export function toCharacter(row) {
+export function toCharacter(row,{includeLeveler=true}={}) {
+  const {doc,view}=readDocument(row);
   return {id:row.id,campaignId:row.campaign_id,ownerUserId:row.owner_user_id,
-    name:row.name,level:row.level,build:JSON.parse(row.build_json),
+    name:row.name,level:row.level,build:view,
+    format:doc?'leveler':'legacy',
+    ...(includeLeveler?{leveler:doc?.leveler??null}:{}),
     revision:row.revision,createdAt:row.created_at,updatedAt:row.updated_at};
 }

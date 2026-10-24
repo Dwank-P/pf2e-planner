@@ -1,6 +1,7 @@
 import {db,unix} from '#lib/server/db.js';
 import {sessionUser,requireMembership,input,problem,respond} from '#lib/server/api.js';
-import {characterAccess,validateBuild,validateReferences,toCharacter} from '#lib/server/characters.js';
+import {characterAccess,validateBuild,validateReferences,readDocument,mergeView,toCharacter}
+  from '#lib/server/characters.js';
 
 function load(event) {
   const user=sessionUser(event);
@@ -21,8 +22,11 @@ export async function PATCH(event) {
   if(!Number.isInteger(body.level)||body.level<1||body.level>20)problem(400,'level_1_to_20_required');
   if(!Number.isInteger(body.revision)||body.revision!==row.revision)
     problem(409,'character_changed_elsewhere_refresh_first');
-  const build=validateBuild(body.build);
-  validateReferences(row.campaign_id,build);
+  const view=validateBuild(body.build);
+  const current=readDocument(row);
+  validateReferences(row.campaign_id,view,current.view);
+  // Stored as PF2e Leveler creation/plan documents; see lib/leveler-format.js.
+  const build=mergeView(row.campaign_id,current.doc,view);
   const result=db().prepare(`UPDATE character_builds
     SET name=?,level=?,build_json=?,revision=revision+1,updated_at=?
     WHERE id=? AND revision=?`)

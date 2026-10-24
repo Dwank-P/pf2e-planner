@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {db, unix} from '#lib/server/db.js';
 import {sessionUser,requireMembership,input,problem,respond} from '#lib/server/api.js';
-import {validateBuild,toCharacter} from '#lib/server/characters.js';
+import {validateBuild,mergeView,toCharacter} from '#lib/server/characters.js';
 
 export function GET(event) {
   const user=sessionUser(event),campaignId=event.params.campaignId;
@@ -16,7 +16,7 @@ export function GET(event) {
     : db().prepare(`SELECT b.*,u.display_name AS owner_name FROM character_builds b
         JOIN users u ON u.id=b.owner_user_id WHERE campaign_id=? AND b.owner_user_id=?
         ORDER BY b.updated_at DESC LIMIT 200`).all(campaignId,user.id);
-  return respond({characters:rows.map(r=>({...toCharacter(r),ownerName:r.owner_name}))});
+  return respond({characters:rows.map(r=>({...toCharacter(r,{includeLeveler:false}),ownerName:r.owner_name}))});
 }
 export async function POST(event) {
   const user=sessionUser(event),campaignId=event.params.campaignId;
@@ -29,7 +29,7 @@ export async function POST(event) {
   const count=db().prepare('SELECT COUNT(*) AS n FROM character_builds WHERE campaign_id=? AND owner_user_id=?')
     .get(campaignId,user.id).n;
   if(count>=50)problem(409,'maximum_50_characters_per_player');
-  const build=validateBuild(body.build??{}),id=randomUUID(),now=unix();
+  const build=mergeView(campaignId,null,validateBuild(body.build??{})),id=randomUUID(),now=unix();
   db().prepare(`INSERT INTO character_builds
     (id,campaign_id,owner_user_id,name,level,build_json,revision,created_at,updated_at)
     VALUES(?,?,?,?,?,?,1,?,?)`)

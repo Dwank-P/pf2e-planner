@@ -1,4 +1,5 @@
-import {importActorToPlanner,getSiteCharacterOwners} from './sync.mjs';
+import {importActorToPlanner,getSiteCharacterOwners,listPlannerCharacters,
+  fetchPlannerCharacter,pullCharacterFromPlanner} from './sync.mjs';
 const escape=value=>String(value??'').replaceAll('&','&amp;')
   .replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
 
@@ -111,6 +112,152 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
   }
 }
 
+function ownedCharacters(){
+  return [...game.actors.values()]
+    .filter(actor=>actor.type==='character'&&actor.testUserPermission(game.user,'OWNER'))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+}
+function planSummary(plan){
+  if(!plan)return 'No level plan';
+  const levels=Object.values(plan.levels||{});
+  const feats=levels.reduce((n,data)=>n+Object.entries(data||{})
+    .filter(([key,value])=>/Feats$/.test(key)&&Array.isArray(value))
+    .reduce((m,[,value])=>m+value.filter(x=>x?.uuid).length,0),0);
+  const planned=levels.filter(data=>Object.values(data||{})
+    .some(value=>Array.isArray(value)&&value.length)).length;
+  return planned+' levels planned · '+feats+' feats · class '+(plan.classSlug||'none');
+}
+
+/** Pull a website build into Leveler: writes pf2e-leveler.plan on the chosen actor. */
+export class PlannerPullMenu extends foundry.applications.api.DialogV2 {
+  constructor(application=null,options={}){
+    const actors=ownedCharacters();
+    const selected=application?.actor?.id||actors[0]?.id||'';
+    const list=actors.map(actor=>
+      '<option value="'+escape(actor.id)+'" '+(actor.id===selected?'selected':'')+'>'+
+      escape(actor.name)+' (level '+(actor.system?.details?.level?.value||1)+')</option>'
+    ).join('');
+    super({...options,
+      window:{...options.window,title:'Pull character from PF2e Planner'},
+      content:`<div class="pf2e-planner-pull">
+        <p>Replace a Foundry character's PF2e Leveler plan with a build from the website.
+          Leveler applies planned levels when the character levels up; nothing else on
+          the actor changes now.</p>
+        <div class="form-group"><label>Foundry character</label>
+          <select class="planner-actor" style="width:100%">${list}</select></div>
+        <div class="form-group"><label>Website build</label>
+          <select class="planner-build" style="width:100%" disabled>
+            <option>Loading website builds…</option></select></div>
+        <p class="planner-preview hint">Choose a build to preview it.</p>
+        <ul class="planner-warnings" style="color:var(--color-level-warning,#c97a00)"></ul>
+        <label><input type="checkbox" class="planner-creation"/> Also replace Leveler
+          Character Wizard choices (only for characters not yet created)</label>
+        <label class="planner-relink-row" hidden><input type="checkbox" class="planner-relink"/>
+          This build is linked to another Foundry character; move the link here</label>
+        <button type="button" class="planner-pull" disabled><i class="fa-solid fa-cloud-arrow-down"></i>
+          Pull into Leveler</button>
+        <p class="planner-status" role="status" aria-live="polite"></p>
+      </div>`,
+      rejectClose:false,
+      buttons:[{action:'close',label:'Close'}]});
+    this.actorIds=new Set(actors.map(x=>x.id));
+    this.context=application;
+  }
+  async _onRender(context,options){
+    await super._onRender(context,options);
+    const form=this.element?.querySelector('.pf2e-planner-pull');
+    if(!form)return;
+    const actorSelect=form.querySelector('.planner-actor');
+    const buildSelect=form.querySelector('.planner-build');
+    const preview=form.querySelector('.planner-preview');
+    const warnings=form.querySelector('.planner-warnings');
+    const creationBox=form.querySelector('.planner-creation');
+    const relinkRow=form.querySelector('.planner-relink-row');
+    const relinkBox=form.querySelector('.planner-relink');
+    const button=form.querySelector('.planner-pull');
+    const status=form.querySelector('.planner-status');
+    let builds=[];
+    const actor=()=>this.actorIds.has(actorSelect.value)?game.actors.get(actorSelect.value):null;
+    const refresh=async()=>{
+      const target=actor(),build=builds.find(b=>b.id===buildSelect.value);
+      warnings.replaceChildren();
+      button.disabled=true;
+      if(!target||!build){preview.textContent='Choose a build to preview it.';return;}
+      // Writing creation data onto an already-built actor could re-apply level 1.
+      const created=target.items.some(item=>item.type==='class');
+      creationBox.checked=!created;
+      creationBox.disabled=created;
+      relinkRow.hidden=!(build.linkedActorId&&build.linkedActorId!==target.id);
+      relinkBox.checked=false;
+      preview.textContent='Loading build…';
+      try{
+        const result=await fetchPlannerCharacter(target,build.id);
+        if(buildSelect.value!==build.id)return;
+        preview.textContent=result.character.name+' (website level '+result.character.level+') — '+
+          planSummary(result.leveler.plan);
+        for(const text of result.warnings){
+          const item=document.createElement('li');item.textContent=text;warnings.append(item);
+        }
+        button.disabled=!result.leveler.plan&&!result.leveler.creation;
+      }catch(error){preview.textContent='Cannot load build: '+(error.message||String(error));}
+    };
+    try{
+      builds=await listPlannerCharacters();
+      const linkedTo=id=>builds.find(b=>b.linkedActorId===id)?.id??'';
+      buildSelect.replaceChildren();
+      const blank=document.createElement('option');
+      blank.value='';blank.textContent='Choose a website build…';
+      buildSelect.append(blank);
+      for(const build of builds){
+        const option=document.createElement('option');
+        option.value=build.id;
+        option.textContent=build.name+' · level '+build.level+' · '+build.ownerName+
+          (build.linkedActorId?' (linked)':'');
+        buildSelect.append(option);
+      }
+      buildSelect.value=linkedTo(actorSelect.value);
+      buildSelect.disabled=builds.length===0;
+      if(!builds.length)status.textContent='No website builds exist in this campaign yet.';
+      actorSelect.addEventListener('change',()=>{buildSelect.value=linkedTo(actorSelect.value);refresh();});
+      buildSelect.addEventListener('change',refresh);
+      await refresh();
+    }catch(error){
+      status.textContent='Cannot load website builds: '+(error.message||String(error));
+    }
+    button.addEventListener('click',async event=>{
+      event.preventDefault();
+      const target=actor(),build=builds.find(b=>b.id===buildSelect.value);
+      if(!target||!build)return;
+      if(!relinkRow.hidden&&!relinkBox.checked){
+        status.textContent='Confirm moving the link before pulling this build.';return;
+      }
+      button.disabled=true;
+      try{
+        status.textContent='Writing Leveler data…';
+        const result=await pullCharacterFromPlanner(target,build.id,{
+          writeCreation:creationBox.checked,relink:relinkBox.checked});
+        const wrote=[result.wrotePlan&&'level plan',result.wroteCreation&&'creation choices']
+          .filter(Boolean).join(' and ')||'nothing (the build is empty)';
+        status.textContent='Pulled "'+result.character.name+'" into '+target.name+': '+wrote+'.';
+        ui.notifications.info('PF2e Planner: '+status.textContent);
+        for(const build of builds)if(build.linkedActorId===target.id)build.linkedActorId=null;
+        build.linkedActorId=target.id;
+        relinkRow.hidden=true;
+        // Reopen the Leveler window so it loads the new flags instead of its in-memory copy.
+        const app=this.context;
+        if(app?.actor?.id===target.id&&typeof app.close==='function'){
+          const Window=app.constructor;
+          await app.close();
+          new Window(target).render(true);
+        }
+      }catch(error){
+        status.textContent='Pull failed: '+(error?.message||String(error));
+        ui.notifications.error('PF2e Planner: '+status.textContent);
+      }finally{button.disabled=false;}
+    });
+  }
+}
+
 /** Non-invasive integration with Leveler's existing ApplicationV2 dialogs. */
 export function registerLevelerButtons(){
   Hooks.on('renderApplicationV2',(app)=>{
@@ -121,17 +268,24 @@ export function registerLevelerButtons(){
     if(!root?.querySelector||root.querySelector('.pf2e-planner-sync-button'))return;
     const header=root.querySelector('.window-header')||root.querySelector('.window-content');
     if(!header)return;
-    const button=document.createElement('button');
-    button.type='button';
-    button.className='pf2e-planner-sync-button';
-    button.title='Send a Foundry character into the PF2e Planner website';
-    button.setAttribute('aria-label','Sync character to PF2e Planner website');
-    button.innerHTML='<i class="fa-solid fa-cloud-arrow-up"></i> PF2e Planner';
-    button.style.cssText='margin:0 6px;flex:0 0 auto;font-size:.75rem;padding:.3rem .5rem;';
-    button.addEventListener('click',event=>{
-      event.preventDefault();event.stopPropagation();
-      new PlannerCharacterImportMenu(app).render({force:true});
-    });
-    header.append(button);
+    const make=(label,icon,title,open)=>{
+      const button=document.createElement('button');
+      button.type='button';
+      button.className='pf2e-planner-sync-button';
+      button.title=title;
+      button.setAttribute('aria-label',title);
+      button.innerHTML='<i class="fa-solid '+icon+'"></i> '+label;
+      button.style.cssText='margin:0 3px;flex:0 0 auto;font-size:.75rem;padding:.3rem .5rem;';
+      button.addEventListener('click',event=>{
+        event.preventDefault();event.stopPropagation();
+        open().render({force:true});
+      });
+      return button;
+    };
+    header.append(
+      make('Send to Planner','fa-cloud-arrow-up','Send a Foundry character into the PF2e Planner website',
+        ()=>new PlannerCharacterImportMenu(app)),
+      make('Pull from Planner','fa-cloud-arrow-down','Load a PF2e Planner website build into this Leveler plan',
+        ()=>new PlannerPullMenu(app)));
   });
 }
