@@ -37,6 +37,8 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
           Site ownership follows the authorized GM account.</p>
         <button type="button" class="planner-import"><i class="fa-solid fa-cloud-arrow-up"></i>
           Import & Open Character Builder</button>
+        <p><a class="planner-open-link" href="#" target="_blank" rel="noopener noreferrer"
+          hidden>Open imported character in PF2e Planner ↗</a></p>
         <p class="planner-status" role="status" aria-live="polite">
           ${actors.length} characters available in this world.</p>
       </div>`,
@@ -97,6 +99,8 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
           ' '+result.skipped+' choices could not be matched to synced compendiums.':'');
         ui.notifications.info('PF2e Planner: '+status.textContent);
         // Open in a separate browser tab so the Foundry Leveler window stays intact.
+        const link=form.querySelector('.planner-open-link');
+        link.href=result.url;link.hidden=false;
         window.open(result.url,'_blank','noopener,noreferrer');
       }catch(error){
         status.textContent='Import failed: '+(error?.message||String(error));
