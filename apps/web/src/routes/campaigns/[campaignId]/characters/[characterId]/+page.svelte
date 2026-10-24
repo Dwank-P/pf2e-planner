@@ -58,9 +58,15 @@
   const variants=$derived(catalogue?.variants||{});
   const freeArchetype=$derived(variants.freeArchetype===true);
   const dualClass=$derived(variants.dualClass===true);
-  const caster=$derived(Boolean(primary?.metadata?.spellcasting));
-  const spellTradition=$derived(primary?.metadata?.spellTradition||'');
-  const maxSpellRank=$derived(Math.min(10,Math.ceil(level/2)));
+  const spellModel=$derived(primary?.metadata?.levelerProgression?.spellcasting??null);
+  const caster=$derived(Boolean(spellModel||primary?.metadata?.spellcasting));
+  const spellTradition=$derived(spellModel?.tradition||primary?.metadata?.spellTradition||'');
+  const spellSlots=$derived(spellModel?.slots?.[level]??null);
+  const maxSpellRank=$derived(spellSlots
+    ? Math.max(0,...Object.entries(spellSlots)
+      .filter(([rank,count])=>rank!=='cantrips'&&Number(count)>0)
+      .map(([rank])=>Number(rank)).filter(Number.isFinite))
+    : Math.min(10,Math.ceil(level/2)));
   const spellChoices=$derived((build.spells||{})[spellRank===0?'cantrip':'rank-'+spellRank]||[]);
   const pickerContext=$derived({
     classItem:primary,secondClass:second,ancestry:ancestryItem,heritage:heritageItem,
@@ -657,7 +663,7 @@
             <div class="spell-ranks">
               {#each Array.from({length:maxSpellRank+1},(_,i)=>i) as n}
                 <button class:active={spellRank===n} onclick={()=>spellRank=n}>
-                  {n===0?'Cantrips':'Rank '+n}</button>
+                  {n===0?'Cantrips':'Rank '+n}{#if spellSlots?.[n]!==undefined} · {spellSlots[n]}{/if}</button>
               {/each}
             </div>
             <button class="primary-action" onclick={()=>begin('spell')}>+ Browse
