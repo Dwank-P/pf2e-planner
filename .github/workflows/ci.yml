@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main, feature/auth-and-sync-foundation]
+    branches: [main, "feature/**"]
   pull_request:
 jobs:
   web:

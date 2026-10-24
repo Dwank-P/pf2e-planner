@@ -490,7 +490,66 @@ export async function getSiteCharacterOwners(){
 export async function importActorToPlanner(actor,{plan=null,creation=null,overwrite=false,ownerUserId=null}={}){
   requireGM();
   const {base,id,auth}=await authorized();
-  const body={...exportCharacterActor(actor,plan,creation),overwrite,ownerUserId};
+  const body={...exportCharacterActor(actor,plan,creation),overwrite,ownerUserId,
+    leveler:levelerDocuments(actor,plan,creation)};
   const result=await post(base,'/api/v1/bridge/'+id+'/characters/import',body,auth.accessToken);
   return {...result,url:base+result.editorPath};
+}
+const LEVELER='pf2e-leveler';
+const plain=value=>value==null?null:JSON.parse(JSON.stringify(value));
+/** Leveler's own documents: an open window's unsaved data wins over actor flags. */
+function levelerDocuments(actor,plan=null,creation=null){
+  return {plan:plain(plan??actor.getFlag(LEVELER,'plan')),
+    creation:plain(creation??actor.getFlag(LEVELER,'creation'))};
+}
+export async function listPlannerCharacters(){
+  requireGM();
+  const {base,id,auth}=await authorized();
+  const result=await post(base,'/api/v1/bridge/'+id+'/characters/list',{},auth.accessToken);
+  return result.characters||[];
+}
+/** Website build as Leveler documents, plus warnings for the target actor. */
+export async function fetchPlannerCharacter(actor,characterId){
+  requireGM();
+  if(!actor||actor.type!=='character')throw Error('Select a character Actor.');
+  const {base,id,auth}=await authorized();
+  const result=await post(base,'/api/v1/bridge/'+id+'/characters/export',
+    {characterId,actorId:actor.id},auth.accessToken);
+  return {...result,warnings:pullWarnings(actor,result.leveler)};
+}
+function pullWarnings(actor,{plan,creation}){
+  const warnings=[];
+  // Leveler discards a stored plan whose classSlug differs from the actor's class.
+  const actorClass=String(actor.getFlag(LEVELER,'creation')?.class?.slug??actor.class?.slug??'')
+    .trim().toLowerCase()||null;
+  if(!plan)warnings.push('The website build has no level plan yet (choose a class and save).');
+  else if(!plan.classSlug)warnings.push('The website plan has no class; Leveler will ignore it.');
+  else if(actorClass&&plan.classSlug!==actorClass)
+    warnings.push('Plan class "'+plan.classSlug+'" differs from this actor\'s class "'+actorClass+
+      '"; Leveler will ignore the plan until the class matches.');
+  if(!creation?.class&&!creation?.ancestry)warnings.push('The website build has no creation choices.');
+  return warnings;
+}
+/**
+ * Replace this actor's Leveler plan (and optionally creation) flags with a
+ * website build and link them. Leveler applies plan levels on level-up as usual.
+ */
+export async function pullCharacterFromPlanner(actor,characterId,{writeCreation=false,relink=false}={}){
+  requireGM();
+  if(!actor?.testUserPermission(game.user,'OWNER'))throw Error('Character access denied.');
+  const {base,id,auth}=await authorized();
+  const result=await post(base,'/api/v1/bridge/'+id+'/characters/export',
+    {characterId,actorId:actor.id,link:true,relink},auth.accessToken);
+  const {plan,creation}=result.leveler;
+  // unsetFlag first: setFlag merges objects, which would keep removed levels.
+  if(plan){
+    await actor.unsetFlag(LEVELER,'plan');
+    await actor.setFlag(LEVELER,'plan',plan);
+  }
+  if(writeCreation&&creation){
+    await actor.unsetFlag(LEVELER,'creation');
+    await actor.setFlag(LEVELER,'creation',creation);
+  }
+  return {...result,wrotePlan:!!plan,wroteCreation:!!(writeCreation&&creation),
+    warnings:pullWarnings(actor,result.leveler)};
 }

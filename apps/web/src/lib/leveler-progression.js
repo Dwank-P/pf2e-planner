@@ -88,7 +88,8 @@ export function levelerChoiceSlots(primary,secondary=null,variants={}) {
         slots.push({key:'skill-increase-'+level+
           (choice.source?'-'+extraKey(choice.source):suffix),
           type:'skill',kind:'skillIncrease',label:choice.label||'Skill increase',level,
-          allowedSkills:choice.allowedSkills||[],source:'leveler',levelerType:choice.type});
+          allowedSkills:choice.allowedSkills||[],source:'leveler',levelerType:choice.type,
+          choiceSource:choice.source??''});
       }else if(choice.type==='spells'){
         slots.push({key:'spells-'+level,type:'spells',kind:'spells',
           label:'Spellcasting progression',level,source:'leveler'});
