@@ -106,6 +106,11 @@ export function db() {
     );
     CREATE INDEX IF NOT EXISTS idx_builds_campaign_owner
       ON character_builds(campaign_id, owner_user_id, updated_at DESC);
+    CREATE TABLE IF NOT EXISTS foundry_actor_links (
+      integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
+      actor_id TEXT NOT NULL, character_id TEXT NOT NULL REFERENCES character_builds(id) ON DELETE CASCADE,
+      PRIMARY KEY(integration_id,actor_id), UNIQUE(character_id)
+    );
     CREATE TABLE IF NOT EXISTS rate_limits (
       key TEXT PRIMARY KEY, bucket INTEGER NOT NULL, hits INTEGER NOT NULL
     );
