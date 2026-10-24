@@ -33,7 +33,7 @@ export function GET(event){
   const ancestryUuid=event.url.searchParams.get('ancestryUuid')||'';
   const ancestrySlug=event.url.searchParams.get('ancestrySlug')||'';
   if(type==='heritage'&&ancestryUuid){
-    if(!/^Compendium\\.[\\w-]+\\.[\\w-]+\\.Item\\.[\\w-]+$/.test(ancestryUuid))
+    if(!/^Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+$/.test(ancestryUuid))
       problem(400,'invalid_ancestry_reference');
     const showAll=event.url.searchParams.get('showAll')==='true';
     if(!showAll){
