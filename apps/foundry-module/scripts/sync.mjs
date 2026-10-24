@@ -283,6 +283,22 @@ export async function syncNow({auto=false}={}){
       if(entry.type!=='class')continue;
       entry.levelerProgression=progression.get(entry.uuid)??null;
     }
+    // Supplement system-configured ancestry trait classification with every
+    // imported ancestry slug. This catches third-party ancestries whose traits
+    // are not registered in CONFIG.PF2E during compendium import.
+    const importedAncestries=new Set(entries.filter(x=>x.type==='ancestry')
+      .map(x=>String(x.slug||x.name||'').toLowerCase()
+        .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')));
+    for(const item of entries){
+      if(item.type!=='feat'||item.category!=='ancestry')continue;
+      const extra=item.traits.filter(x=>importedAncestries.has(String(x).toLowerCase()));
+      if(extra.length){
+        item.ancestryAccess={
+          restrictedTo:[...new Set([...(item.ancestryAccess?.restrictedTo||[]),...extra])],
+          universal:item.traits.includes('reincarnated')
+        };
+      }
+    }
     if(classDocs.length&&!progression.size)
       throw Error('PF2e Leveler did not resolve any class progression definitions.');
     ui.notifications.info('PF2e Planner: Exported Leveler advancement schemas for '+
@@ -315,15 +331,15 @@ export async function syncNow({auto=false}={}){
     const started=await post(base,'/api/v1/bridge/'+id+'/catalog-import/start',
       {packs,variants,sourceVersions:sources,expectedCount:entries.length,
         packDigests,reusePacks},auth.accessToken);
-    for(let offset=0,batchNumber=0;offset<changed.length;offset+=15,batchNumber++){
+    for(let offset=0,batchNumber=0;offset<changed.length;offset+=10,batchNumber++){
       if(auth.accessExpiresAt<Math.floor(Date.now()/1000)+120){
         auth=(await authorized()).auth;
       }
       await post(base,'/api/v1/bridge/'+id+'/catalog-import/batch',
-        {snapshotId:started.snapshotId,batchNumber,items:changed.slice(offset,offset+15)},
+        {snapshotId:started.snapshotId,batchNumber,items:changed.slice(offset,offset+10)},
         auth.accessToken);
       if(batchNumber%20===0)
-        ui.notifications.info('PF2e Planner: Uploaded '+Math.min(offset+15,changed.length)+
+        ui.notifications.info('PF2e Planner: Uploaded '+Math.min(offset+10,changed.length)+
           '/'+changed.length+' changed items; '+(started.reused||0)+' reused.');
       await sleep(0);
     }
