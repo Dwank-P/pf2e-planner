@@ -44,8 +44,8 @@
     clearTimeout(timer);
     const sequence=++request;
     hoverPos={
-      x:Math.max(12,Math.min(event.clientX+12,(window.innerWidth||800)-350)),
-      y:Math.max(12,Math.min(event.clientY+12,(window.innerHeight||800)-230))
+      x:Math.max(12,Math.min((event.clientX||220)+12,(window.innerWidth||800)-350)),
+      y:Math.max(12,Math.min((event.clientY||180)+12,(window.innerHeight||800)-230))
     };
     hoverItem=null;
     hoverState='';
@@ -104,7 +104,7 @@
         <p class="prereq"><strong>Prerequisites</strong> {item.metadata.prerequisites.join(', ')}</p>
       {/if}
       <div class="description" role="presentation" onclick={follow}
-        onmouseover={hoverLink} onmouseout={clearHover}>
+        onpointerover={hoverLink} onpointerout={clearHover} onfocusin={hoverLink} onfocusout={clearHover}>
         {@html html||'<p>No description was imported for this item.</p>'}
       </div>
       <div class="inspector-footer">
