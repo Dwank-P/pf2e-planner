@@ -51,9 +51,9 @@ export function GET(event){
     if(!boosts.length||!boosts.every(x=>/^(str|dex|con|int|wis|cha)$/.test(x)))
       problem(400,'invalid_background_boosts');
     clauses.push(`EXISTS(
-       SELECT 1 FROM json_each(item_json,'$.metadata.boostChoices') groups
-       JOIN json_each(groups.value) boost ON 1=1
-       WHERE json_array_length(groups.value)<6 AND boost.value IN (${boosts.map(()=>'?').join(',')})
+       SELECT 1 FROM json_each(item_json,'$.metadata.boostChoices') bg_group
+       JOIN json_each(bg_group.value) boost ON 1=1
+       WHERE json_array_length(bg_group.value)<6 AND boost.value IN (${boosts.map(()=>'?').join(',')})
     )`);
     values.push(...boosts);
   }
@@ -77,6 +77,14 @@ export function GET(event){
     clauses.push(`EXISTS(SELECT 1 FROM json_each(item_json,'$.metadata.spellTraditions')
       WHERE value=?)`);
     values.push(tradition);
+  }
+  const spellRank=event.url.searchParams.get('spellRank');
+  if(type==='spell'&&spellRank!==null){
+    const n=Number(spellRank);
+    if(!Number.isInteger(n)||n<0||n>10)problem(400,'invalid_spell_rank');
+    if(n===0)clauses.push("EXISTS(SELECT 1 FROM json_each(traits_json) WHERE value='cantrip')");
+    else {clauses.push('level=?');values.push(n);
+      clauses.push("NOT EXISTS(SELECT 1 FROM json_each(traits_json) WHERE value='cantrip')");}
   }
   const maxRank=event.url.searchParams.get('maxRank');
   if(type==='spell'&&maxRank!==null){
