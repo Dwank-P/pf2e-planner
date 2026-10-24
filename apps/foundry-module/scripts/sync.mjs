@@ -214,6 +214,18 @@ function exportItem(doc,pack){
     out.actions=system.actions?.value??null;
     out.prerequisites=Array.isArray(system.prerequisites?.value)?
       system.prerequisites.value.map(p=>p.value||'').filter(Boolean):[];
+    if(system.category==='ancestry'){
+      // Same ancestry/creature trait classification used by Leveler's
+      // feat-filter, including third-party traits registered with the system.
+      const creature=CONFIG.PF2E?.creatureTraits||{};
+      const ancestry=CONFIG.PF2E?.ancestryTraits||{};
+      const tagged=(system.traits?.value||[])
+        .filter(t=>Object.hasOwn(creature,t)||Object.hasOwn(ancestry,t));
+      out.ancestryAccess={
+        restrictedTo:[...new Set(tagged)],
+        universal:tagged.length===0||system.traits?.value?.includes('reincarnated')
+      };
+    }
   }else{
     for(const key of ['classFeatLevels','skillFeatLevels','generalFeatLevels',
       'ancestryFeatLevels','skillIncreaseLevels'])
