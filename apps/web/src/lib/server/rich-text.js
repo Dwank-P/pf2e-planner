@@ -13,7 +13,7 @@ const HTML_OPTIONS = {
     'span','div','a','code','pre','sup','sub'],
   allowedAttributes: {
     a: ['href','title','class','data-uuid','data-pf2e-uuid','data-pf2e-action'],
-    span: ['class','title','data-pf2e-kind'],
+    span: ['class','title','data-pf2e-kind','data-pf2e-formula'],
     div:['class'], td:['colspan','rowspan'],th:['colspan','rowspan']
   },
   allowedSchemes: ['https','http'],
