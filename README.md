@@ -300,3 +300,25 @@ wrote them. Older builds load as before and convert on their next save.
 Limits: Leveler ignores a plan whose class differs from the actor's class (the
 Pull dialog warns); new website skill increases use an approximate target rank;
 class-specific creation choices stay read-only on the website.
+
+### v0.7.1 — Builder fixes: Origin step, level-1 choices, spell limits
+
+- **Origin step:** ancestry, heritage, background and class now live on their
+  own "Origin" entry at the top of the level track instead of repeating above
+  every level. New builds open there; level 1 follows.
+- **Level 1 asks for everything Leveler's wizard does:** class specialization
+  (subclass) where the class has one, a level-1 class feat and skill feat when
+  the class grants them, alongside boosts and the ancestry feat.
+- **Automatic class features** are listed at each level ("Gained automatically
+  at level N"), with links to their rules text.
+- **Ability boosts no longer replace an earlier pick** when a slot is full;
+  deselect one first.
+- **Spells are learned per level within Leveler's limits:** level 1 uses the
+  Character Wizard counts, spontaneous casters learn their repertoire growth,
+  spellbook casters add two spells per level, and other prepared casters learn
+  none. The Spells tab is now an overview of everything learned.
+- **Foundry:** the Send/Pull buttons sit before the Leveler window's close
+  button, and Leveler modules load correctly when Foundry runs under a URL prefix.
+
+**After updating, the GM must run Sync Now once** so the website receives
+class features, specialization tags and spell counts.

@@ -206,3 +206,12 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Download plan/creation in Leveler's import formats.
 - [ ] Validate Pull from Planner and level-up application in a Foundry v14 test world.
 - [ ] Let actor owners (players) pull their own builds without GM bridge credentials.
+
+## v0.7.1 builder fixes
+- [x] Origin (level 0) step; levels show only their own choices.
+- [x] Level-1 subclass, class feat and skill feat slots from Leveler/class Item data.
+- [x] Automatic class features per level.
+- [x] Boost slots never replace earlier picks.
+- [x] Per-level spell learning limits (Leveler rules); spells stored at the level learned.
+- [ ] Class-specific creation steps beyond subclass (deity, implement, kinetic gate, …).
+- [ ] Granted/curriculum spells reducing level-1 picks (Leveler resolves these in Foundry).

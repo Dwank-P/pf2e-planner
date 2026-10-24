@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {levelerChoiceSlots,setBoost,selectedBoosts,choiceComplete} from '../src/lib/leveler-progression.js';
+import {levelerChoiceSlots,setBoost,selectedBoosts,choiceComplete,spellAllowance,spellsAtLevel,
+ classFeaturesAt} from '../src/lib/leveler-progression.js';
 
 const fighter={
  metadata:{levelerProgression:{
@@ -24,7 +25,8 @@ test('Leveler data controls slot presence, counts, variants and repeated ancestr
  assert.equal(out.slots.find(s=>s.key==='level-5').count,4);
  assert.ok(out.slots.some(s=>s.key==='dual-class-8'));
  assert.ok(out.slots.some(s=>s.key==='mythic-8'));
- assert.ok(out.slots.some(s=>s.key==='spells-8'));
+ assert.equal(out.slots.some(s=>s.type==='spells'),false,
+  'A non-caster gets no spell slots, even if Leveler marks a spells step');
  assert.ok(out.slots.some(s=>s.key==='abp-8'));
  assert.equal(out.slots.some(s=>s.key==='class-4'),false,
   'Must not invent slots from fallback schedules');
@@ -49,4 +51,44 @@ test('attribute boosts are per-source, capped, toggleable and selectable in leve
  assert.deepEqual(selectedBoosts(build,'level-5'),['str','wis','con']);
  setBoost(build,'level-5','cha',4);
  assert.deepEqual(selectedBoosts(build,'level-5'),['str','wis','con','cha']);
+ setBoost(build,'level-5','int',4);
+ assert.deepEqual(selectedBoosts(build,'level-5'),['str','wis','con','cha'],
+  'A full slot must not replace an earlier pick');
+});
+test('level-1 class/skill feats and specializations come from the class Item',()=>{
+ const wizardLike={name:'Fighter',metadata:{classFeatLevels:[1,2,4],skillFeatLevels:[2],
+  levelerProgression:{...fighter.metadata.levelerProgression,subclassTag:'fighter-style'}}};
+ const keys=levelerChoiceSlots(wizardLike).slots.filter(s=>s.level===1).map(s=>s.key);
+ assert.ok(keys.includes('class-1'));
+ assert.ok(!keys.includes('skill-1'));
+ assert.equal(levelerChoiceSlots(wizardLike).slots.find(s=>s.key==='subclass-1').tag,'fighter-style');
+ const rogueLike={metadata:{classFeatLevels:[1],skillFeatLevels:[1,2]}};
+ assert.ok(levelerChoiceSlots(rogueLike).slots.some(s=>s.key==='skill-1'));
+});
+test('spells learned per level follow Leveler: repertoire growth, spellbook +2, prepared none',()=>{
+ const sorcerer={slug:'sorcerer',spellcasting:{type:'spontaneous',slots:{
+  1:{cantrips:5,1:3},2:{cantrips:5,1:4},3:{cantrips:5,1:4,2:3}}}};
+ assert.deepEqual(spellAllowance(sorcerer,1),{cantrips:5,ranks:{1:3},any:0,maxRank:1,total:8});
+ assert.deepEqual(spellAllowance(sorcerer,2),{cantrips:0,ranks:{1:1},any:0,maxRank:1,total:1});
+ assert.deepEqual(spellAllowance(sorcerer,3).ranks,{2:3});
+ const bard={...sorcerer,slug:'bard',spellcasting:{...sorcerer.spellcasting,level1Counts:{cantrips:5,rank1:3}}};
+ assert.equal(spellAllowance(bard,1).ranks[1],3,'Leveler handler counts win at level 1');
+ const wizard={slug:'wizard',spellcasting:{type:'prepared',slots:{1:{cantrips:5,1:2},2:{cantrips:5,1:3},3:{cantrips:5,1:3,2:2}}}};
+ assert.deepEqual(spellAllowance(wizard,1),{cantrips:10,ranks:{1:5},any:0,maxRank:1,total:15});
+ assert.deepEqual(spellAllowance(wizard,3),{cantrips:0,ranks:{},any:2,maxRank:2,total:2});
+ const cleric={slug:'cleric',spellcasting:{type:'prepared',slots:{1:{cantrips:5,1:2}}}};
+ assert.equal(spellAllowance(cleric,1),null);
+ const build={spells:{'3:rank-2':['a','b'],'3:cantrip':['c'],'1:rank-1':['d']}};
+ assert.deepEqual(spellsAtLevel(build,3),{cantrip:['c'],ranked:{2:['a','b']},count:3});
+ const slots=levelerChoiceSlots({metadata:{levelerProgression:{provider:'pf2e-leveler',slug:'sorcerer',
+  spellcasting:sorcerer.spellcasting,levels:{2:[{type:'classFeat'}]}}}}).slots;
+ assert.deepEqual(slots.filter(s=>s.type==='spells').map(s=>s.key),['spells-1','spells-2','spells-3']);
+ assert.equal(choiceComplete(slots.find(s=>s.key==='spells-3'),{spells:{'3:rank-2':['a','b','c']}}),true);
+});
+test('automatic class features per level prefer the class Item list',()=>{
+ const item={name:'Fighter',metadata:{grantedFeatures:[{name:'Bravery',level:3,uuid:'U1'}],
+  levelerProgression:{classFeatures:[{name:'Ignored',level:3}]}}};
+ assert.deepEqual(classFeaturesAt([item],3),[{name:'Bravery',uuid:'U1',className:'Fighter'}]);
+ const legacy={name:'Fighter',metadata:{levelerProgression:{classFeatures:[{name:'Bravery',level:3}]}}};
+ assert.deepEqual(classFeaturesAt([legacy,null],3),[{name:'Bravery',uuid:null,className:'Fighter'}]);
 });

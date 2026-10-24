@@ -5,7 +5,8 @@ import {applyView,emptyDocument,isCharacterDocument,projectView,viewUuids}
   from '../leveler-format.js';
 
 const UUID=/^Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+$/;
-const BASE_KEYS=['classUuid','secondClassUuid','ancestryUuid','heritageUuid','backgroundUuid'];
+const BASE_KEYS=['classUuid','secondClassUuid','ancestryUuid','heritageUuid','backgroundUuid',
+  'subclassUuid','dualSubclassUuid'];
 /**
  * Validate a slot-keyed builder view. creationChoices are read-only on the
  * website (they live in the Leveler creation document), so they are accepted
@@ -60,7 +61,8 @@ export function validateBuild(value,{acceptCreationChoices=false}={}) {
   result.spells={};
   let spellCount=0;
   for(const [rank,uuids] of Object.entries(spells)){
-    if(!/^(cantrip|rank-(?:[1-9]|10))$/.test(rank)||
+    // "<level>:<cantrip|rank-N>" (level learned); bare rank keys from older clients.
+    if(!/^(?:(?:[1-9]|1\d|20):)?(cantrip|rank-(?:[1-9]|10))$/.test(rank)||
        !Array.isArray(uuids)||uuids.length>30||
        !uuids.every(x=>typeof x==='string'&&UUID.test(x)))
       problem(400,'invalid_spell_choice');
@@ -192,7 +194,12 @@ export function characterAccess(user, row) {
   }
 }
 export function toCharacter(row,{includeLeveler=true}={}) {
-  const {doc,view}=readDocument(row);
+  const stored=readDocument(row);
+  // The builder edits Leveler-shaped views (level-keyed spells, subclass slots),
+  // so pre-v2 rows are converted for display; they are stored on next save.
+  const view=includeLeveler&&!stored.doc
+    ? projectView(mergeView(row.campaign_id,null,stored.view)) : stored.view;
+  const doc=stored.doc;
   return {id:row.id,campaignId:row.campaign_id,ownerUserId:row.owner_user_id,
     name:row.name,level:row.level,build:view,
     format:doc?'leveler':'legacy',

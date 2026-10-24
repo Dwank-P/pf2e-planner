@@ -362,3 +362,18 @@ Update Docker/Portainer and the Foundry module; both must report v0.7.0.
    feats keep their Leveler choices.
 5. Level the actor up and confirm Leveler offers to apply the pulled level.
 6. Pulling a build linked to another actor requires ticking the relink box.
+
+## R. v0.7.1 — Builder level-1 and spell checks
+
+After updating both parts to v0.7.1, run **Sync Now** as GM (the export gained
+class features, `otherTags` and level-1 spell counts).
+1. Create a build: it opens on **Origin**; levels show only their own choices.
+2. Pick a class with a specialization (e.g. Wizard): level 1 shows
+   *Class specialization*; the picker lists only that class's options.
+3. Pick a class with a level-1 class feat (e.g. Fighter): level 1 shows a class feat slot.
+4. Each level lists *Gained automatically* features from the class Item.
+5. Fill a 4-boost slot, then click a fifth attribute: nothing changes until one is deselected.
+6. Sorcerer: level 1 allows 5 cantrips + 3 rank-1; level 2 allows 1 rank-1;
+   level 3 allows 3 rank-2 (Leveler's slot growth). Wizard: 10 + 5 at level 1,
+   then 2 of any castable rank per level. Cleric: no spell slots on the track.
+7. In Foundry, the Send/Pull buttons appear left of the Leveler window's close button.

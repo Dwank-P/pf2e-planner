@@ -197,6 +197,12 @@ function exportItem(doc,pack){
     out.perception=system.perception??null;
     out.trainedSkills=system.trainedSkills?.value??[];
     out.spellcasting=Boolean(system.spellcasting);
+    // Features the class grants automatically, by level (PF2e class system.items).
+    out.grantedFeatures=Object.values(system.items||{})
+      .filter(x=>x&&typeof x.name==='string'&&Number.isInteger(Number(x.level)))
+      .map(x=>({name:x.name.slice(0,120),level:Number(x.level),
+        uuid:typeof x.uuid==='string'?x.uuid:null}))
+      .sort((a,b)=>a.level-b.level||a.name.localeCompare(b.name)).slice(0,80);
     // Specific traditions can also depend on class choices (e.g. sorcerer).
     out.spellTradition={
       bard:'occult',wizard:'arcane',druid:'primal',cleric:'divine',
@@ -212,6 +218,10 @@ function exportItem(doc,pack){
     out.featType=system.category||system.featType?.value||null;
     out.actionType=system.actionType?.value||null;
     out.actions=system.actions?.value??null;
+    // Subclass options (e.g. wizard-arcane-school) are tagged here.
+    const otherTags=system.traits?.otherTags;
+    if(Array.isArray(otherTags)&&otherTags.length)
+      out.otherTags=otherTags.filter(x=>typeof x==='string').slice(0,20);
     out.prerequisites=Array.isArray(system.prerequisites?.value)?
       system.prerequisites.value.map(p=>p.value||'').filter(Boolean):[];
     if(system.category==='ancestry'){

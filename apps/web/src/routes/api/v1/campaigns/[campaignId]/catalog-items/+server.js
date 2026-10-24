@@ -71,6 +71,13 @@ export function GET(event){
       WHERE LOWER(value) LIKE ?)`);
     values.push('%'+bgFeat+'%');
   }
+  // Subclass options: class features tagged e.g. "wizard-arcane-school" (Leveler SUBCLASS_TAGS).
+  const otherTag=event.url.searchParams.get('otherTag')||'';
+  if(otherTag){
+    if(!/^[a-z][a-z0-9-]{0,80}$/.test(otherTag))problem(400,'invalid_other_tag');
+    clauses.push(`EXISTS(SELECT 1 FROM json_each(item_json,'$.metadata.otherTags') WHERE value=?)`);
+    values.push(otherTag);
+  }
   const tradition=event.url.searchParams.get('tradition')||'';
   if(type==='spell'&&tradition){
     if(!/^(arcane|divine|primal|occult)$/.test(tradition))problem(400,'invalid_spell_tradition');

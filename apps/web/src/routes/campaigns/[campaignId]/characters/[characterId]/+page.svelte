@@ -4,7 +4,7 @@
   import ThemePicker from '../../../../../lib/ThemePicker.svelte';
   import {
     levelerChoiceSlots, selectedBoosts, setBoost, choiceComplete,
-    isCompletionSlot, SKILL_LABELS
+    isCompletionSlot, SKILL_LABELS, spellsAtLevel, classFeaturesAt
   } from '../../../../../lib/leveler-progression.js';
   import {checkFeat,checkHeritage,isSpellAvailable,rankChoices,slugOf,abilities as ABILITY_LABELS}
     from '../../../../../lib/eligibility.js';
@@ -69,7 +69,12 @@
       .filter(([rank,count])=>rank!=='cantrips'&&Number(count)>0)
       .map(([rank])=>Number(rank)).filter(Number.isFinite))
     : Math.min(10,Math.ceil(level/2)));
-  const spellChoices=$derived((build.spells||{})[spellRank===0?'cantrip':'rank-'+spellRank]||[]);
+  // Every chosen spell with the level it is learned at, for the Spells overview.
+  const learnedSpells=$derived(Object.entries(build.spells||{}).flatMap(([key,uuids])=>{
+    const match=/^(\d{1,2}):(cantrip|rank-(\d{1,2}))$/.exec(key);
+    return match?(uuids||[]).map(uuid=>({key,uuid,level:Number(match[1]),
+      rank:match[2]==='cantrip'?0:Number(match[3])})):[];
+  }).sort((a,b)=>a.rank-b.rank||a.level-b.level));
   const pickerContext=$derived({
     classItem:primary,secondClass:second,ancestry:ancestryItem,heritage:heritageItem,
     slotLevel:picker?.slot?.level||level,slotKind:picker?.slot?.kind||''
@@ -78,7 +83,9 @@
     if(picker?.target==='feat')return rankChoices(results,pickerContext);
     if(picker?.target==='heritage')return results.map(item=>({...item,eligibility:checkHeritage(item,ancestryItem)}))
       .sort((a,b)=>a.eligibility.severity-b.eligibility.severity||a.name.localeCompare(b.name));
-    if(picker?.target==='spell')return results.map(item=>({...item,eligibility:isSpellAvailable(item,spellTradition,maxSpellRank)}))
+    if(picker?.target==='spell')return results.map(item=>({...item,eligibility:isSpellAvailable(item,
+      ['arcane','divine','occult','primal'].includes(spellTradition)?spellTradition:'',
+      picker.slot?.allowance?.maxRank??maxSpellRank)}))
       .sort((a,b)=>a.eligibility.severity-b.eligibility.severity||a.name.localeCompare(b.name));
     return results.map(item=>({...item,eligibility:{severity:0,reasons:[]}}));
   });
@@ -87,6 +94,7 @@
   const progression=$derived(levelerChoiceSlots(primary,second,variants));
   const slots=$derived(progression.slots);
   const visibleSlots=$derived(slots.filter(s=>s.level===viewLevel));
+  const autoFeatures=$derived(viewLevel>0?classFeaturesAt([primary,dualClass?second:null],viewLevel):[]);
   const completionSlots=$derived(slots.filter(s=>s.level<=level&&isCompletionSlot(s)));
   const chosenCount=$derived(completionSlots.filter(s=>choiceComplete(s,build)).length);
   const availableCount=$derived(completionSlots.length);
@@ -131,7 +139,9 @@
       characterId=decodeURIComponent(paths[4]||'');
       const result=await api(root+'/characters/'+encodeURIComponent(characterId));
       character=result.character;
-      viewLevel=level;
+      // Start on Origins until ancestry, background and class are chosen.
+      const b=character.build||{};
+      viewLevel=b.ancestryUuid&&b.backgroundUuid&&b.classUuid?level:0;
       const [summary,filters]=await Promise.all([
         api(root+'/catalog-summary').catch(()=>null),
         api(root+'/catalog-filters').catch(()=>null)
@@ -141,6 +151,7 @@
       const uuids=[...new Set([
         ...Object.values(build.feats||{}),...(build.equipment||[]),
         build.ancestryUuid,build.heritageUuid,build.backgroundUuid,
+        build.subclassUuid,build.dualSubclassUuid,
         ...Object.values(build.spells||{}).flat()].filter(Boolean))];
       for(const uuid of uuids.slice(0,110)){
         if(!itemNames[uuid])lookup(uuid).catch(()=>{itemNames={...itemNames,[uuid]:'Unavailable item'};});
@@ -182,6 +193,8 @@
   }
   function allowedBoost(slot,ability){
     if(selectedBoosts(build,slot.key).includes(ability))return true;
+    // Full slot: deselect a boost before choosing another.
+    if(selectedBoosts(build,slot.key).length>=slot.count)return false;
     if(slot.key==='class-1'){
       const allowed=primary?.metadata?.levelerProgression?.keyAbility||
         primary?.metadata?.keyAbility||[];
@@ -208,12 +221,14 @@
     else delete character.build.skillIncreases[slot.key];
     mark();
   }
-  function begin(target,slot=null){
+  function begin(target,slot=null,rank=null){
     picker={target,slot};
     q='';rarity='';pack='';trait='';page=1;onlyLevel=true;
     showIncompatible=false;bgBoosts=[];bgSkill='';bgFeat='';pickerWarning='';
-    kind=target==='equipment'?'equipment':target==='feat'?'feat':target==='secondClass'?'class':target;
-    category=slot?.kind||'';
+    if(target==='spell'&&rank!==null)spellRank=rank;
+    kind=target==='equipment'?'equipment':target==='feat'||target==='subclass'?'feat'
+      :target==='secondClass'?'class':target;
+    category=target==='subclass'?'':slot?.kind||'';
     // Free Archetype feats commonly use the PF2e "class" category, but have
     // the "archetype" trait. Filter by that trait instead of category.
     if(category==='archetype'){category='';trait='archetype';}
@@ -233,8 +248,11 @@
       if(rarity)params.set('rarity',rarity);
       if(pack)params.set('pack',pack);
       if(trait.trim())params.set('trait',trait.trim().toLowerCase());
-      if(kind==='feat' && category)params.set('featType',category);
-      if(onlyLevel && kind==='feat')params.set('maxLevel',String(picker.slot?.level||level));
+      if(picker.target==='subclass')params.set('otherTag',picker.slot.tag);
+      else{
+        if(kind==='feat' && category)params.set('featType',category);
+        if(onlyLevel && kind==='feat')params.set('maxLevel',String(picker.slot?.level||level));
+      }
       if(kind==='feat'&&picker.slot?.kind==='class'&&primary)
         params.set('classTrait',slugOf(primary));
       if(kind==='heritage'&&ancestryItem){
@@ -248,7 +266,8 @@
         if(bgFeat)params.set('bgFeat',bgFeat);
       }
       if(kind==='spell'){
-        if(spellTradition)params.set('tradition',spellTradition);
+        // Leveler reports e.g. "bloodline" when the subclass decides the tradition.
+        if(['arcane','divine','occult','primal'].includes(spellTradition))params.set('tradition',spellTradition);
         // Cantrips are recognized by their cantrip trait, regardless of rank.
         params.set('spellRank',String(spellRank));
       }
@@ -276,17 +295,26 @@
     const target=picker.target;
     if(target==='feat'){
       character.build.feats[picker.slot.key]=result.uuid;
+    }else if(target==='subclass'){
+      character.build[picker.slot.target==='dualClass'?'dualSubclassUuid':'subclassUuid']=result.uuid;
     }else if(target==='equipment'){
       if(!character.build.equipment.includes(result.uuid))character.build.equipment.push(result.uuid);
     }else if(target==='spell'){
+      if(spellRoom(picker.slot,spellRank)<=0){
+        pickerError='No spells of this rank left to learn at level '+picker.slot.level+'. Remove one first.';
+        return;
+      }
       character.build.spells||={};
-      const key=spellRank===0?'cantrip':'rank-'+spellRank;
+      const key=picker.slot.level+':'+(spellRank===0?'cantrip':'rank-'+spellRank);
       character.build.spells[key]||=[];
       if(!character.build.spells[key].includes(result.uuid))
         character.build.spells[key].push(result.uuid);
     }else{
       const key=target==='class'?'classUuid':target==='secondClass'?'secondClassUuid':
         target==='ancestry'?'ancestryUuid':target==='heritage'?'heritageUuid':'backgroundUuid';
+      // A different class means its specialization no longer applies.
+      if(key==='classUuid'&&character.build.classUuid!==result.uuid)character.build.subclassUuid=null;
+      if(key==='secondClassUuid'&&character.build.secondClassUuid!==result.uuid)character.build.dualSubclassUuid=null;
       character.build[key]=result.uuid;
       if(target==='class'||target==='secondClass')await loadClass();
       if(target==='ancestry'||target==='heritage'||target==='background')await loadIdentity();
@@ -296,9 +324,28 @@
     picker=null;
     inspect(result.uuid);
   }
-  function removeSpell(uuid){
-    const key=spellRank===0?'cantrip':'rank-'+spellRank;
+  /** Spells of `rank` (0 = cantrip) still learnable at this level's spell slot. */
+  function spellRoom(slot,rank){
+    const allowance=slot?.allowance;
+    if(!allowance)return 0;
+    const chosen=spellsAtLevel(build,slot.level);
+    if(rank===0)return allowance.cantrips-chosen.cantrip.length;
+    const rankedCount=Object.values(chosen.ranked).reduce((n,x)=>n+x.length,0);
+    if(allowance.any)return rank<=allowance.maxRank?allowance.any-rankedCount:0;
+    return (allowance.ranks[rank]??0)-(chosen.ranked[rank]?.length??0);
+  }
+  /** Rank rows shown on a level's spell card: [rank, label, allowed]. */
+  function spellRows(slot){
+    const a=slot.allowance;
+    const rows=[];
+    if(a.cantrips)rows.push([0,'Cantrips',a.cantrips]);
+    for(const [rank,count] of Object.entries(a.ranks))rows.push([Number(rank),'Rank '+rank,count]);
+    if(a.any)for(let rank=1;rank<=a.maxRank;rank++)rows.push([rank,'Rank '+rank,null]);
+    return rows;
+  }
+  function removeSpell(key,uuid){
     character.build.spells[key]=(character.build.spells[key]||[]).filter(x=>x!==uuid);
+    if(!character.build.spells[key].length)delete character.build.spells[key];
     mark();
   }
   function toggleBoost(key){
@@ -354,6 +401,8 @@
   function clearSlot(slot){delete character.build.feats[slot.key];mark();}
   function clearIdentity(key){
     character.build[key]=null;
+    if(key==='classUuid')character.build.subclassUuid=null;
+    if(key==='secondClassUuid')character.build.dualSubclassUuid=null;
     if(key==='classUuid'||key==='secondClassUuid')loadClass();
     if(key==='ancestryUuid'||key==='heritageUuid'||key==='backgroundUuid')loadIdentity();
     mark();
@@ -454,6 +503,12 @@
         {#if tab==='progression'}
           <div class="side-heading kicker">Level track</div>
           <div class="level-track">
+            <button class:current={viewLevel===0} onclick={()=>{viewLevel=0;picker=null;}}>
+              <span>Origin</span>
+              <span class="dots">{#each ['ancestryUuid','backgroundUuid','classUuid'] as key}
+                <i class:filled={!!build[key]}></i>
+              {/each}</span>
+            </button>
             {#each Array.from({length:20},(_,i)=>i+1) as n}
               <button class:current={viewLevel===n} class:future={n>level}
                 onclick={()=>{viewLevel=n;picker=null;}}>
@@ -572,10 +627,11 @@
               <button type="button" disabled={page>=pages||searching} onclick={()=>{page++;search();}}>Next →</button>
             </div>
           </section>
-        {:else if tab==='progression'}
+        {:else if tab==='progression'&&viewLevel===0}
           <section>
-            <div class="panel-title"><div class="kicker">Character foundation</div><h2>Origin &amp; class</h2>
-              <p class="muted">Start with the essentials. Select an option to inspect its full rules.</p></div>
+            <div class="panel-title"><div class="kicker">Origin</div><h2>Ancestry, background &amp; class</h2>
+              <p class="muted">Start with the essentials. Select an option to inspect its full rules.
+                Level 1 then asks for your boosts, specialization and first feats.</p></div>
             <div class="identity-grid">
               {#each identities.filter(x=>x.key!=='secondClassUuid'||dualClass) as identity}
                 <div class="identity-card" class:incompatible={identity.key==='heritageUuid'&&
@@ -620,7 +676,11 @@
                 </dl>
               </details>
             {/if}
+            <div class="origin-next">
+              <button class="primary-action" type="button" onclick={()=>viewLevel=1}>Continue to level 1 →</button>
+            </div>
           </section>
+        {:else if tab==='progression'}
           <section>
             {#if primary}
               {#if progression.ready}
@@ -637,12 +697,27 @@
             <div class="level-header">
               <div><div class="kicker">Advancement</div><h2>Level {viewLevel} choices</h2></div>
               <div class="level-pager">
-                <button disabled={viewLevel===1} onclick={()=>viewLevel--}>←</button>
-                <button disabled={viewLevel===20} onclick={()=>viewLevel++}>→</button>
+                <button aria-label="Previous level" onclick={()=>viewLevel--}>←</button>
+                <button aria-label="Next level" disabled={viewLevel===20} onclick={()=>viewLevel++}>→</button>
               </div>
             </div>
             {#if viewLevel>level}
               <p class="notice">Future planning: selections at level {viewLevel} won't be active until you reach that level.</p>
+            {/if}
+            {#if autoFeatures.length}
+              <div class="auto-features">
+                <span class="kicker">Gained automatically at level {viewLevel}</span>
+                <ul>
+                  {#each autoFeatures as feature}
+                    <li>
+                      {#if feature.uuid}
+                        <button type="button" class="text-button" onclick={()=>inspect(feature.uuid)}>{feature.name}</button>
+                      {:else}<span>{feature.name}</span>{/if}
+                      {#if dualClass&&second}<small class="muted">{feature.className}</small>{/if}
+                    </li>
+                  {/each}
+                </ul>
+              </div>
             {/if}
             {#if visibleSlots.length}
               <div class="slot-stack">
@@ -714,14 +789,54 @@
                         <button class="choose" onclick={()=>begin('feat',slot)}> {build.feats?.[slot.key]?'Change':'Choose'} →</button>
                       </div>
                     </div>
-                  {:else if slot.type==='spells'}
-                    <div class="slot-card">
-                      <div class="slot-level">✧</div>
-                      <div class="slot-label"><span>{slot.label}</span>
-                        <strong>Spellcasting choices available</strong>
-                        <small class="muted">Leveler reports a spellcasting progression step.</small>
+                  {:else if slot.type==='subclass'}
+                    {@const subKey=slot.target==='dualClass'?'dualSubclassUuid':'subclassUuid'}
+                    <div class="slot-card" class:chosen={!!build[subKey]}>
+                      <div class="slot-level">✦</div>
+                      <div class="slot-label">
+                        <span>{slot.label}</span>
+                        <strong>{build[subKey]?labelFor(build[subKey]):'Choose a specialization'}</strong>
                       </div>
-                      <button class="choose" onclick={()=>tab='spells'}>Browse spells →</button>
+                      <div class="slot-actions">
+                        {#if build[subKey]}
+                          <button class="text-button" onclick={()=>inspect(build[subKey])}>View</button>
+                        {/if}
+                        <button class="choose" onclick={()=>begin('subclass',slot)}>{build[subKey]?'Change':'Choose'} →</button>
+                      </div>
+                    </div>
+                  {:else if slot.type==='spells'}
+                    {@const chosen=spellsAtLevel(build,slot.level)}
+                    <div class="slot-card spell-card" class:chosen={choiceComplete(slot,build)}>
+                      <div class="slot-level">✧</div>
+                      <div class="spell-content">
+                        <div class="slot-label">
+                          <span>{slot.label}</span>
+                          <strong>{chosen.count} / {slot.allowance.total} learned</strong>
+                          {#if slot.allowance.any}
+                            <small class="muted">Add {slot.allowance.any} spells of any rank you can cast to your spellbook.</small>
+                          {/if}
+                        </div>
+                        {#each spellRows(slot) as [rank,label,allowed]}
+                          {@const picks=rank===0?chosen.cantrip:(chosen.ranked[rank]||[])}
+                          {#if allowed!==null||picks.length||spellRoom(slot,rank)>0}
+                            <div class="spell-row">
+                              <span class="spell-rank">{label}{#if allowed!==null} · {picks.length}/{allowed}{/if}</span>
+                              <div class="spell-picks">
+                                {#each picks as uuid}
+                                  <span class="spell-chip">
+                                    <button type="button" class="text-button" onclick={()=>inspect(uuid)}>{labelFor(uuid)}</button>
+                                    <button type="button" class="text-button" aria-label={'Remove '+labelFor(uuid)}
+                                      onclick={()=>removeSpell(slot.level+':'+(rank===0?'cantrip':'rank-'+rank),uuid)}>×</button>
+                                  </span>
+                                {/each}
+                                {#if spellRoom(slot,rank)>0}
+                                  <button type="button" class="choose" onclick={()=>begin('spell',slot,rank)}>+ Add</button>
+                                {/if}
+                              </div>
+                            </div>
+                          {/if}
+                        {/each}
+                      </div>
                     </div>
                   {:else}
                     <div class="slot-card">
@@ -744,31 +859,23 @@
           <section>
             <div class="panel-title">
               <div class="kicker">{spellTradition?spellTradition+' tradition':'Spellcasting tradition pending'}</div>
-              <h2>Spell repertoire</h2>
-              <p class="muted">Select spells from imported PF2e spell compendiums.
-                The browser filters your tradition and available ranks.
-                Spell slots, known-spell limits and special focus spell rules
-                still require manual verification.</p>
+              <h2>Spells known</h2>
+              <p class="muted">Spells are learned on the level track, within the number
+                Leveler allows at each level. This is everything chosen so far.</p>
             </div>
-            <div class="spell-ranks">
-              {#each Array.from({length:maxSpellRank+1},(_,i)=>i) as n}
-                <button class:active={spellRank===n} onclick={()=>spellRank=n}>
-                  {n===0?'Cantrips':'Rank '+n}{#if spellSlots?.[n]!==undefined} · {spellSlots[n]}{/if}</button>
-              {/each}
-            </div>
-            <button class="primary-action" onclick={()=>begin('spell')}>+ Browse
-              {spellRank===0?'cantrips':'rank '+spellRank+' spells'}</button>
             <div class="slot-stack">
-              {#each spellChoices as uuid}
+              {#each learnedSpells as spell (spell.key+spell.uuid)}
                 <div class="slot-card">
-                  <div class="slot-level">✧</div><strong>{labelFor(uuid)}</strong>
+                  <div class="slot-level">{spell.rank===0?'C':spell.rank}</div>
+                  <div class="slot-label"><strong>{labelFor(spell.uuid)}</strong>
+                    <small class="muted">{spell.rank===0?'Cantrip':'Rank '+spell.rank} · learned at level {spell.level}</small></div>
                   <div class="slot-actions">
-                    <button class="text-button" onclick={()=>inspect(uuid)}>Details</button>
-                    <button class="text-button" onclick={()=>removeSpell(uuid)}>Remove</button>
+                    <button class="text-button" onclick={()=>inspect(spell.uuid)}>Details</button>
+                    <button class="text-button" onclick={()=>{tab='progression';viewLevel=spell.level;}}>Level {spell.level} →</button>
                   </div>
                 </div>
               {:else}
-                <div class="empty-result">No spells selected for this rank.</div>
+                <div class="empty-result">No spells learned yet. Choose them on the level track.</div>
               {/each}
             </div>
           </section>
@@ -905,11 +1012,10 @@
   .boost-filter{display:flex;gap:.35rem;flex-wrap:wrap;grid-column:1/-1;border:1px solid var(--line);
     border-radius:9px;padding:.75rem}
   .boost-filter legend{color:var(--muted);font-size:.78rem;font-weight:750}
-  .boost-filter button,.spell-ranks button{border:1px solid var(--line);background:var(--surface-hover);
+  .boost-filter button{border:1px solid var(--line);background:var(--surface-hover);
     color:var(--text);border-radius:8px;padding:.43rem .65rem;font-size:.75rem}
-  .boost-filter button.active,.spell-ranks button.active{background:var(--accent-bg);border-color:var(--accent);
+  .boost-filter button.active{background:var(--accent-bg);border-color:var(--accent);
     color:var(--accent)}
-  .spell-ranks{display:flex;gap:.4rem;overflow:auto;flex-wrap:wrap;margin:1rem 0}
   .class-details{margin-top:1rem;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:.8rem 1rem}
   .class-details summary{cursor:pointer;font-weight:750}
   .class-details dl{display:grid;grid-template-columns:minmax(110px,.5fr) minmax(0,1fr);gap:.45rem 1rem;font-size:.82rem}
@@ -934,6 +1040,20 @@
     background:var(--accent-bg);color:var(--text);font-size:.79rem;border-radius:8px;margin:0 0 1.2rem}
   .boost-card{align-items:flex-start}
   .boost-content{flex:1;min-width:0}
+  .origin-next{display:flex;justify-content:flex-end;margin-top:1.2rem}
+  .auto-features{border:1px solid var(--line);border-radius:10px;padding:.7rem .9rem;margin:0 0 1rem;
+    background:var(--surface)}
+  .auto-features ul{list-style:none;margin:.4rem 0 0;padding:0;display:flex;flex-wrap:wrap;gap:.3rem .9rem}
+  .auto-features li{display:flex;align-items:baseline;gap:.3rem}
+  .auto-features .text-button{padding:0;font-size:.85rem}
+  .spell-card{align-items:flex-start}
+  .spell-content{flex:1;min-width:0;display:flex;flex-direction:column;gap:.55rem}
+  .spell-row{display:flex;gap:.7rem;align-items:baseline;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:.5rem}
+  .spell-rank{min-width:7.5rem;font-size:.78rem;font-weight:700;color:var(--muted)}
+  .spell-picks{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;flex:1;min-width:0}
+  .spell-chip{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;
+    background:var(--surface-hover);padding:0 .2rem 0 .5rem}
+  .spell-chip .text-button{padding:.2rem .25rem;font-size:.78rem}
   .boost-heading{display:flex;justify-content:space-between;align-items:center;gap:.7rem;flex-wrap:wrap}
   .ability-options{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));
     gap:.38rem;margin:.85rem 0 .55rem}

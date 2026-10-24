@@ -282,10 +282,13 @@ export function registerLevelerButtons(){
       });
       return button;
     };
-    header.append(
+    const buttons=[
       make('Send to Planner','fa-cloud-arrow-up','Send a Foundry character into the PF2e Planner website',
         ()=>new PlannerCharacterImportMenu(app)),
       make('Pull from Planner','fa-cloud-arrow-down','Load a PF2e Planner website build into this Leveler plan',
-        ()=>new PlannerPullMenu(app)));
+        ()=>new PlannerPullMenu(app))];
+    // ApplicationV2 header: title, then control toggle / close buttons. Sit before those.
+    const anchor=header.querySelector(':scope > [data-action="toggleControls"], :scope > [data-action="close"]');
+    for(const button of buttons)header.insertBefore(button,anchor);
   });
 }

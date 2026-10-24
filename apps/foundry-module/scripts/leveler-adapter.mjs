@@ -5,7 +5,9 @@
  * Progression does not require an actor. Full build-state/prerequisite
  * validation DOES require an actor, and is explicitly not claimed here.
  */
-const LEVELER_ROOT='/modules/pf2e-leveler/scripts';
+// getRoute keeps imports working when Foundry is served under a URL prefix, and
+// resolves to the same module URLs Leveler itself loaded (one shared instance).
+const levelerPath=path=>foundry.utils.getRoute('modules/pf2e-leveler/scripts'+path);
 const KNOWN_CHOICES=new Set([
   'abilityBoosts','classFeat','skillFeat','generalFeat','ancestryFeat',
   'skillIncrease','archetypeFeat','dualClassFeat','mythicFeat',
@@ -17,10 +19,12 @@ export async function loadLevelerProgression() {
     throw Error('PF2e Leveler must be active to sync advancement logic.');
   if(!levelerModules) {
     levelerModules=(async()=>{
-      const [registry,ensure,progression]=await Promise.all([
-        import(LEVELER_ROOT+'/classes/registry.js'),
-        import(LEVELER_ROOT+'/classes/ensure.js'),
-        import(LEVELER_ROOT+'/classes/progression.js')
+      const [registry,ensure,progression,constants,handlers]=await Promise.all([
+        import(levelerPath('/classes/registry.js')),
+        import(levelerPath('/classes/ensure.js')),
+        import(levelerPath('/classes/progression.js')),
+        import(levelerPath('/constants.js')).catch(()=>({})),
+        import(levelerPath('/creation/class-handlers/registry.js')).catch(()=>({}))
       ]);
       if(typeof progression.getChoicesForLevel!=='function'||
          !registry.ClassRegistry||typeof ensure.ensureClassItemRegistered!=='function')
@@ -29,7 +33,10 @@ export async function loadLevelerProgression() {
       return {
         ClassRegistry:registry.ClassRegistry,
         ensureClassItemRegistered:ensure.ensureClassItemRegistered,
-        getChoicesForLevel:progression.getChoicesForLevel
+        getChoicesForLevel:progression.getChoicesForLevel,
+        subclassTags:constants.SUBCLASS_TAGS??{},
+        spellbookClasses:constants.SPELLBOOK_CLASSES??[],
+        getClassHandler:typeof handlers.getClassHandler==='function'?handlers.getClassHandler:null
       };
     })().catch(error=>{levelerModules=null;throw error;});
   }
@@ -56,9 +63,21 @@ function cleanChoice(choice){
     cleaned.allowedSkills=choice.allowedSkills.filter(x=>typeof x==='string').slice(0,30);
   return cleaned;
 }
+/** Level-one cantrip/rank-1 picks exactly as Leveler's Character Wizard counts them. */
+function level1SpellCounts(getClassHandler,slug,classDef){
+  const total=value=>Array.isArray(value)?value.reduce((n,x)=>n+(Number(x)||0),0):Number(value);
+  const slots=classDef.spellcasting?.slots?.[1]??{};
+  let counts={cantrips:total(slots.cantrips??5),rank1:total(slots[1]??2)};
+  try{
+    const data={class:{slug},subclass:null,spells:{cantrips:[],rank1:[]}};
+    const override=getClassHandler?.(slug)?.getSpellbookCounts?.(data,classDef);
+    if(override&&Number.isFinite(override.cantrips))counts={cantrips:override.cantrips,rank1:override.rank1??0};
+  }catch(error){console.warn('[PF2e Planner Bridge] Spell counts for',slug,error);}
+  return counts;
+}
 export async function createLevelerProgressions(classDocs,variants){
-  const {ClassRegistry,ensureClassItemRegistered,getChoicesForLevel}=
-    await loadLevelerProgression();
+  const {ClassRegistry,ensureClassItemRegistered,getChoicesForLevel,
+    subclassTags,spellbookClasses,getClassHandler}=await loadLevelerProgression();
   const schema=new Map(),resolved=new Map();
   const opts=levelerOptions(variants);
   for(const doc of classDocs){
@@ -81,15 +100,18 @@ export async function createLevelerProgressions(classDocs,variants){
       spellcasting:classDef.spellcasting
         ? {tradition:classDef.spellcasting.tradition??null,
            type:classDef.spellcasting.type??null,
-           slots:classDef.spellcasting.slots??{}}
+           slots:classDef.spellcasting.slots??{},
+           spellbook:spellbookClasses.includes(slug),
+           level1Counts:level1SpellCounts(getClassHandler,slug,classDef)}
         : null,
-      // Leveler's normalized class definition is used to compose additional
-      // secondary-class skill slots in the browser for Dual Class.
+      // Subclass options are class features carrying this tag in otherTags.
+      subclassTag:subclassTags[slug]??null,
+      // Automatic class features per level (also used for Dual Class skill slots).
       classFeatures:(classDef.classFeatures||[])
-        .filter(feature=>feature.additionalSkillIncrease)
-        .map(feature=>({level:feature.level,key:feature.key,
-          name:feature.name,additionalSkillIncrease:feature.additionalSkillIncrease}))
-        .slice(0,30),
+        .filter(feature=>Number.isInteger(feature.level)&&typeof feature.name==='string')
+        .map(feature=>({level:feature.level,key:feature.key??null,name:feature.name,
+          ...(feature.additionalSkillIncrease?{additionalSkillIncrease:feature.additionalSkillIncrease}:{})}))
+        .slice(0,80),
       skillIncreaseLevels:(classDef.skillIncreaseSchedule||[]).slice(0,20),
       skillFeatLevels:(classDef.featSchedule?.skill||[]).slice(0,20)
     });
@@ -106,7 +128,7 @@ export async function createLevelerProgressions(classDocs,variants){
 export async function getLevelerCatalogPacks() {
   if(!game.modules.get('pf2e-leveler')?.active)
     throw Error('PF2e Leveler is not active.');
-  const catalog=await import(LEVELER_ROOT+'/compendiums/catalog.js');
+  const catalog=await import(levelerPath('/compendiums/catalog.js'));
   const categories=catalog.getCompendiumCategoryKeys();
   const selected=new Set();
   for(const category of categories){
@@ -122,7 +144,7 @@ export async function getLevelerCatalogPacks() {
  * explicitly marked disallowed by the GM isn't copied to the website.
  */
 export async function getLevelerGuidance() {
-  const guidance=await import(LEVELER_ROOT+'/access/content-guidance.js');
+  const guidance=await import(levelerPath('/access/content-guidance.js'));
   return document=>{
     const result=guidance.resolveGuidanceStatus(document);
     return ['allowed','recommended','not-recommended','disallowed'].includes(result?.status)

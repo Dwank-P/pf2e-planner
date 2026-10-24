@@ -25,7 +25,7 @@ test('a builder view becomes Leveler creation + plan documents and projects back
     feats:{'class-1':U('PowerAttack'),'class-2':U('SuddenCharge'),'general-3':U('Toughness')},
     abilityBoosts:{'free-1':['str','dex','con','wis'],'level-5':['str','dex','con','int']},
     skillIncreases:{'skill-increase-3':'athletics','skill-increase-5':'athletics'},
-    spells:{cantrip:[U('Shield')],'rank-3':[U('Fireball')]},notes:'Shield ally'});
+    spells:{'1:cantrip':[U('Shield')],'5:rank-3':[U('Fireball')]},notes:'Shield ally'});
   const doc=applyView(emptyDocument(),input,{resolve});
   assert.ok(isCharacterDocument(doc));
   const {creation,plan}=doc.leveler;
@@ -82,6 +82,41 @@ test('removing and replacing choices updates the plan',()=>{
   assert.equal(next.leveler.plan.levels[2].classFeats.length,1);
   assert.equal(next.leveler.plan.levels[2].classFeats[0].uuid,U('PowerAttack'));
   assert.deepEqual(projectView(next).spells,{});
+});
+
+test('spells are stored at the level they were learned; legacy rank keys still place',()=>{
+  const doc=applyView(emptyDocument(),view({classUuid:U('Fighter'),
+    spells:{'1:cantrip':[U('Shield')],'7:rank-3':[U('Fireball')]}}),{resolve});
+  assert.equal(doc.leveler.creation.spells.cantrips[0].uuid,U('Shield'));
+  assert.equal(doc.leveler.plan.levels[7].spells[0].uuid,U('Fireball'));
+  assert.deepEqual(projectView(doc).spells,{'1:cantrip':[U('Shield')],'7:rank-3':[U('Fireball')]});
+  // Moving a pick to another level moves the Leveler entry.
+  const moved=applyView(doc,view({classUuid:U('Fighter'),
+    spells:{'1:cantrip':[U('Shield')],'5:rank-3':[U('Fireball')]}}),{resolve});
+  assert.equal(moved.leveler.plan.levels[7].spells.length,0);
+  assert.equal(moved.leveler.plan.levels[5].spells[0].uuid,U('Fireball'));
+  // Pre-0.7.1 views without a level: cantrips to creation, higher ranks by slot table.
+  const legacy=applyView(emptyDocument(),view({classUuid:U('Fighter'),
+    spells:{cantrip:[U('Shield')],'rank-3':[U('Fireball')]}}),{resolve});
+  assert.equal(legacy.leveler.creation.spells.cantrips[0].uuid,U('Shield'));
+  assert.equal(legacy.leveler.plan.levels[5].spells[0].uuid,U('Fireball'));
+  // Level-1 spells alone (no plan-side choices) are still saved.
+  const onlyCreation=applyView(emptyDocument(),view({spells:{'1:cantrip':[U('Shield')]}}),{resolve});
+  assert.equal(onlyCreation.leveler.creation.spells.cantrips.length,1);
+});
+
+test('subclass slots write Leveler creation.subclass; name-only imports stay read-only',()=>{
+  catalog[U('School')]={uuid:U('School'),name:'School of Battle Magic',type:'feat',traits:[],
+    metadata:{slug:'school-of-battle-magic',otherTags:['wizard-arcane-school']}};
+  const doc=applyView(emptyDocument(),view({classUuid:U('Fighter'),subclassUuid:U('School')}),{resolve});
+  assert.equal(doc.leveler.creation.subclass.slug,'school-of-battle-magic');
+  assert.deepEqual(doc.leveler.creation.subclass.choices,{});
+  assert.equal(projectView(doc).subclassUuid,U('School'));
+  const legacy=documentFromLeveler({creation:{version:1,subclass:{name:'Imported only'}}});
+  const projected=projectView(legacy);
+  assert.equal(projected.subclassUuid,null);
+  assert.equal(projected.creationChoices.subclass.name,'Imported only');
+  assert.equal(applyView(legacy,projected,{resolve}).leveler.creation.subclass.name,'Imported only');
 });
 
 test('skill increase sources come from the Leveler slot schedule',()=>{

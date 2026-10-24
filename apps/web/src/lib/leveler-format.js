@@ -27,7 +27,8 @@ const CREATION_FEATS={ancestryFeat:'ancestry-1',ancestryParagonFeat:'ancestry-1-
 const CREATION_FEAT_FOR_KEY=Object.fromEntries(Object.entries(CREATION_FEATS).map(([f,k])=>[k,f]));
 const CREATION_BOOSTS={ancestry:'ancestry-boost-1',background:'background-1',class:'class-1',free:'free-1'};
 // Read-only creation choices shown in the builder (edited inside Leveler for now).
-export const CREATION_CHOICE_FIELDS=['subclass','dualSubclass','deity','sanctification',
+// Subclasses are editable slots (subclassUuid / dualSubclassUuid), not listed here.
+export const CREATION_CHOICE_FIELDS=['deity','sanctification',
   'divineFont','subconsciousMind','thesis','implement','tactics','ikons',
   'innovationItem','innovationModification','kineticGateMode','secondElement',
   'apparitions','primaryApparition','skills','languages','classSelections'];
@@ -115,8 +116,11 @@ export function projectView(doc){
     if(Array.isArray(boosts)&&boosts.length)
       view.abilityBoosts[key]=[...new Set(boosts.map(x=>String(x).toLowerCase()).filter(x=>ATTR.includes(x)))];
   }
-  for(const entry of creation.spells?.cantrips||[])pushUnique(view.spells,'cantrip',entry?.uuid);
-  for(const entry of creation.spells?.rank1||[])pushUnique(view.spells,'rank-1',entry?.uuid);
+  view.subclassUuid=typeof creation.subclass?.uuid==='string'?creation.subclass.uuid:null;
+  view.dualSubclassUuid=typeof creation.dualSubclass?.uuid==='string'?creation.dualSubclass.uuid:null;
+  // Spells are keyed by the level they are learned at: "<level>:<cantrip|rank-N>".
+  for(const entry of creation.spells?.cantrips||[])pushUnique(view.spells,'1:cantrip',entry?.uuid);
+  for(const entry of creation.spells?.rank1||[])pushUnique(view.spells,'1:rank-1',entry?.uuid);
   for(const entry of creation.equipment||[])
     if(typeof entry?.uuid==='string'&&!view.equipment.includes(entry.uuid))view.equipment.push(entry.uuid);
   for(const field of CREATION_CHOICE_FIELDS){
@@ -126,6 +130,10 @@ export function projectView(doc){
     view.creationChoices[field]=clone(value);
   }
   if(Array.isArray(creation.boosts?.dualClass))view.creationChoices.dualClassBoosts=[...creation.boosts.dualClass];
+  // Name-only subclasses (older imports) can't fill the slot; show them read-only.
+  for(const field of ['subclass','dualSubclass'])
+    if(isObject(creation[field])&&typeof creation[field].uuid!=='string')
+      view.creationChoices[field]=clone(creation[field]);
   for(const [lvl,data] of Object.entries(plan?.levels||{})){
     const level=Number(lvl);
     if(!Number.isInteger(level)||level<2||level>20||!isObject(data))continue;
@@ -142,8 +150,10 @@ export function projectView(doc){
       const skill=String(entry?.skill??'').trim().toLowerCase();
       if(/^[-a-z0-9]{2,40}$/.test(skill))view.skillIncreases[skillKey(level,entry,index)]=skill;
     });
-    for(const entry of Array.isArray(data.spells)?data.spells:[])
-      pushUnique(view.spells,rankKey(entry),entry?.uuid);
+    for(const entry of Array.isArray(data.spells)?data.spells:[]){
+      const key=rankKey(entry);
+      if(key)pushUnique(view.spells,level+':'+key,entry?.uuid);
+    }
   }
   return view;
 }
@@ -172,6 +182,11 @@ function identityEntry(field,item){
       subclassTag:null};
   }
   return base;
+}
+/** Mirrors Leveler's setSubclass() shape; the wizard fills curriculum/choices. */
+function subclassEntry(item){
+  return {...minimalItem(item),tradition:null,spellUuids:[],grantedSkills:[],grantedLores:[],
+    choiceSets:[],choices:{},choiceCurricula:{},curriculum:null};
 }
 function spellEntry(item,rank,isCantrip){
   const traits=[...(Array.isArray(item.traits)?item.traits:[]),
@@ -239,18 +254,35 @@ export function applyView(doc,view,context={}){
       choiceSets:[],grantedSkills:[],grantedLores:[]})):null;
   }
 
-  // Spells: keep entries whose uuid is still chosen for that rank; add new ones.
-  const wanted={};
-  for(const [key,uuids] of Object.entries(view.spells||{}))wanted[key]=new Set(uuids);
+  // Subclass slots. A name-only subclass (no uuid, from older imports) is kept
+  // until a catalog subclass is chosen.
+  for(const [key,field] of [['subclassUuid','subclass'],['dualSubclassUuid','dualSubclass']]){
+    const uuid=view[key]??null;
+    if(uuid===(creation[field]?.uuid??null))continue;
+    creation[field]=uuid?subclassEntry(resolve(uuid)):null;
+  }
+
+  // Spells: view keys "<level>:<cantrip|rank-N>"; pre-0.7.1 keys have no level
+  // and are placed by rank. Keep stored entries still chosen; add new ones.
+  const wanted=new Map();
+  for(const [key,uuids] of Object.entries(view.spells||{})){
+    const match=/^(?:(\d{1,2}):)?(cantrip|rank-\d{1,2})$/.exec(key);
+    if(match&&Array.isArray(uuids))wanted.set((match[1]??'*')+'|'+match[2],new Set(uuids));
+  }
   const placed=new Set();
-  const keep=(entry,fallbackRank)=>{
+  const keep=(entry,level,fallbackRank)=>{
     const key=rankKey(entry,fallbackRank);
-    if(!key||!wanted[key]?.has(entry?.uuid)||placed.has(key+'|'+entry.uuid))return false;
-    placed.add(key+'|'+entry.uuid);return true;
+    if(!key)return false;
+    for(const id of [level+'|'+key,'*|'+key]){
+      if(wanted.get(id)?.has(entry?.uuid)&&!placed.has(id+'|'+entry.uuid)){
+        placed.add(id+'|'+entry.uuid);return true;
+      }
+    }
+    return false;
   };
   creation.spells=isObject(creation.spells)?creation.spells:{cantrips:[],rank1:[]};
-  creation.spells.cantrips=(creation.spells.cantrips||[]).filter(e=>keep({...e,isCantrip:true}));
-  creation.spells.rank1=(creation.spells.rank1||[]).filter(e=>keep(e,1));
+  creation.spells.cantrips=(creation.spells.cantrips||[]).filter(e=>keep({...e,isCantrip:true},1));
+  creation.spells.rank1=(creation.spells.rank1||[]).filter(e=>keep(e,1,1));
 
   creation.equipment=(view.equipment||[]).map(uuid=>{
     const old=(creation.equipment||[]).find(e=>e?.uuid===uuid);
@@ -262,8 +294,30 @@ export function applyView(doc,view,context={}){
   const planNeeded=next.leveler.plan||Object.keys(planFeats).length||
     Object.keys(view.skillIncreases||{}).length||
     Object.keys(view.abilityBoosts||{}).some(k=>k.startsWith('level-'))||
-    Object.keys(wanted).some(k=>k!=='cantrip'&&k!=='rank-1');
-  if(!planNeeded)return next;
+    [...wanted.keys()].some(id=>{
+      const [level,key]=id.split('|');
+      return level==='*'?key!=='cantrip'&&key!=='rank-1':Number(level)>=2;
+    });
+  // New spells go to the level they were chosen at (level 1 → creation). Legacy
+  // rank-only picks: cantrips/rank 1 to creation, higher to the first level with that rank.
+  const addNewSpells=plan=>{
+    for(const [id,uuids] of wanted){
+      const [levelKey,key]=id.split('|');
+      const cantrip=key==='cantrip';
+      const rank=cantrip?0:Number(key.slice(5));
+      const level=levelKey!=='*'?Number(levelKey)
+        :cantrip||rank===1?1:levelForRank(rank,context.spellSlots);
+      for(const uuid of uuids){
+        if(placed.has(id+'|'+uuid))continue;
+        placed.add(id+'|'+uuid);
+        const entry=spellEntry(resolve(uuid),rank,cantrip);
+        if(level<=1){(cantrip?creation.spells.cantrips:creation.spells.rank1).push(entry);continue;}
+        const data=plan.levels[level]??={};
+        (data.spells??=[]).push(entry);
+      }
+    }
+  };
+  if(!planNeeded){addNewSpells(null);return next;}
   // Leveler discards a plan whose classSlug differs from the actor's class;
   // a null slug is kept so choices survive while no class is selected.
   const plan=next.leveler.plan??=emptyPlan(classSlug,dualClassSlug);
@@ -319,25 +373,12 @@ export function applyView(doc,view,context={}){
     if(increases.length)data.skillIncreases=increases;
     else if(beforeSkills.length)data.skillIncreases=[];
 
-    if(Array.isArray(data.spells))data.spells=data.spells.filter(e=>keep(e));
+    if(Array.isArray(data.spells))data.spells=data.spells.filter(e=>keep(e,level));
     plan.levels[level]=data;
     if(!old&&!Object.values(data).some(v=>Array.isArray(v)?v.length:v!=null))delete plan.levels[level];
   }
 
-  // New spells: cantrips/rank 1 go to creation, higher ranks to the first level with that rank.
-  for(const [key,uuids] of Object.entries(view.spells||{})){
-    for(const uuid of uuids){
-      if(placed.has(key+'|'+uuid))continue;
-      placed.add(key+'|'+uuid);
-      const item=resolve(uuid);
-      if(key==='cantrip'){creation.spells.cantrips.push(spellEntry(item,0,true));continue;}
-      const rank=Number(key.slice(5));
-      if(rank===1){creation.spells.rank1.push(spellEntry(item,1,false));continue;}
-      const level=levelForRank(rank,context.spellSlots);
-      const data=plan.levels[level]??={};
-      (data.spells??=[]).push(spellEntry(item,rank,false));
-    }
-  }
+  addNewSpells(plan);
   return next;
 }
 
@@ -347,7 +388,8 @@ export function applyView(doc,view,context={}){
  */
 export function combineViews(primary,fallback){
   const out={...fallback,...primary};
-  for(const key of Object.keys(IDENTITY))out[key]=primary?.[key]||fallback?.[key]||null;
+  for(const key of [...Object.keys(IDENTITY),'subclassUuid','dualSubclassUuid'])
+    out[key]=primary?.[key]||fallback?.[key]||null;
   for(const key of ['feats','abilityBoosts','skillIncreases','spells','creationChoices'])
     out[key]={...(fallback?.[key]||{}),...(primary?.[key]||{})};
   out.equipment=[...new Set([...(primary?.equipment||[]),...(fallback?.equipment||[])])];
@@ -359,7 +401,7 @@ export function combineViews(primary,fallback){
 /** All Item uuids referenced by a view (for catalog reference checks). */
 export function viewUuids(view){
   return [...new Set([
-    ...Object.keys(IDENTITY).map(k=>view?.[k]).filter(Boolean),
+    ...[...Object.keys(IDENTITY),'subclassUuid','dualSubclassUuid'].map(k=>view?.[k]).filter(Boolean),
     ...Object.values(view?.feats||{}),...(view?.equipment||[]),
     ...Object.values(view?.spells||{}).flat()
   ].filter(x=>typeof x==='string'))];
