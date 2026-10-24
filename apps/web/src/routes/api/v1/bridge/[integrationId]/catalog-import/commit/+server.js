@@ -25,6 +25,15 @@ export async function POST(event){
         item.name,JSON.stringify(item.traits),row.item_json);
     }
     const sha256=hash.digest('hex');
+    const digestRows=sql.prepare('SELECT pack,sha256,count FROM catalog_import_digests WHERE integration_id=? AND import_id=?')
+      .all(i.integration_id,i.id);
+    const byPack=new Map();
+    for(const row of rows){
+      const pack=JSON.parse(row.item_json).pack;
+      byPack.set(pack,(byPack.get(pack)||0)+1);
+    }
+    if(digestRows.some(d=>(byPack.get(d.pack)||0)!==d.count))
+      problem(409,'import_pack_count_mismatch');
     sql.prepare(`INSERT INTO catalog_publications(integration_id,snapshot_id,sha256,entry_count,variants_json,
       packs_json,sources_json,updated_at) VALUES(?,?,?,?,?,?,?,?)
       ON CONFLICT(integration_id) DO UPDATE SET snapshot_id=excluded.snapshot_id,
@@ -32,6 +41,10 @@ export async function POST(event){
       variants_json=excluded.variants_json,packs_json=excluded.packs_json,
       sources_json=excluded.sources_json,updated_at=excluded.updated_at`)
       .run(i.integration_id,i.id,sha256,rows.length,i.variants_json,i.packs_json,i.sources_json,unix());
+    sql.prepare('DELETE FROM catalog_pack_digests WHERE integration_id=?').run(i.integration_id);
+    const addDigest=sql.prepare('INSERT INTO catalog_pack_digests(integration_id,pack,sha256,count) VALUES(?,?,?,?)');
+    for(const d of digestRows)addDigest.run(i.integration_id,d.pack,d.sha256,d.count);
+    sql.prepare('DELETE FROM catalog_import_digests WHERE integration_id=?').run(i.integration_id);
     sql.prepare('DELETE FROM catalog_imports WHERE integration_id=?').run(i.integration_id);
     sql.prepare('DELETE FROM catalog_staging WHERE integration_id=?').run(i.integration_id);
     // Prior published snapshots remain until this transaction succeeds.
