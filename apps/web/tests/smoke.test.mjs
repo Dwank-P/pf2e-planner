@@ -194,7 +194,16 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(started.status,201,JSON.stringify(started));
     const entries=[
       {uuid:'Compendium.pf2e.classes.Item.Fighter',type:'class',name:'Fighter',
-        level:1,classFeatLevels:[2,4,6],description:'<p>Fighter</p>'},
+        level:1,classFeatLevels:[2,4,6],description:'<p>Fighter</p>',
+        levelerProgression:{
+          provider:'pf2e-leveler',version:'3.12.3',slug:'fighter',
+          levels:{
+            2:[{type:'classFeat'},{type:'skillFeat'},{type:'archetypeFeat'},{type:'dualClassFeat'}],
+            3:[{type:'skillIncrease'},{type:'generalFeat'}],
+            5:[{type:'abilityBoosts',count:4}]
+          },
+          spellcasting:null
+        }},
       {uuid:'Compendium.pf2e.feats-srd.Item.Demo',type:'feat',
         name:'Demonstration Feat',level:2,rarity:'common',traits:['fighter','attack'],
         featType:'class',description:
@@ -264,6 +273,12 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(fullSummary.body.totals.classes,2);
     assert.equal(fullSummary.body.totals.feats,3);
     assert.equal(fullSummary.body.totals.savedItems,15);
+    const fighterProgression=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-item?uuid='+encodeURIComponent(entries[0].uuid),
+      undefined,playerCookie,origin,'GET');
+    assert.equal(fighterProgression.status,200);
+    assert.equal(fighterProgression.body.item.metadata.levelerProgression.provider,'pf2e-leveler');
+    assert.equal(fighterProgression.body.item.metadata.levelerProgression.levels['5'][0].count,4);
     assert.ok(fullSummary.body.itemTypes.some(x=>x.type==='condition'&&x.count===1));
     assert.ok(fullSummary.body.itemTypes.some(x=>x.type==='action'&&x.count===1));
     assert.ok(fullSummary.body.packs.includes('battlezoo.options'));
@@ -357,12 +372,19 @@ test('production API: bootstrap → pair world → create player → sync → re
         classUuid:entries[0].uuid,
         feats:{'class-2':entries[1].uuid,'archetype-4':entries[2].uuid},
         equipment:[entries[4].uuid],
+        abilityBoosts:{'ancestry-1':['str','dex'],
+          'background-1':['str','con'],
+          'class-1':['str'],'free-1':['str','dex','con','wis'],
+          'level-5':['str','dex','con','wis']},
+        skillIncreases:{'skill-increase-3':'athletics'},
         spells:{'rank-1':[entries[12].uuid],cantrip:[entries[13].uuid]},
         modifiers:{str:4,dex:0,con:3,int:0,wis:2,cha:0}
       }
     },playerCookie,origin,'PATCH');
     assert.equal(saved.status,200,JSON.stringify(saved));
     assert.equal(saved.body.character.level,10);
+    assert.deepEqual(saved.body.character.build.abilityBoosts['level-5'],['str','dex','con','wis']);
+    assert.equal(saved.body.character.build.skillIncreases['skill-increase-3'],'athletics');
     assert.equal(saved.body.character.build.spells['rank-1'][0],entries[12].uuid);
     assert.equal(saved.body.character.build.feats['class-2'],entries[1].uuid);
     const existing=await send(charDetail,undefined,playerCookie,origin,'GET');
