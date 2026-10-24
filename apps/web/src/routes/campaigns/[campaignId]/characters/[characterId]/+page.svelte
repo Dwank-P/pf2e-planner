@@ -25,6 +25,7 @@
   let second=$state(null);
   let ancestryItem=$state(null);
   let heritageItem=$state(null);
+  let backgroundItem=$state(null);
   let detailCache=$state({});
   let showIncompatible=$state(false);
   let bgBoosts=$state([]);
@@ -108,10 +109,11 @@
     return result.item;
   }
   async function loadIdentity(){
-    ancestryItem=null;heritageItem=null;
+    ancestryItem=null;heritageItem=null;backgroundItem=null;
     try{
       if(character?.build.ancestryUuid)ancestryItem=await lookup(character.build.ancestryUuid);
       if(character?.build.heritageUuid)heritageItem=await lookup(character.build.heritageUuid);
+      if(character?.build.backgroundUuid)backgroundItem=await lookup(character.build.backgroundUuid);
     }catch{notice='Some ancestry or heritage details are not in the current catalog.';}
   }
   async function loadClass(){
@@ -173,7 +175,25 @@
     viewLevel=n;
     mark();
   }
+  function allowedBoost(slot,ability){
+    if(selectedBoosts(build,slot.key).includes(ability))return true;
+    if(slot.key==='class-1'){
+      const allowed=primary?.metadata?.levelerProgression?.keyAbility||
+        primary?.metadata?.keyAbility||[];
+      return Array.isArray(allowed)&&allowed.includes(ability);
+    }
+    if(slot.key==='background-1'&&backgroundItem){
+      const choices=backgroundItem.metadata?.boostChoices||[];
+      const restricted=choices.filter(x=>Array.isArray(x)&&x.length&&x.length<6);
+      if(restricted.length){
+        const selections=[...selectedBoosts(build,slot.key),ability];
+        return selections.length<2||selections.some(x=>restricted.some(group=>group.includes(x)));
+      }
+    }
+    return true;
+  }
   function chooseAbility(slot,ability){
+    if(!allowedBoost(slot,ability))return;
     setBoost(character.build,slot.key,ability,slot.count);
     mark();
   }
@@ -264,7 +284,7 @@
         target==='ancestry'?'ancestryUuid':target==='heritage'?'heritageUuid':'backgroundUuid';
       character.build[key]=result.uuid;
       if(target==='class'||target==='secondClass')await loadClass();
-      if(target==='ancestry'||target==='heritage')await loadIdentity();
+      if(target==='ancestry'||target==='heritage'||target==='background')await loadIdentity();
     }
     itemNames={...itemNames,[result.uuid]:result.name};
     mark();
@@ -310,7 +330,7 @@
   function clearIdentity(key){
     character.build[key]=null;
     if(key==='classUuid'||key==='secondClassUuid')loadClass();
-    if(key==='ancestryUuid'||key==='heritageUuid')loadIdentity();
+    if(key==='ancestryUuid'||key==='heritageUuid'||key==='backgroundUuid')loadIdentity();
     mark();
   }
   function removeEquipment(uuid){character.build.equipment=character.build.equipment.filter(x=>x!==uuid);mark();}
@@ -575,6 +595,7 @@
                         <div class="ability-options" role="group" aria-label={slot.label}>
                           {#each abilities as [key,label]}
                             <button type="button" class:active={selectedBoosts(build,slot.key).includes(key)}
+                              disabled={!allowedBoost(slot,key)}
                               aria-pressed={selectedBoosts(build,slot.key).includes(key)}
                               onclick={()=>chooseAbility(slot,key)}>
                               <span>{key.toUpperCase()}</span><small>{label}</small>
@@ -582,8 +603,11 @@
                           {/each}
                         </div>
                         {#if slot.level===1}
-                          <small class="muted">Level 1 uses Leveler's character creation boost sources.
-                            Ancestry, background and class constraints need actor-backed validation.</small>
+                          <small class="muted">{slot.key==='class-1'
+                            ? 'Choose your class first: only its key ability options can be selected.'
+                            :slot.key==='background-1'
+                            ? 'Background boosts include one from its restricted list and one free boost.'
+                            :'Level 1 uses creation boost sources. Special ancestry and background rules still require actor-backed validation.'}</small>
                         {:else}
                           <small class="muted">This {slot.count}-boost choice and its level come from PF2e Leveler.</small>
                         {/if}
@@ -844,6 +868,7 @@
   .ability-options button{background:var(--surface-hover);border:1px solid var(--line);
     border-radius:9px;color:var(--text);display:grid;justify-items:center;
     gap:1px;padding:.5rem .3rem;min-width:0}
+  .ability-options button:disabled{opacity:.33;cursor:not-allowed}
   .ability-options button.active{background:var(--accent-bg);border-color:var(--accent);
     color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
   .ability-options button span{font-weight:800;font-size:.85rem}
