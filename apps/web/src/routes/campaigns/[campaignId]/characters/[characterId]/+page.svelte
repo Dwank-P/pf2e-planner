@@ -307,6 +307,26 @@
       slotKind:slot.kind,slotLevel:slot.level
     }):{severity:1,reasons:['Eligibility is not yet confirmed.']};
   }
+  const levelerCreationLabels={
+    subclass:'Subclass',dualSubclass:'Second-class specialization',
+    deity:'Deity',sanctification:'Sanctification',divineFont:'Divine font',
+    subconsciousMind:'Subconscious mind',thesis:'Arcane thesis',
+    implement:'Implement',tactics:'Tactics',ikons:'Ikons',
+    innovationItem:'Innovation',innovationModification:'Innovation modification',
+    kineticGateMode:'Kinetic gate',secondElement:'Additional element',
+    apparitions:'Apparitions',primaryApparition:'Primary apparition',
+    mythicCalling:'Mythic calling',skills:'Starting skills',
+    languages:'Languages',dualClassBoosts:'Second-class boosts'
+  };
+  function readableCreationChoice(value){
+    if(value===null||value===undefined)return 'Not selected';
+    if(typeof value==='string'||typeof value==='number')return String(value);
+    if(Array.isArray(value))return value.map(readableCreationChoice).join(', ')||'None';
+    if(typeof value==='object'){
+      return String(value.name||value.label||value.slug||value.value||'Selected');
+    }
+    return 'Selected';
+  }
   function classProgression(item){
     if(!item)return [];
     const m=item.metadata||{};
@@ -545,6 +565,21 @@
                 </div>
               {/each}
             </div>
+            {#if Object.keys(build.creationChoices||{}).length}
+              <details class="class-details">
+                <summary>Imported Leveler creation choices</summary>
+                <p class="muted">These selections came from the open Foundry
+                  character wizard. More advanced class-specific choices need
+                  Leveler actor-backed editing before they can be changed here.</p>
+                <dl>
+                  {#each Object.entries(build.creationChoices||{})
+                    .filter(([key,value])=>key!=='classSelections'&&value!==null&&value!==undefined) as [key,value]}
+                    <dt>{levelerCreationLabels[key]||key}</dt>
+                    <dd>{readableCreationChoice(value)}</dd>
+                  {/each}
+                </dl>
+              </details>
+            {/if}
             {#if primary}
               <details class="class-details"><summary>Class advancement & starting proficiencies</summary>
                 <dl>
