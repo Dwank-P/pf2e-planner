@@ -102,6 +102,13 @@ export function checkFeat(feat,context={}){
       }
     }
   }
+  if(m.guidance==='not-recommended'){
+    severity=Math.max(severity,1);
+    reasons.push('Not recommended by the GM in PF2e Leveler.');
+  }else if(m.guidance==='disallowed'){
+    severity=2;
+    reasons.push('This option is disallowed by PF2e Leveler.');
+  }
   const prerequisites=Array.isArray(m.prerequisites)?m.prerequisites:[];
   if(prerequisites.length){
     // Some prerequisites are complex actors' choices/skills/other feats, which
@@ -118,6 +125,7 @@ export function checkFeat(feat,context={}){
 export function rankChoices(results,context){
   return results.map(entry=>({...entry,eligibility:checkFeat(entry,context)}))
     .sort((a,b)=>a.eligibility.severity-b.eligibility.severity||
+      Number(b.metadata?.guidance==='recommended')-Number(a.metadata?.guidance==='recommended')||
       (a.level??0)-(b.level??0)||a.name.localeCompare(b.name));
 }
 export function isSpellAvailable(spell,tradition,maxRank){
