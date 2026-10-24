@@ -149,7 +149,7 @@
   function begin(target,slot=null){
     picker={target,slot};
     q='';rarity='';pack='';trait='';page=1;onlyLevel=true;
-    kind=target==='equipment'?'equipment':target==='feat'?'feat':target;
+    kind=target==='equipment'?'equipment':target==='feat'?'feat':target==='secondClass'?'class':target;
     category=slot?.kind||'';
     if(category==='archetype')category='archetype';
     search();
@@ -215,7 +215,7 @@
     try{
       clearTimeout(saveTimer);
       await api(root+'/characters/'+encodeURIComponent(characterId),{},'DELETE');
-      location.href=root.replace('/api/v1','')+'/characters';
+      location.href='/campaigns/'+encodeURIComponent(campaignId)+'/characters';
     }catch(e){errorText=e.message;}
   }
   onMount(()=>{
@@ -356,8 +356,10 @@
                     <button type="button" class="choose" onclick={()=>choose(result)}>Select +</button>
                   </div>
                 </div>
-              {:else if !searching}
-                <div class="empty-result">No options match these filters. Try another category or disable the level restriction.</div>
+              {:else}
+                {#if !searching}
+                  <div class="empty-result">No options match these filters. Try another category or disable the level restriction.</div>
+                {/if}
               {/each}
             </div>
             <div class="pagination">
