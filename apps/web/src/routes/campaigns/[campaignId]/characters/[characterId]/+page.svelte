@@ -300,7 +300,7 @@
       ['General feats',text(m.generalFeatLevels)],
       ['Starting saves',Object.entries(m.savingThrows||{})
         .map(([k,v])=>k+': '+(['Untrained','Trained','Expert','Master','Legendary'][v]||v)).join(' · ')||'Not provided'],
-      ['Perception',(['Untrained','Trained','Expert','Master','Legendary'][m.perception]||m.perception??'Not provided')]
+      ['Perception',(['Untrained','Trained','Expert','Master','Legendary'][m.perception] ?? m.perception ?? 'Not provided')]
     ];
   }
   function clearSlot(slot){delete character.build.feats[slot.key];mark();}
