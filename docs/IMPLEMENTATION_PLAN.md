@@ -187,3 +187,14 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [ ] Implement Leveler actor-backed full build-state and prerequisite
   validation plus creation wizard class-specific spell/feat choice steps.
 - [ ] Optional per-Item delta inside changed packs to further cut uploads.
+
+## v0.6.1 creation wizard preservation
+- [x] Import un-applied Leveler Character Wizard `this.data` selections,
+  avoiding a misleading empty Actor import before the wizard is applied.
+- [x] Preserve selected class-specific wizard choices in a structured,
+  bounded field (not arbitrary actor flags or private notes).
+- [x] Display Leveler class-specific imported selections read-only on the
+  website; expose spell and starting boosts in their standard selectors.
+- [x] Let GMs map a Foundry actor to the website player's actual account.
+- [ ] Integrate Leveler's editable class-specific creation handlers and
+  full spell preparation into the web character builder.

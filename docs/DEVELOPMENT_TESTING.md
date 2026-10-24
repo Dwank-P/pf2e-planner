@@ -334,3 +334,14 @@ actual installed PF2e Leveler modules.
    All ability boosts, class-specific selections, trained skills, ancestry
    exceptions and prepared spells still need Leveler's full actor-backed
    validation for definitive build legality.
+
+## P. v0.6.1 — Live Leveler Wizard handoff
+
+As GM, open the Leveler **Character Creation Wizard** on a PC before
+applying changes. Select class, background, ancestry, boosts, level-one
+feats, deity or subclass and spells. Click **PF2e Planner** in its header.
+Choose the same actor and website member, import, and open the resulting
+character. Verify the wizard's un-applied choices and specialized
+creation selections are preserved even if they were absent from the
+original embedded Actor. The advanced class-specific selections are
+shown as read-only imported metadata until the website supports editing.

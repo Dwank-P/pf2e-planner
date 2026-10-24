@@ -265,3 +265,16 @@ Leveler creation selections, validating PF2e Leveler `computeBuildState`,
 `checkPrerequisites` and `validatePlan` against a real actor, applying
 spellbook/class-specific choices and advanced ancestry access rules. Current
 frontend warnings are not a replacement for Leveler's actor-based legality.
+
+### v0.6.1 — Preserve unsaved Leveler creation-wizard choices
+
+When the GM opens **PF2e Planner** from Leveler's Character Wizard, the
+selector now carries the wizard's current (even unapplied) ancestry,
+heritage, background, class, dual-class, feat, basic spell and ability-boost
+selections into the corresponding website build. Leveler's specialized
+creation metadata (subclass, deity, implements, kinetic gates, apparitions,
+thesis, languages and other class-specific choices) is also preserved and
+displayed in a compact imported-choices disclosure. These specialized
+selections are currently **read-only in the website**, pending an actor-backed
+Leveler editing adapter. The GM can assign the imported build directly to
+an active website campaign player rather than owning it themselves.
