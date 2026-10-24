@@ -151,7 +151,9 @@
     q='';rarity='';pack='';trait='';page=1;onlyLevel=true;
     kind=target==='equipment'?'equipment':target==='feat'?'feat':target==='secondClass'?'class':target;
     category=slot?.kind||'';
-    if(category==='archetype')category='archetype';
+    // Free Archetype feats commonly use the PF2e "class" category, but have
+    // the "archetype" trait. Filter by that trait instead of category.
+    if(category==='archetype'){category='';trait='archetype';}
     search();
   }
   async function search(){
