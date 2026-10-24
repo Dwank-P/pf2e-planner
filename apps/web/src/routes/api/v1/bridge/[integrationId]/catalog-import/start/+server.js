@@ -4,7 +4,7 @@ import {input,bridgeAuth,respond,problem} from '#lib/server/api.js';
 export async function POST(event){
   bridgeAuth(event,event.params.integrationId);
   const b=await input(event.request,100000);
-  if(!Array.isArray(b.packs)||b.packs.length<1||b.packs.length>40||
+  if(!Array.isArray(b.packs)||b.packs.length<1||b.packs.length>160||
      !b.packs.every(p=>typeof p==='string'&&/^[a-z0-9_-]+\.[a-z0-9_-]+$/i.test(p))||
      !Number.isInteger(b.expectedCount)||b.expectedCount<1||b.expectedCount>30000||
      !b.variants||typeof b.variants!=='object'||Array.isArray(b.variants)||
