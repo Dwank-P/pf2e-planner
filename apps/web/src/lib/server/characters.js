@@ -16,9 +16,32 @@ export function validateBuild(value) {
       Object.keys(choices).length>120)problem(400,'invalid_feat_choices');
   result.feats={};
   for(const [slot,uuid] of Object.entries(choices)) {
-    if(!/^(ancestry|class|skill|general|archetype|bonus)-([1-9]|1\d|20)(?:-[a-z0-9-]{1,22})?$/.test(slot)||
+    if(!/^(ancestry|class|skill|general|archetype|dual-class|mythic|bonus)-([1-9]|1\d|20)(?:-[a-z0-9-]{1,22})?$/.test(slot)||
        typeof uuid!=='string'||!UUID.test(uuid))problem(400,'invalid_feat_choice');
     result.feats[slot]=uuid;
+  }
+  // Leveler stores boosts with their advancement level. Unlike raw ability
+  // modifiers, these selections are tied to the specific Leveler choice.
+  const boostInput=value.abilityBoosts??{};
+  if(!boostInput||typeof boostInput!=='object'||Array.isArray(boostInput)||
+      Object.keys(boostInput).length>90)problem(400,'invalid_ability_boosts');
+  result.abilityBoosts={};
+  for(const [key,boosts] of Object.entries(boostInput)){
+    if(!/^(ancestry|background|class|free)-1$|^level-([2-9]|1\\d|20)(?:-[2-9])?$/.test(key)||
+       !Array.isArray(boosts)||boosts.length>6||
+       !boosts.every(x=>['str','dex','con','int','wis','cha'].includes(x))||
+       new Set(boosts).size!==boosts.length)problem(400,'invalid_ability_boost_selection');
+    result.abilityBoosts[key]=[...boosts];
+  }
+  const skills=value.skillIncreases??{};
+  if(!skills||typeof skills!=='object'||Array.isArray(skills)||
+      Object.keys(skills).length>70)problem(400,'invalid_skill_increases');
+  result.skillIncreases={};
+  for(const [key,skill] of Object.entries(skills)){
+    if(!/^skill-increase-([2-9]|1\\d|20)(?:-[a-z0-9-]{1,22})?$/.test(key)||
+       typeof skill!=='string'||!/^[-a-z0-9]{2,40}$/.test(skill))
+      problem(400,'invalid_skill_increase');
+    result.skillIncreases[key]=skill;
   }
   const equipment=value.equipment??[];
   if(!Array.isArray(equipment)||equipment.length>120||
