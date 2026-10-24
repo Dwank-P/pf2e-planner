@@ -340,3 +340,85 @@ export async function openPairingDialog(){
   const {PlannerConnectionMenu}=await import('./menu.mjs');
   return new PlannerConnectionMenu().render({force:true});
 }
+
+/** Explicit character sync from Foundry or PF2e Leveler's open planner.
+ * Never upload private biography, GM notes, actor flags or embedded item text.
+ */
+function sourceUuid(item){
+  const sources=[item?._stats?.compendiumSource,item?.flags?.core?.sourceId,
+    item?.sourceId,item?.uuid];
+  return sources.find(x=>typeof x==='string'&&
+    /^Compendium\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.Item\.[a-zA-Z0-9_-]+$/.test(x))??null;
+}
+function slotFromLeveler(feat,kind,level,index){
+  return kind+'-'+level+(index?'-'+(index+1):'');
+}
+export function exportCharacterActor(actor,plan=null){
+  if(!actor||actor.type!=='character')throw Error('Select a character Actor.');
+  const items=[...actor.items.values()];
+  const fromType=type=>items.filter(x=>x.type===type);
+  const first=type=>sourceUuid(fromType(type)[0]);
+  const feats={};
+  const boosts={};
+  const skillIncreases={};
+  const cats={classFeats:'class',skillFeats:'skill',generalFeats:'general',
+    ancestryFeats:'ancestry',archetypeFeats:'archetype',dualClassFeats:'dual-class',
+    mythicFeats:'mythic'};
+  if(plan?.levels&&typeof plan.levels==='object'){
+    for(const [lvl,selection] of Object.entries(plan.levels)){
+      const level=Number(lvl);
+      if(!Number.isInteger(level)||level<1||level>20)continue;
+      for(const [field,kind] of Object.entries(cats)){
+        const selected=selection?.[field];
+        if(!Array.isArray(selected))continue;
+        selected.forEach((feat,index)=>{
+          const uuid=sourceUuid(feat)||feat?.uuid;
+          if(typeof uuid==='string'&&uuid.startsWith('Compendium.'))
+            feats[slotFromLeveler(feat,kind,level,index)]=uuid;
+        });
+      }
+      const chosen=Array.isArray(selection?.abilityBoosts)?selection.abilityBoosts:[];
+      if(chosen.length)boosts['level-'+level]=chosen
+        .map(x=>String(x).toLowerCase()).filter(x=>['str','dex','con','int','wis','cha'].includes(x));
+      for(const [n,choice] of (selection?.skillIncreases??[]).entries()){
+        const key='skill-increase-'+level+(choice?.source?'-'+
+          String(choice.source).replace(/[^a-z0-9-]/gi,'-').slice(0,20):n?'-'+(n+1):'');
+        const skill=String(choice.skill??'').trim().toLowerCase();
+        if(/^[a-z-]{2,40}$/.test(skill))skillIncreases[key]=skill;
+      }
+    }
+  }
+  const spellRanks={};
+  for(const spell of fromType('spell')){
+    const uuid=sourceUuid(spell);
+    if(!uuid)continue;
+    const cantrip=spell.system?.traits?.value?.includes('cantrip');
+    const rank=Number(spell.system?.level?.value??0);
+    const key=cantrip?'cantrip':'rank-'+rank;
+    if(!/^(cantrip|rank-([1-9]|10))$/.test(key))continue;
+    (spellRanks[key]??=[]).push(uuid);
+  }
+  const equipment=items.filter(x=>!['class','ancestry','heritage','background','feat','spell','effect','condition'].includes(x.type))
+    .map(sourceUuid).filter(Boolean).slice(0,120);
+  const modifiers={};
+  for(const k of ['str','dex','con','int','wis','cha'])
+    modifiers[k]=Math.max(-5,Math.min(10,Number(actor.system?.abilities?.[k]?.mod)||0));
+  return {
+    name:String(actor.name||'Imported character').slice(0,80),
+    level:Math.max(1,Math.min(20,Number(actor.system?.details?.level?.value)||1)),
+    actorId:actor.id,
+    build:{
+      classUuid:first('class'),ancestryUuid:first('ancestry'),
+      heritageUuid:first('heritage'),backgroundUuid:first('background'),
+      secondClassUuid:null,feats,abilityBoosts:boosts,
+      skillIncreases,equipment,spells:spellRanks,modifiers
+    }
+  };
+}
+export async function importActorToPlanner(actor,{plan=null,overwrite=false}={}){
+  requireGM();
+  const {base,id,auth}=await authorized();
+  const body={...exportCharacterActor(actor,plan),overwrite};
+  const result=await post(base,'/api/v1/bridge/'+id+'/characters/import',body,auth.accessToken);
+  return {...result,url:base+result.editorPath};
+}
