@@ -369,13 +369,14 @@ function sourceUuid(item){
 function slotFromLeveler(feat,kind,level,index){
   return kind+'-'+level+(index?'-'+(index+1):'');
 }
-export function exportCharacterActor(actor,plan=null){
+export function exportCharacterActor(actor,plan=null,creation=null){
   if(!actor||actor.type!=='character')throw Error('Select a character Actor.');
   const items=[...actor.items.values()];
   const fromType=type=>items.filter(x=>x.type===type);
   const first=type=>sourceUuid(fromType(type)[0]);
   const feats={};
   const boosts={};
+  const sourceCreation=creation&&typeof creation==='object'?creation:null;
   const skillIncreases={};
   const cats={classFeats:'class',skillFeats:'skill',generalFeats:'general',
     ancestryFeats:'ancestry',archetypeFeats:'archetype',dualClassFeats:'dual-class',
@@ -404,6 +405,40 @@ export function exportCharacterActor(actor,plan=null){
       }
     }
   }
+  // The Leveler Character Wizard holds un-applied choices in .data.
+  // The Level Planner holds progression choices in .plan. Merge only the
+  // permitted creation fields, never the actor's unrelated flags or notes.
+  const creationFields=['subclass','dualSubclass','deity','sanctification',
+    'divineFont','subconsciousMind','thesis','implement','tactics','ikons',
+    'innovationItem','innovationModification','kineticGateMode',
+    'secondElement','apparitions','primaryApparition','mythicCalling',
+    'skills','languages','classSelections'];
+  const creationChoices={};
+  if(sourceCreation){
+    for(const [slot,kind] of [
+      ['ancestryFeat','ancestry-1'],['ancestryParagonFeat','ancestry-1-2'],
+      ['classFeat','class-1'],['dualClassFeat','dual-class-1'],
+      ['skillFeat','skill-1'],['mythicCalling','mythic-1']
+    ]){
+      const uuid=sourceUuid(sourceCreation[slot])||sourceCreation[slot]?.uuid;
+      if(typeof uuid==='string'&&uuid.startsWith('Compendium.'))feats[kind]=uuid;
+    }
+    for(const [source,value] of Object.entries(sourceCreation.boosts||{})){
+      const key={ancestry:'ancestry-boost-1',background:'background-1',
+        class:'class-1',free:'free-1',dualClass:'level-1'}[source];
+      if(key && Array.isArray(value)){
+        boosts[key]=[...new Set(value.map(x=>String(x).toLowerCase())
+          .filter(x=>['str','dex','con','int','wis','cha'].includes(x)))];
+      }
+    }
+    for(const key of creationFields){
+      const value=sourceCreation[key];
+      if(value===undefined||value===null)continue;
+      const serialized=JSON.stringify(value);
+      if(serialized&&serialized.length<8000)
+        creationChoices[key]=JSON.parse(serialized);
+    }
+  }
   const spellRanks={};
   for(const spell of fromType('spell')){
     const uuid=sourceUuid(spell);
@@ -413,6 +448,15 @@ export function exportCharacterActor(actor,plan=null){
     const key=cantrip?'cantrip':'rank-'+rank;
     if(!/^(cantrip|rank-([1-9]|10))$/.test(key))continue;
     (spellRanks[key]??=[]).push(uuid);
+  }
+  if(sourceCreation?.spells){
+    for(const [bucket,key] of [['cantrips','cantrip'],['rank1','rank-1']]){
+      for(const entry of sourceCreation.spells[bucket]||[]){
+        const uuid=sourceUuid(entry)||entry?.uuid;
+        if(typeof uuid==='string'&&uuid.startsWith('Compendium.'))
+          (spellRanks[key]??=[]).push(uuid);
+      }
+    }
   }
   const equipment=items.filter(x=>!['class','ancestry','heritage','background','feat','spell','effect','condition'].includes(x.type))
     .map(sourceUuid).filter(Boolean).slice(0,120);
@@ -424,10 +468,13 @@ export function exportCharacterActor(actor,plan=null){
     level:Math.max(1,Math.min(20,Number(actor.system?.details?.level?.value)||1)),
     actorId:actor.id,
     build:{
-      classUuid:first('class'),ancestryUuid:first('ancestry'),
-      heritageUuid:first('heritage'),backgroundUuid:first('background'),
-      secondClassUuid:null,feats,abilityBoosts:boosts,
-      skillIncreases,equipment,spells:spellRanks,modifiers
+      classUuid:sourceCreation?.class?.uuid||first('class'),
+      ancestryUuid:sourceCreation?.ancestry?.uuid||first('ancestry'),
+      heritageUuid:sourceCreation?.heritage?.uuid||first('heritage'),
+      backgroundUuid:sourceCreation?.background?.uuid||first('background'),
+      secondClassUuid:sourceCreation?.dualClass?.uuid||null,
+      feats,abilityBoosts:boosts,
+      skillIncreases,equipment,spells:spellRanks,modifiers,creationChoices
     }
   };
 }
@@ -438,10 +485,10 @@ export async function getSiteCharacterOwners(){
     auth.accessToken);
   return result.members||[];
 }
-export async function importActorToPlanner(actor,{plan=null,overwrite=false,ownerUserId=null}={}){
+export async function importActorToPlanner(actor,{plan=null,creation=null,overwrite=false,ownerUserId=null}={}){
   requireGM();
   const {base,id,auth}=await authorized();
-  const body={...exportCharacterActor(actor,plan),overwrite,ownerUserId};
+  const body={...exportCharacterActor(actor,plan,creation),overwrite,ownerUserId};
   const result=await post(base,'/api/v1/bridge/'+id+'/characters/import',body,auth.accessToken);
   return {...result,url:base+result.editorPath};
 }
