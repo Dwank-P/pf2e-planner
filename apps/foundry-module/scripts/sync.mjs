@@ -415,10 +415,17 @@ export function exportCharacterActor(actor,plan=null){
     }
   };
 }
-export async function importActorToPlanner(actor,{plan=null,overwrite=false}={}){
+export async function getSiteCharacterOwners(){
   requireGM();
   const {base,id,auth}=await authorized();
-  const body={...exportCharacterActor(actor,plan),overwrite};
+  const result=await post(base,'/api/v1/bridge/'+id+'/characters/owners',{},
+    auth.accessToken);
+  return result.members||[];
+}
+export async function importActorToPlanner(actor,{plan=null,overwrite=false,ownerUserId=null}={}){
+  requireGM();
+  const {base,id,auth}=await authorized();
+  const body={...exportCharacterActor(actor,plan),overwrite,ownerUserId};
   const result=await post(base,'/api/v1/bridge/'+id+'/characters/import',body,auth.accessToken);
   return {...result,url:base+result.editorPath};
 }
