@@ -20,7 +20,14 @@ export async function POST(event) {
      !Number.isInteger(b.level)||b.level<1||b.level>20)
     problem(400,'invalid_foundry_actor');
   const build=validateBuild(b.build??{});
-  const now=unix(),owner=auth.user_id,integrationId=event.params.integrationId;
+  const now=unix(),integrationId=event.params.integrationId;
+  const requestedOwner=typeof b.ownerUserId==='string'?b.ownerUserId:auth.user_id;
+  const activeMember=db().prepare(`SELECT 1 FROM users u JOIN memberships m ON m.user_id=u.id
+    WHERE m.campaign_id=? AND u.id=? AND u.status='active'`)
+    .get(auth.campaign_id,requestedOwner);
+  if(requestedOwner!==auth.user_id&&!activeMember)
+    problem(403,'requested_owner_is_not_campaign_member');
+  const owner=requestedOwner;
   const result=transaction(sql=>{
     const published=sql.prepare('SELECT snapshot_id FROM catalog_publications WHERE integration_id=?')
       .get(integrationId);
@@ -48,10 +55,10 @@ export async function POST(event) {
         return {characterId:old.id,existing:true,updated:false,skipped,
           message:'Already linked; website changes were preserved.'};
       if(old){
-        if(old.owner_user_id!==owner)problem(403,'linked_character_owner_mismatch');
-        sql.prepare(`UPDATE character_builds SET name=?,level=?,build_json=?,revision=revision+1,
+        // Explicit GM overwrite may also reassign to a different campaign member.
+        sql.prepare(`UPDATE character_builds SET name=?,level=?,build_json=?,owner_user_id=?,revision=revision+1,
           updated_at=? WHERE id=?`)
-          .run(name,b.level,JSON.stringify(build),now,old.id);
+          .run(name,b.level,JSON.stringify(build),owner,now,old.id);
         return {characterId:old.id,existing:true,updated:true,skipped};
       }
     }
