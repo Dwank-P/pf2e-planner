@@ -185,11 +185,17 @@ test('production API: bootstrap → pair world → create player → sync → re
     const sourceVersions={
       worldId:'test-world',systemId:'pf2e',systemVersion:'8.6.1',levelerVersion:'3.8.12'
     };
+    const packs=['pf2e.classes','pf2e.feats-srd',
+      'pf2e.conditionitems','pf2e.actionspf2e','battlezoo.options',
+      'pf2e.ancestries','pf2e.heritages','pf2e.backgrounds','pf2e.spells'];
+    const counts={'pf2e.classes':2,'pf2e.feats-srd':2,
+      'pf2e.conditionitems':1,'pf2e.actionspf2e':1,'battlezoo.options':1,
+      'pf2e.ancestries':1,'pf2e.heritages':3,'pf2e.backgrounds':2,'pf2e.spells':2};
+    const packDigests=Object.fromEntries(packs.map((p,index)=>[
+      p,{sha256:(index+1).toString(16).padStart(64,'0'),count:counts[p]}
+    ]));
     const started=await send(importRoute+'/start',{
-      expectedCount:15,packs:['pf2e.classes','pf2e.feats-srd',
-        'pf2e.conditionitems','pf2e.actionspf2e','battlezoo.options',
-        'pf2e.ancestries','pf2e.heritages','pf2e.backgrounds','pf2e.spells'],variants,
-      sourceVersions
+      expectedCount:15,packs,variants,sourceVersions,packDigests,reusePacks:[]
     },'',gmOrigin,'POST',paired.body.accessToken);
     assert.equal(started.status,201,JSON.stringify(started));
     const entries=[
@@ -416,9 +422,31 @@ test('production API: bootstrap → pair world → create player → sync → re
     const afterDelete=await send(charDetail,undefined,playerCookie,origin,'GET');
     assert.equal(afterDelete.status,404);
 
+    // A repeat with the same pack hashes reuses all 15 stored entries
+    // without uploading even one Item or resetting characters.
+    const syncStatus=await send(importRoute+'/status',{},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(syncStatus.status,200);
+    assert.equal(syncStatus.body.packDigests['pf2e.classes'].count,2);
+    const reuse=await send(importRoute+'/start',{
+      expectedCount:15,packs,variants:{...variants,ancestralParagon:true},
+      sourceVersions,packDigests,reusePacks:packs
+    },'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(reuse.status,201,JSON.stringify(reuse));
+    assert.equal(reuse.body.reused,15);
+    const reuseCommit=await send(importRoute+'/commit',{
+      snapshotId:reuse.body.snapshotId
+    },'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(reuseCommit.status,201,JSON.stringify(reuseCommit));
+    assert.equal(reuseCommit.body.accepted,15);
+    const stillPublished=await send('/api/v1/campaigns/'+campaignId+'/catalog-summary',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(stillPublished.body.snapshotId,reuse.body.snapshotId);
+    assert.equal(stillPublished.body.variants.ancestralParagon,true);
+
     // An incomplete next attempt must never erase the published snapshot.
     const attempt2=await send(importRoute+'/start',{
-      expectedCount:2,packs:['pf2e.feats-srd'],variants,sourceVersions
+      expectedCount:2,packs:['pf2e.feats-srd'],variants,sourceVersions,
+      packDigests:{'pf2e.feats-srd':{sha256:'f'.repeat(64),count:2}},reusePacks:[]
     },'',gmOrigin,'POST',paired.body.accessToken);
     assert.equal(attempt2.status,201);
     const incomplete=await send(importRoute+'/batch',{
@@ -431,7 +459,7 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(refused.status,409);
     const afterFail=await send('/api/v1/campaigns/'+campaignId+'/catalog-summary',
       undefined,playerCookie,origin,'GET');
-    assert.equal(afterFail.body.snapshotId,started.body.snapshotId);
+    assert.equal(afterFail.body.snapshotId,reuse.body.snapshotId);
 
     const wrongOrigin=await send('/api/v1/bridge/'+integrationId+'/refresh',
       {refreshToken:paired.body.refreshToken},'','https://untrusted.test.invalid');
