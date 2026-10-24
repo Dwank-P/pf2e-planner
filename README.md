@@ -278,3 +278,25 @@ displayed in a compact imported-choices disclosure. These specialized
 selections are currently **read-only in the website**, pending an actor-backed
 Leveler editing adapter. The GM can assign the imported build directly to
 an active website campaign player rather than owning it themselves.
+
+### v0.7.0 — Leveler-native builds and Pull from Planner
+
+Website character builds are now stored as **PF2e Leveler's own creation and
+level-plan documents** (the `pf2e-leveler.creation` / `pf2e-leveler.plan` actor
+flags), so a build moves between Foundry and the website without losing
+Leveler's metadata. The builder still shows the familiar level track;
+unchanged picks keep Leveler's choices, skill rules and ranks exactly as Foundry
+wrote them. Older builds load as before and convert on their next save.
+
+- **Send to Planner** (Leveler wizard/planner header) uploads Leveler's
+  documents directly; choices read from the actor's Items only fill gaps.
+- **Pull from Planner** (new, GM only) picks a Foundry character and a website
+  build, previews it with warnings, links them, and replaces the actor's
+  Leveler plan. Wizard choices are replaced only for actors without a class.
+  Leveler applies the plan on level-up as usual.
+- The builder's **Leveler ▾** menu downloads the plan and creation in Leveler's
+  own Import formats.
+
+Limits: Leveler ignores a plan whose class differs from the actor's class (the
+Pull dialog warns); new website skill increases use an approximate target rank;
+class-specific creation choices stay read-only on the website.

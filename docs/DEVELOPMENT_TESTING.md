@@ -345,3 +345,20 @@ character. Verify the wizard's un-applied choices and specialized
 creation selections are preserved even if they were absent from the
 original embedded Actor. The advanced class-specific selections are
 shown as read-only imported metadata until the website supports editing.
+
+## Q. v0.7.0 — Pull from Planner round trip
+
+Update Docker/Portainer and the Foundry module; both must report v0.7.0.
+1. As GM, open Leveler's **Level Planner** on a test PC and click
+   **Send to Planner**. Open the website build: feats, boosts, skill increases
+   and spells should match the planner, and **Leveler ▾** should offer both
+   downloads.
+2. On the website, change a level-2+ feat and a skill increase, then wait for
+   *Saved*.
+3. Back in the planner, click **Pull from Planner**, choose the same actor and
+   the linked build. The preview shows planned levels/feats; warnings appear if
+   the plan's class differs from the actor's class.
+4. Pull. The planner window reopens showing the website changes. Unchanged
+   feats keep their Leveler choices.
+5. Level the actor up and confirm Leveler offers to apply the pulled level.
+6. Pulling a build linked to another actor requires ticking the relink box.

@@ -198,3 +198,11 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Let GMs map a Foundry actor to the website player's actual account.
 - [ ] Integrate Leveler's editable class-specific creation handlers and
   full spell preparation into the web character builder.
+
+## v0.7.0 Leveler-native storage and Pull from Planner
+- [x] Store builds as Leveler creation/plan documents; keep unchanged entries verbatim.
+- [x] Import Leveler documents from Foundry; actor-derived choices fill gaps only.
+- [x] GM **Pull from Planner** writes `pf2e-leveler.plan` (creation only for uncreated actors).
+- [x] Download plan/creation in Leveler's import formats.
+- [ ] Validate Pull from Planner and level-up application in a Foundry v14 test world.
+- [ ] Let actor owners (players) pull their own builds without GM bridge credentials.
