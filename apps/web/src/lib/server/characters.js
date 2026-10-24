@@ -24,6 +24,19 @@ export function validateBuild(value) {
   if(!Array.isArray(equipment)||equipment.length>120||
      !equipment.every(x=>typeof x==='string'&&UUID.test(x)))problem(400,'invalid_equipment_selection');
   result.equipment=[...new Set(equipment)];
+  const spells=value.spells??{};
+  if(!spells||typeof spells!=='object'||Array.isArray(spells))problem(400,'invalid_spell_choices');
+  result.spells={};
+  let spellCount=0;
+  for(const [rank,uuids] of Object.entries(spells)){
+    if(!/^(cantrip|rank-(?:[1-9]|10))$/.test(rank)||
+       !Array.isArray(uuids)||uuids.length>30||
+       !uuids.every(x=>typeof x==='string'&&UUID.test(x)))
+      problem(400,'invalid_spell_choice');
+    spellCount+=uuids.length;
+    result.spells[rank]=[...new Set(uuids)];
+  }
+  if(spellCount>200)problem(400,'too_many_spell_choices');
   const modifiers=value.modifiers??{};
   if(!modifiers||typeof modifiers!=='object'||Array.isArray(modifiers))problem(400,'invalid_modifiers');
   result.modifiers={};
@@ -43,7 +56,8 @@ export function validateReferences(campaignId, build) {
   const ids=[...new Set([
     ...['classUuid','secondClassUuid','ancestryUuid','heritageUuid','backgroundUuid']
       .map(k=>build[k]).filter(Boolean),
-    ...Object.values(build.feats), ...build.equipment
+    ...Object.values(build.feats), ...build.equipment,
+    ...Object.values(build.spells??{}).flat()
   ])];
   if(!ids.length)return;
   const publication=db().prepare(`SELECT p.integration_id,p.snapshot_id
