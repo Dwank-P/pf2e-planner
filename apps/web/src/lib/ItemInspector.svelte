@@ -1,5 +1,5 @@
 <script>
-  import { renderLevelDescription } from '$lib/level-formulas.js';
+  import { renderLevelDescription } from './level-formulas.js';
 
   let {item=null, level=1, campaignId='', onOpen=()=>{}, onBack=()=>{},
     onClose=()=>{}, canBack=false, compact=false} = $props();

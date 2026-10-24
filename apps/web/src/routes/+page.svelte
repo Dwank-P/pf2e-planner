@@ -1,6 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import ThemePicker from '$lib/ThemePicker.svelte';
+  import ThemePicker from '../lib/ThemePicker.svelte';
 
   let me = $state(null);
   let campaigns = $state([]);

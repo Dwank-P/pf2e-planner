@@ -1,7 +1,7 @@
 <script>
   import {onMount} from 'svelte';
-  import ItemInspector from '$lib/ItemInspector.svelte';
-  import ThemePicker from '$lib/ThemePicker.svelte';
+  import ItemInspector from '../../../../../lib/ItemInspector.svelte';
+  import ThemePicker from '../../../../../lib/ThemePicker.svelte';
 
   let campaignId=$state('');
   let characterId=$state('');

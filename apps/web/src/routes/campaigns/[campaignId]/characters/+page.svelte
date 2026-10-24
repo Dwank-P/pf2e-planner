@@ -1,6 +1,6 @@
 <script>
   import {onMount} from 'svelte';
-  import ThemePicker from '$lib/ThemePicker.svelte';
+  import ThemePicker from '../../../../lib/ThemePicker.svelte';
   let campaignId=$state('');
   let characters=$state([]);
   let loading=$state(true);

@@ -1,6 +1,6 @@
 <script>
   import {onMount} from 'svelte';
-  import ItemInspector from '$lib/ItemInspector.svelte';
+  import ItemInspector from '../../../../lib/ItemInspector.svelte';
   let campaignId=$state('');
   let level=$state(1);
   let item=$state(null);
