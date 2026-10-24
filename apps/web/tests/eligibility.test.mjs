@@ -42,3 +42,18 @@ test('Bard occult repertoire excludes spells of other traditions or excessive ra
   assert.equal(isSpellAvailable(arcane,'occult',1).severity,2);
   assert.equal(isSpellAvailable(occult,'occult',0).severity,2);
 });
+
+test('ancestry-only feats are locked to matching ancestry traits',()=>{
+  const dragon={name:'Dream Sight',type:'feat',level:1,traits:['dragon'],
+    metadata:{featType:'ancestry',ancestryAccess:{restrictedTo:['dragon'],universal:false}}};
+  const anadi={name:'Silk Manipulation',type:'feat',level:1,traits:['anadi'],
+    metadata:{featType:'ancestry',ancestryAccess:{restrictedTo:['anadi'],universal:false}}};
+  assert.equal(checkFeat(dragon,{ancestry,slotKind:'ancestry',slotLevel:1}).severity,2);
+  assert.match(checkFeat(dragon,{ancestry,slotKind:'ancestry',slotLevel:1}).reasons.join(' '),/Ancestry locked/);
+  assert.equal(checkFeat(anadi,{ancestry,slotKind:'ancestry',slotLevel:1}).severity,0);
+  const dragonPC={name:'Dragon',metadata:{slug:'dragon'}};
+  assert.equal(checkFeat(dragon,{ancestry:dragonPC,slotKind:'ancestry',slotLevel:1}).severity,0);
+  const universal={name:'Reincarnated',type:'feat',level:1,traits:['reincarnated'],
+    metadata:{featType:'ancestry',ancestryAccess:{restrictedTo:[],universal:true}}};
+  assert.equal(checkFeat(universal,{ancestry,slotKind:'ancestry',slotLevel:1}).severity,0);
+});
