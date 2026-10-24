@@ -8,7 +8,7 @@ One self-hosted Docker website serves multiple PF2e/SF2e campaign groups, create
 
 ## Accounts and campaigns
 
-- Site admin creates player accounts; invitations use one-time expiring URLs, redeemed for long-lived revocable secure browser sessions. **No permanent bearer-link logins**.
+- A campaign GM can generate a **one-time invitation code without choosing the new player's name**. The player visits /join, validates the code first, then creates their own username and password. Invites are not reusable; browser sessions are revocable. **No permanent bearer-link logins**.
 - Admin authentication should be stronger (prefer passkeys). One user can participate in multiple campaigns.
 - Campaign title defaults to synchronized world title with optional website override. Preserve world-local ID and independently generated stable integration UUID.
 - Assign GM/player roles per campaign. Bind web characters to Foundry actors explicitly, not by matching names.
@@ -50,3 +50,18 @@ Fully reproducing the Foundry PF2e rule engine, supporting every bespoke third-p
 ## First end-to-end acceptance criterion
 
 GM pairs one world; site imports a small real Fighter/feat catalog; player makes a level-2 feat plan; a resulting plan imports and correctly applies to a **test actor** through the deployed Leveler version. Repeat for wizard/spontaneous spells before general release.
+
+## Description enrichers and referenced Items
+
+Descriptions may contain PF2e inline enrichers such as `@Template`,
+`@Damage`, `@Check`, `@Action`, `@UUID` and `@Compendium`.
+Render these as readable, explicitly **non-executable** UI tokens using
+server-side sanitized HTML. Do not try to calculate `@actor.level` outside
+a specific actor/level context; preserve formula text symbolically. Resolve
+links to other authorized imported Item documents (including actions, effects
+and conditions), and show an honest unresolved-link state when absent.
+
+Import selected Item compendiums beyond feats/classes (including third-party
+spells, ancestries, equipment, conditions and actions) as *browseable content*
+without treating them as fully modeled character-builder rules. The GM must
+opt in third-party packs; do not silently mirror all enabled third-party modules.

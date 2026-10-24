@@ -1,12 +1,23 @@
-# Bootstrap only: no authentication yet. Accessible on Docker host loopback.
+# Loopback-bound by default; configure PLANNER_BIND_IP as host LAN address only when a separate reverse-proxy container needs access. Configure HTTPS, trusted proxy and PUBLIC_ORIGIN
+# before sharing remotely. BOOTSTRAP_TOKEN MUST be provided via environment.
 services:
   planner-web:
     build:
       context: ./apps/web
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+      - "${PLANNER_BIND_IP:-127.0.0.1}:3000:3000"
     environment:
       HOST: "0.0.0.0"
+      PLANNER_BIND_IP: "${PLANNER_BIND_IP:-127.0.0.1}"
       PORT: "3000"
       NODE_ENV: "production"
+      PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:-http://localhost:3000}"
+      DB_PATH: "/data/planner.sqlite"
+      BOOTSTRAP_TOKEN: "${BOOTSTRAP_TOKEN:?Set a long random bootstrap token in .env}"
+      ALLOW_INSECURE_LOCAL_BRIDGE: "${ALLOW_INSECURE_LOCAL_BRIDGE:-false}"
+    volumes:
+      - planner-data:/data
+
+volumes:
+  planner-data:
