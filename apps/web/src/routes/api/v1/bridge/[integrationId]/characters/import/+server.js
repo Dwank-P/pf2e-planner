@@ -40,14 +40,16 @@ export async function POST(event) {
     const exists=sql.prepare(`SELECT 1 FROM catalog_entries
       WHERE integration_id=? AND snapshot_id=? AND uuid=?`);
     const known=uuid=>!!exists.get(integrationId,published.snapshot_id,uuid);
-    // Actor-derived references must exist in the catalog; Leveler entries are
-    // kept verbatim and simply reported when their pack isn't synchronized.
+    // Actor-derived references must exist in the catalog (dropped and counted);
+    // Leveler entries are kept verbatim and counted when their pack isn't synchronized.
+    let dropped=0;
+    const keep=uuid=>known(uuid)||(dropped++,false);
     const build=actorBuild;
     for(const key of ['classUuid','secondClassUuid','ancestryUuid','heritageUuid','backgroundUuid'])
-      if(build[key]&&!known(build[key]))build[key]=null;
-    for(const [key,uuid] of Object.entries(build.feats))if(!known(uuid))delete build.feats[key];
-    build.equipment=build.equipment.filter(known);
-    for(const [rank,uuids] of Object.entries(build.spells))build.spells[rank]=uuids.filter(known);
+      if(build[key]&&!keep(build[key]))build[key]=null;
+    for(const [key,uuid] of Object.entries(build.feats))if(!keep(uuid))delete build.feats[key];
+    build.equipment=build.equipment.filter(keep);
+    for(const [rank,uuids] of Object.entries(build.spells))build.spells[rank]=uuids.filter(keep);
     // Bridge ≤0.6.1 sends only the wizard's class choices inside build.creationChoices.
     const {dualClassBoosts,...choices}=build.creationChoices;
     const creation=levelerDocs.creation??(Object.keys(build.creationChoices).length
@@ -55,7 +57,7 @@ export async function POST(event) {
     const base=documentFromLeveler({...levelerDocs,creation},{modifiers:build.modifiers});
     const view=combineViews(projectView(base),build);
     const characterDoc=mergeView(auth.campaign_id,base,view);
-    const skipped=viewUuids(projectView(characterDoc)).filter(uuid=>!known(uuid)).length;
+    const skipped=dropped+viewUuids(projectView(characterDoc)).filter(uuid=>!known(uuid)).length;
     const link=sql.prepare(`SELECT character_id FROM foundry_actor_links
       WHERE integration_id=? AND actor_id=?`).get(integrationId,actorId);
     if(link){
