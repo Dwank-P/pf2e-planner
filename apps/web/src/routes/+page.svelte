@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import ThemePicker from '$lib/ThemePicker.svelte';
 
   let me = $state(null);
   let campaigns = $state([]);
@@ -196,218 +197,260 @@ Your code expires in 24 hours. Once it is validated, create your username and pa
     }
   }
 
+  const variantLabels={
+    freeArchetype:'Free Archetype',dualClass:'Dual Class',ancestralParagon:'Ancestral Paragon',
+    gradualAbilityBoosts:'Gradual Ability Boosts',
+    automaticBonusProgression:'Automatic Bonus Progression',
+    proficiencyWithoutLevel:'Proficiency Without Level',
+    mythic:'Mythic',stamina:'Stamina'
+  };
   onMount(() => { refresh(); });
 </script>
-
 <svelte:head>
-  <title>PF2e Planner</title>
-  <meta name="description" content="Foundry-integrated Pathfinder 2e / Starfinder 2e planner" />
+  <title>PF2e Planner · Character workshop</title>
+  <meta name="description" content="Build Pathfinder 2e characters using rules synchronized from your Foundry world."/>
 </svelte:head>
-
-{#snippet copyButton(text, label)}
-  <button type="button" class="copy-btn" aria-label={'Copy ' + label} title={'Copy ' + label}
-    onclick={() => copyText(text, label)}>
-    <svg aria-hidden="true" viewBox="0 0 24 24" width="19" height="19" fill="none"
-      stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="8" y="8" width="12" height="12" rx="2" />
-      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>
-    </svg>
-    <span class="sr-only">Copy {label}</span>
-  </button>
-{/snippet}
-
-<main>
-  <header>
-    <div><span class="eyebrow">FOUNDRY-INTEGRATED PLANNING</span><h1>PF2e Planner</h1></div>
-    {#if me}<button class="quiet" type="button" onclick={logout} disabled={busy}>Sign out</button>{/if}
+<div class="app-shell">
+  <header class="site-header">
+    <a class="brand" href="/"><span class="logo">✦</span>
+      <span><strong>PF2e Planner</strong><small>CHARACTER WORKSHOP</small></span></a>
+    <div class="header-tools"><ThemePicker/>
+      {#if me}<span class="signed-in">{me.displayName}</span>
+        <button class="secondary-action" type="button" onclick={logout} disabled={busy}>Sign out</button>
+      {/if}
+    </div>
   </header>
-  {#if errorText}<p class="alert" role="alert">{errorText}</p>{/if}
-  {#if notice}<p class="success" role="status">{notice}</p>{/if}
-  {#if copyStatus}<p class="success" role="status">{copyStatus}</p>{/if}
+  {#if errorText}<div class="toast danger" role="alert">{errorText}</div>{/if}
+  {#if notice}<div class="toast" role="status">{notice}</div>{/if}
+  {#if copyStatus}<div class="toast" role="status">{copyStatus}</div>{/if}
 
   {#if booting}
-    <section><p>Checking your session…</p></section>
+    <div class="loading">Checking your session…</div>
   {:else if !me}
-    <section class="login">
-      <h2>Sign in</h2>
-      <form onsubmit={(e) => { e.preventDefault(); login(); }}>
-        <label>Username <input required autocomplete="username" bind:value={loginName}/></label>
-        <label>Password <input type="password" required autocomplete="current-password" bind:value={loginPassword}/></label>
-        <button disabled={busy}>Sign in</button>
-      </form>
-      <p>New player? <a href="/join">Activate your account with an invitation code.</a></p>
-    </section>
-    <section>
-      <button class="quiet" type="button" onclick={() => initialSetup = !initialSetup}>Initial server setup</button>
-      {#if initialSetup}
-        <p>Only available before the first owner account exists.</p>
-        <form onsubmit={(e) => { e.preventDefault(); setup(); }}>
-          <label>Bootstrap token <input type="password" required bind:value={bootstrapSecret}/></label>
-          <label>Display name <input required bind:value={bootstrapName}/></label>
-          <label>Admin username <input required minlength="3" maxlength="32" bind:value={bootstrapUsername}/></label>
-          <label>Admin password <input type="password" required minlength="12" autocomplete="new-password" bind:value={bootstrapPassword}/></label>
-          <button disabled={busy}>Create first owner</button>
-        </form>
-      {/if}
-    </section>
-  {:else}
-    <p>Signed in as <strong>{me.displayName}</strong> ({me.siteRole})</p>
-    {#if me.siteRole === 'owner' || campaigns.some(c => c.role === 'gm')}
-      <section>
-        <h2>Pair a Foundry world</h2>
-        <p>Generate a code and enter it in the <strong>PF2e Planner Bridge → Connection Settings</strong> menu in Foundry.</p>
-        <button type="button" disabled={busy} onclick={pairingCode}>Generate pairing code</button>
-        {#if pairing}
-          <div class="secret">
-            <strong>One-time pairing code</strong>
-            <div class="copy-row">
-              <code>{pairing.code}</code>
-              {@render copyButton(pairing.code, 'pairing code')}
-            </div>
-            <small>Expires {new Date(pairing.expiresAt * 1000).toLocaleString()}. Do not share with players.</small>
-          </div>
-        {/if}
-      </section>
-    {/if}
-
-    <section>
-      <h2>Campaigns</h2>
-      {#if campaigns.length === 0}
-        <p>No campaigns yet. Pair a Foundry world to create one.</p>
-      {:else}
-        <label>World
-          <select bind:value={activeCampaign}
-            onchange={() => { issuedInvite = null; userMatches = []; run(async () => {
-              await Promise.all([loadRoster(), loadRuleset()]);
-            }); }}>
-            {#each campaigns as campaign (campaign.id)}
-              <option value={campaign.id}>{campaign.title} — {campaign.system_id}</option>
-            {/each}
-          </select>
-        </label>
-        <div class="ruleset-card" aria-label="Campaign ruleset status">
-          <div class="ruleset-head"><h3>Campaign ruleset</h3>
-            <button type="button" class="quiet" disabled={rulesetLoading}
-              onclick={() => run(loadRuleset)}>Refresh status</button></div>
-          {#if rulesetLoading}
-            <p>Checking what the website has received…</p>
-          {:else if rulesetError}
-            <p class="alert">Unable to read ruleset status: {rulesetError}</p>
-          {:else if ruleset?.synced}
-            <div class="ruleset-stats">
-              <div><strong>{ruleset.ruleset.systemId?.toUpperCase() ?? 'System'} {ruleset.ruleset.systemVersion ?? '?'}</strong><span>Rules system</span></div>
-              <div><strong>Leveler {ruleset.ruleset.levelerVersion ?? '?'}</strong><span>Module version</span></div>
-              <div><strong>{ruleset.totals.classes} classes</strong><span>Saved in SQLite</span></div>
-              <div><strong>{ruleset.totals.feats} feats</strong><span>Saved in SQLite</span></div>
-              <div><strong>{ruleset.totals.savedItems} Items</strong><span>All synchronized types</span></div>
-              <div><strong>{ruleset.complete ? 'Selected packs' : 'Preview only'}</strong><span>Sync scope</span></div>
-            </div>
-            <p><span class="partial">{ruleset.complete ? 'Selected packs imported' : 'Partial preview'}</span> · Last received {new Date(ruleset.updatedAt * 1000).toLocaleString()}</p>
-            {#if ruleset.variants}
-              <p><strong>Variant rules:</strong>
-                {Object.entries(ruleset.variants).map(([key,value]) => key.replace(/([A-Z])/g,' $1') + ': ' + (value === null ? 'Unknown' : String(value))).join(' · ')}
-              </p>
-            {/if}
-            <p class="muted">{ruleset.complete ? 'All supported Item types in GM-selected packs, plus official core reference packs. Third-party Item packs require explicit GM selection.' : 'Only the first 1,000 core feat entries. Full descriptions and variant settings not yet imported.'}</p>
-            {#if ruleset.complete}
-              <p><a href={'/campaigns/' + encodeURIComponent(activeCampaign) + '/feats'}>Browse imported feats &amp; descriptions →</a></p>
-            {/if}
-            {#if canManage}<a href={'/campaigns/' + encodeURIComponent(activeCampaign) + '/ruleset'}>View received data &amp; sync details →</a>{/if}
-          {:else}
-            <p>No ruleset snapshot received. Authorize this Foundry world and run Sync Now in the bridge.</p>
-          {/if}
+    <div class="landing">
+      <div class="pitch">
+        <div class="kicker">Campaign-connected · Built for Pathfinder 2e</div>
+        <h1>Every possibility.<br/><em>One character.</em></h1>
+        <p>Plan every level, browse synchronized feats, compare character options and keep your builds ready for the table.</p>
+        <div class="highlights">
+          <span>✦ Level-by-level planning</span>
+          <span>✦ Campaign variant rules</span>
+          <span>✦ Synced Foundry compendiums</span>
         </div>
-        {#if canManage}
-          <h3>Players</h3>
-          {#if roster.length}
-            <table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th></tr></thead>
-              <tbody>{#each roster as player (player.id)}
-                <tr><td>{player.displayName}</td><td>{player.username || 'Not activated'}</td>
-                  <td>{player.role}</td><td>{player.status}</td></tr>
-              {/each}</tbody>
-            </table>
-          {:else}
-            <p>No players have been added yet.</p>
-          {/if}
-          <div class="cols">
-            <div>
-              <h3>Add existing user</h3>
-              <p>Find someone who already has a Planner account from another world.</p>
-              <form onsubmit={(e) => { e.preventDefault(); searchUsers(); }}>
-                <label>Find user <input required minlength="2" bind:value={search}/></label>
-                <button disabled={busy}>Search</button>
-              </form>
-              {#if userMatches.length}
-                <label>Match
-                  <select bind:value={selectedUser}>
-                    {#each userMatches as user (user.id)}
-                      <option value={user.id}>{user.displayName} ({user.username})</option>
-                    {/each}
-                  </select>
-                </label>
-                <button type="button" disabled={busy || !selectedUser} onclick={addExisting}>Add selected user</button>
-              {/if}
-            </div>
-            <div>
-              <h3>Invite a new player</h3>
-              <p>Generate a single-use invitation. The player chooses their own username and password.</p>
-              <button type="button" disabled={busy} onclick={addNew}>Generate invitation</button>
-            </div>
-          </div>
-          {#if issuedInvite}
-            <div class="secret invitation" aria-label="Player invitation">
-              <div class="message-heading">
-                <strong>Message to send to the player</strong>
-                {@render copyButton(invitationText, 'invitation message')}
-              </div>
-              <p class="invite-message">{invitationText}</p>
-              <small>This code is displayed once and expires in 24 hours. Send it privately.</small>
-            </div>
-          {/if}
-        {:else}
-          <div class="status">You're a player in this campaign. Character planning will appear here in a later release.</div>
+      </div>
+      <div class="login-card panel">
+        <div class="kicker">Welcome back</div><h2>Sign in</h2>
+        <p class="muted">Pick up where your character left off.</p>
+        <form onsubmit={e=>{e.preventDefault();login();}}>
+          <label>Username<input required autocomplete="username" bind:value={loginName} placeholder="Your username"/></label>
+          <label>Password<input type="password" required autocomplete="current-password" bind:value={loginPassword} placeholder="Your password"/></label>
+          <button class="primary-action" disabled={busy}>Sign in →</button>
+        </form>
+        <p class="small">New player? <a href="/join">Activate your invitation</a></p>
+        <button class="setup-link" type="button" onclick={()=>initialSetup=!initialSetup}>Initial server setup</button>
+        {#if initialSetup}
+          <form class="setup-form" onsubmit={e=>{e.preventDefault();setup();}}>
+            <p class="muted">Only available before the first owner account exists.</p>
+            <label>Bootstrap token<input type="password" required bind:value={bootstrapSecret}/></label>
+            <label>Display name<input required bind:value={bootstrapName}/></label>
+            <label>Admin username<input required minlength="3" maxlength="32" bind:value={bootstrapUsername}/></label>
+            <label>Admin password<input type="password" required minlength="12" bind:value={bootstrapPassword}/></label>
+            <button class="primary-action" disabled={busy}>Create first owner</button>
+          </form>
         {/if}
+      </div>
+    </div>
+  {:else}
+    <div class="dashboard">
+      <div class="welcome">
+        <div><div class="kicker">Your workspace</div><h1>Ready for the next level?</h1>
+          <p class="muted">Build, explore and plan within the rules of your Foundry campaign.</p></div>
+        {#if campaigns.length>0}
+          <a class="primary-action" href={'/campaigns/'+encodeURIComponent(activeCampaign)+'/characters'}>Open character builder ↗</a>
+        {/if}
+      </div>
+      {#if campaigns.length===0}
+        <div class="panel empty"><span class="decor">◇</span><h2>No campaigns connected</h2>
+          <p>Pair your Foundry world to unlock its synced compendiums and character builds.</p></div>
+      {:else}
+        <div class="world-heading">
+          <div><div class="kicker">Active world</div>
+            {#if campaigns.length===1}<h2>{currentCampaign?.title}</h2>
+            {:else}
+              <select class="world-picker" bind:value={activeCampaign}
+                onchange={()=>{issuedInvite=null;userMatches=[];run(async()=>Promise.all([loadRoster(),loadRuleset()]));}}>
+                {#each campaigns as campaign (campaign.id)}<option value={campaign.id}>{campaign.title}</option>{/each}
+              </select>
+            {/if}
+          </div>
+          <span class="role-tag">{currentCampaign?.role==='gm'||me.siteRole==='owner'?'GM access':'Player access'}</span>
+        </div>
+        <div class="dashboard-grid">
+          <section class="panel rules">
+            <div class="panel-heading"><div><div class="kicker">Imported campaign rules</div><h2>Ruleset</h2></div>
+              <button class="secondary-action" type="button" onclick={()=>run(loadRuleset)} disabled={rulesetLoading}>↻ Refresh</button></div>
+            {#if rulesetLoading}<p class="muted">Loading synchronized rules…</p>
+            {:else if rulesetError}<p class="muted">{rulesetError}</p>
+            {:else if ruleset?.synced}
+              <div class="rules-version"><strong>{ruleset.ruleset.systemId?.toUpperCase()} {ruleset.ruleset.systemVersion}</strong>
+                <small>Leveler {ruleset.ruleset.levelerVersion||'—'}</small></div>
+              <div class="metrics">
+                <div><strong>{ruleset.totals.feats}</strong><span>Feats</span></div>
+                <div><strong>{ruleset.totals.classes}</strong><span>Classes</span></div>
+                <div><strong>{ruleset.totals.savedItems}</strong><span>Items synced</span></div>
+              </div>
+              {#if ruleset.variants}
+                <h3 class="subheading">Variant rules</h3>
+                <div class="variants">
+                  {#each Object.entries(ruleset.variants).filter(([key,value])=>value===true) as [key]}
+                    <span>{variantLabels[key]||key}</span>
+                  {:else}<span class="muted">No optional variants reported as enabled.</span>
+                  {/each}
+                </div>
+              {/if}
+              <p class="meta">Last synchronized {new Date(ruleset.updatedAt*1000).toLocaleString()}</p>
+              <div class="quicklinks">
+                <a href={'/campaigns/'+encodeURIComponent(activeCampaign)+'/feats'}>Explore feats ↗</a>
+                {#if canManage}<a href={'/campaigns/'+encodeURIComponent(activeCampaign)+'/ruleset'}>Sync details ↗</a>{/if}
+              </div>
+            {:else}<p class="muted">No compendium data has been received. Ask a GM to synchronize the Foundry world.</p>{/if}
+          </section>
+          <section class="panel action-card">
+            <div class="kicker">Character workshop</div><div class="glyph">✧</div>
+            <h2>Shape your next hero.</h2>
+            <p>Create a new character or continue a saved build. Advance up to level 20 with searchable feat and item choices.</p>
+            <a class="primary-action" href={'/campaigns/'+encodeURIComponent(activeCampaign)+'/characters'}>Browse characters →</a>
+          </section>
+        </div>
       {/if}
-    </section>
+
+      {#if me.siteRole==='owner'||canManage}
+        <details class="admin-panel panel">
+          <summary><span><span class="kicker">Campaign administration</span>
+            <strong>Players &amp; Foundry pairing</strong></span>
+            <span class="muted">Expand settings ▾</span></summary>
+          <div class="admin-inner">
+            <section class="admin-block">
+              <h3>Connect another world</h3>
+              <p class="muted">Generate a one-time code for your Foundry Bridge's Pair World dialog.</p>
+              <button class="secondary-action" type="button" onclick={pairingCode} disabled={busy}>Generate pairing code</button>
+              {#if pairing}
+                <div class="code-line"><code>{pairing.code}</code>
+                  <button aria-label="Copy pairing code" type="button" onclick={()=>copyText(pairing.code,'Pairing code')}>⧉</button></div>
+                <small>Expires {new Date(pairing.expiresAt*1000).toLocaleString()}</small>
+              {/if}
+            </section>
+            {#if activeCampaign&&canManage}
+              <section class="admin-block">
+                <h3>Players</h3>
+                <div class="roster-list">
+                  {#each roster as player (player.id)}
+                    <div><strong>{player.displayName}</strong><small>{player.role} · {player.status}</small></div>
+                  {:else}<p class="muted">No players added yet.</p>{/each}
+                </div>
+                <button type="button" class="secondary-action" onclick={addNew} disabled={busy}>+ Generate player invitation</button>
+                {#if issuedInvite}
+                  <div class="invite-box"><div class="copy-heading"><strong>Message to send the player</strong>
+                    <button type="button" aria-label="Copy invitation" onclick={()=>copyText(invitationText,'Invitation message')}>⧉ Copy</button></div>
+                    <p>{invitationText}</p>
+                  </div>
+                {/if}
+                <div class="existing">
+                  <h4>Add an existing account</h4>
+                  <form onsubmit={e=>{e.preventDefault();searchUsers();}}>
+                    <input required minlength="2" placeholder="Search existing users" bind:value={search}/>
+                    <button class="secondary-action" disabled={busy}>Search</button>
+                  </form>
+                  {#if userMatches.length}
+                    <select bind:value={selectedUser}>
+                      {#each userMatches as user (user.id)}<option value={user.id}>{user.displayName} ({user.username})</option>{/each}
+                    </select>
+                    <button class="secondary-action" type="button" disabled={busy||!selectedUser} onclick={addExisting}>Add player</button>
+                  {/if}
+                </div>
+              </section>
+            {/if}
+          </div>
+        </details>
+      {/if}
+    </div>
   {/if}
-  <footer>Development preview · character building not yet implemented</footer>
-</main>
+  <footer>PF2e Planner · Foundry-connected character planning</footer>
+</div>
 <style>
-  :global(body) { margin:0; background:#101820; color:#f0f4f6; font:16px system-ui,sans-serif; }
-  main { max-width:1000px; margin:0 auto; padding:2rem; }
-  header { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
-  .eyebrow {color:#8db4c4; font-weight:bold; letter-spacing:.13em;font-size:.78rem;}
-  h1 {font-size:3rem; margin:.2rem 0 1.5rem;}
-  section {background:#1d2934; padding:1.5rem; margin:1rem 0; border:1px solid #415260;border-radius:10px;}
-  h2 {margin-top:0;}
-  p {line-height:1.5}
-  label {display:block; margin:1rem 0; font-weight:600;}
-  input,select {display:block; width:100%; box-sizing:border-box; margin-top:.35rem; padding:.65rem; background:#0f1d27; color:#fff; border:1px solid #668092; border-radius:5px; font:inherit;}
-  button {padding:.68rem 1rem; background:#b7d6e7; color:#102029; border:0; border-radius:5px; font:inherit; font-weight:700; cursor:pointer;}
-  button:disabled {opacity:.6; cursor:not-allowed;}
-  button.quiet {background:transparent; border:1px solid #90a6b6;color:#e6eff5;}
-  .cols {display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:1rem;}
-  .secret {border:1px solid #9cbfd4; padding:1rem; margin:1rem 0; background:#273a4a;overflow-wrap:anywhere;}
-  .secret strong,.secret small {display:block;margin:.5rem 0}
-  .copy-row,.message-heading {display:flex;align-items:center;gap:.5rem;justify-content:space-between;}
-  .copy-row code {flex:1;min-width:0;overflow-wrap:anywhere}
-  .copy-btn {display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;border:1px solid #93bdcf;background:#142b3a;color:#fff;padding:.5rem; flex:0 0 auto;}
-  .copy-btn:hover {background:#365568;}
-  .invite-message {white-space:pre-wrap;line-height:1.75;overflow-wrap:anywhere;}
-  code {font-family:monospace;font-size:1rem;user-select:all;}
-  table {width:100%;border-collapse:collapse;} td,th{padding:.6rem;text-align:left;border-bottom:1px solid #3b5261;}
-  .alert {padding:1rem;background:#6e2727;color:#fff;} .success{padding:1rem;background:#23543a;color:#fff;}
-  a{color:#a8d5ff;} footer{color:#8ba0af;margin:2rem 0;}
-  .status{padding:1rem;background:#263847;border-radius:4px;}
-  .ruleset-card{margin:1rem 0;padding:1.25rem;border:1px solid #537384;border-radius:7px;background:#132633}
-  .ruleset-head{display:flex;align-items:center;justify-content:space-between;gap:.6rem}
-  .ruleset-head h3{margin:0}
-  .ruleset-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.65rem;margin-top:1rem}
-  .ruleset-stats div{background:#263947;padding:.8rem;border-radius:5px}
-  .ruleset-stats strong{display:block;overflow-wrap:anywhere}
-  .ruleset-stats span,.muted{color:#b0c0cb;font-size:.85rem}
-  .partial{background:#59441b;border:1px solid #bf9852;border-radius:4px;color:#ffe4ab;padding:.2rem .4rem}
-  @media(max-width:720px){.ruleset-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;}
-  @media(max-width:720px){.cols{grid-template-columns:1fr;} header{gap:1rem;} h1{font-size:2.1rem;}}
+  .site-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.2rem 0 1.5rem;
+    border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:.85rem;text-decoration:none;color:var(--text)}
+  .logo{display:grid;place-items:center;background:var(--accent-bg);border:1px solid var(--accent);
+    color:var(--accent);border-radius:13px;font-size:1.6rem;width:46px;height:46px}
+  .brand strong,.brand small{display:block}.brand strong{font-size:1.07rem;letter-spacing:-.03em}
+  .brand small{font-size:.58rem;letter-spacing:.19em;color:var(--muted);font-weight:700}
+  .header-tools{display:flex;align-items:center;gap:.85rem}.signed-in{font-weight:700;color:var(--muted);font-size:.81rem}
+  .landing{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,.85fr);align-items:center;
+    gap:clamp(2rem,5vw,6rem);min-height:calc(100vh - 180px)}
+  .pitch{padding:4rem 0}.pitch h1{font-size:clamp(2.9rem,5.4vw,5.3rem);line-height:1.12;margin:1.2rem 0}
+  .pitch h1 em{font-style:normal;color:var(--accent)}
+  .pitch p{color:var(--muted);max-width:530px;font-size:1.1rem}
+  .highlights{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:2rem}
+  .highlights span{font-size:.8rem;border:1px solid var(--line);padding:.5rem .7rem;border-radius:30px;color:var(--muted)}
+  .login-card{padding:2rem}.login-card h2{font-size:2rem;margin:.45rem 0}.login-card p{font-size:.85rem}
+  .login-card form{display:grid;gap:1rem;margin:1.5rem 0}.login-card label{display:grid;gap:.4rem;font-size:.8rem;font-weight:700}
+  .login-card input{width:100%}.login-card .primary-action{width:100%;margin-top:.2rem}
+  .login-card .small{margin:1.2rem 0}.setup-link{border:0;background:none;color:var(--muted);text-decoration:underline;font-size:.75rem}
+  .setup-form{padding-top:1rem;border-top:1px solid var(--line)}
+  .dashboard{padding:2rem 0}.welcome{display:flex;gap:1.3rem;justify-content:space-between;align-items:center;
+    margin:1rem 0 3rem}.welcome h1{font-size:clamp(2rem,4vw,3.2rem);margin:.3rem 0}
+  .welcome p{margin:.4rem 0}.primary-action{display:inline-flex;align-items:center;justify-content:center;
+    text-decoration:none;white-space:nowrap}
+  .world-heading{display:flex;gap:1rem;align-items:center;justify-content:space-between;margin:0 0 1rem}
+  .world-heading h2{font-size:1.7rem;margin:.25rem 0}.world-picker{min-width:min(360px,90vw);background:var(--surface)}
+  .role-tag{border:1px solid var(--line);padding:.4rem .7rem;border-radius:20px;color:var(--muted);font-size:.73rem}
+  .dashboard-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(275px,.75fr);gap:1rem}
+  .dashboard-grid .panel{padding:1.6rem}.panel-heading{display:flex;justify-content:space-between;gap:1rem}
+  .panel-heading h2{margin:.2rem 0 1rem;font-size:1.5rem}
+  .rules-version{display:flex;gap:1rem;align-items:baseline;flex-wrap:wrap}
+  .rules-version strong{font-size:1.16rem}.rules-version small,.meta{color:var(--muted);font-size:.75rem}
+  .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem;margin:1.4rem 0}
+  .metrics div{background:var(--surface-hover);border:1px solid var(--line);padding:.85rem;border-radius:10px}
+  .metrics strong{display:block;font-size:1.65rem;letter-spacing:-.05em;font-weight:800}
+  .metrics span{color:var(--muted);font-size:.74rem}
+  .subheading{font-size:.8rem;color:var(--muted);margin:1.4rem 0 .6rem}
+  .variants{display:flex;flex-wrap:wrap;gap:.45rem}.variants span{border-radius:40px;padding:.3rem .65rem;
+    border:1px solid var(--accent);background:var(--accent-bg);color:var(--accent);font-size:.75rem}
+  .variants span.muted{border-color:var(--line);background:transparent;color:var(--muted)}
+  .meta{margin:1.2rem 0}.quicklinks{display:flex;gap:1.2rem;flex-wrap:wrap;padding-top:.85rem;border-top:1px solid var(--line)}
+  .quicklinks a{font-weight:700;font-size:.85rem;text-decoration:none}
+  .action-card{position:relative;display:flex;flex-direction:column;align-items:start;overflow:hidden;
+    background:linear-gradient(145deg,var(--surface-strong),var(--accent-bg))}
+  .action-card .glyph{align-self:end;color:var(--accent);font-size:6rem;line-height:1;opacity:.48}
+  .action-card h2{font-size:1.75rem;line-height:1.18;margin:.65rem 0}
+  .action-card p{color:var(--muted);font-size:.87rem;line-height:1.65}
+  .action-card a{margin-top:auto}.empty{text-align:center;padding:5rem;color:var(--muted)}
+  .empty .decor{font-size:4rem;color:var(--accent)}.empty h2{color:var(--text)}
+  .admin-panel{margin-top:1rem;overflow:hidden}.admin-panel summary{padding:1.3rem 1.6rem;display:flex;
+    justify-content:space-between;align-items:center;cursor:pointer}
+  .admin-panel summary strong,.admin-panel summary .kicker{display:block}.admin-panel summary strong{font-size:1.1rem;margin-top:.2rem}
+  .admin-panel summary>.muted{font-size:.76rem}
+  .admin-inner{border-top:1px solid var(--line);padding:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:2rem}
+  .admin-block h3{margin:.15rem 0}.admin-block p{font-size:.83rem}
+  .code-line{display:flex;align-items:center;gap:.6rem;overflow-wrap:anywhere;background:var(--surface-hover);
+    padding:.9rem;border-radius:10px;margin:1rem 0}.code-line code{flex:1;font-size:.75rem}
+  .code-line button,.copy-heading button{color:var(--accent);background:transparent;border:0;font-weight:700}
+  .admin-block>small{color:var(--muted)}.roster-list{display:grid;margin:.8rem 0;gap:.3rem}
+  .roster-list div{display:flex;align-items:center;justify-content:space-between;padding:.6rem;
+    border-bottom:1px solid var(--line);gap:1rem;font-size:.8rem}.roster-list small{color:var(--muted)}
+  .invite-box{padding:1rem;background:var(--surface-hover);border-radius:10px;margin:1rem 0}
+  .invite-box p{white-space:pre-wrap;overflow-wrap:anywhere}.copy-heading{display:flex;justify-content:space-between;gap:1rem}
+  .existing{margin-top:1.2rem;border-top:1px solid var(--line)}.existing h4{font-size:.9rem}
+  .existing form{display:flex;gap:.6rem;flex-wrap:wrap}.existing select{margin:1rem 1rem 0 0}
+  .toast{padding:.8rem 1rem;margin-top:1rem;border-radius:10px;background:var(--accent-bg);color:var(--text)}
+  .toast.danger{border:1px solid var(--danger-border);color:var(--danger)}
+  .loading{display:grid;place-items:center;min-height:75vh;color:var(--muted)}
+  footer{padding:2rem 0;text-align:center;font-size:.76rem;color:var(--muted)}
+  @media(max-width:900px){.landing,.dashboard-grid,.admin-inner{grid-template-columns:1fr}
+    .landing{min-height:unset}.pitch{padding:3rem 0 0}.login-card{max-width:550px}
+    .welcome{flex-wrap:wrap}}
+  @media(max-width:560px){.site-header{flex-wrap:wrap}.header-tools{width:100%;justify-content:space-between}
+    .metrics{gap:.35rem}.metrics div{padding:.6rem}.metrics strong{font-size:1.35rem}
+    .admin-panel summary>.muted{display:none}.login-card{padding:1.3rem}}
 </style>
