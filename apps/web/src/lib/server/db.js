@@ -85,6 +85,17 @@ export function db() {
       item_json TEXT NOT NULL, PRIMARY KEY(integration_id,snapshot_id,uuid)
     );
     CREATE INDEX IF NOT EXISTS idx_catalog_query ON catalog_entries(integration_id,snapshot_id,type,level,rarity,pack,name);
+    CREATE TABLE IF NOT EXISTS character_builds (
+      id TEXT PRIMARY KEY,
+      campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+      owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL, level INTEGER NOT NULL CHECK(level BETWEEN 1 AND 20),
+      build_json TEXT NOT NULL,
+      revision INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_builds_campaign_owner
+      ON character_builds(campaign_id, owner_user_id, updated_at DESC);
     CREATE TABLE IF NOT EXISTS rate_limits (
       key TEXT PRIMARY KEY, bucket INTEGER NOT NULL, hits INTEGER NOT NULL
     );
