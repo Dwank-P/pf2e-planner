@@ -42,12 +42,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.4\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.4\.1/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.4.0');
+    assert.equal(health.body.version,'0.4.1');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -56,7 +56,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.4.0');
+    assert.equal(check.body.version,'0.4.1');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -176,7 +176,7 @@ test('production API: bootstrap → pair world → create player → sync → re
 
 
 
-    // v0.4.0 complete staged catalog: explicit variant rules, metadata, html and links.
+    // v0.4.1 complete staged catalog: explicit variant rules, metadata, html and links.
     const importRoute='/api/v1/bridge/'+integrationId+'/catalog-import';
     const variants={
       freeArchetype:true,dualClass:true,ancestralParagon:false,
@@ -186,7 +186,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       worldId:'test-world',systemId:'pf2e',systemVersion:'8.6.1',levelerVersion:'3.8.12'
     };
     const started=await send(importRoute+'/start',{
-      expectedCount:6,packs:['pf2e.classes','pf2e.feats-srd',
+      expectedCount:15,packs:['pf2e.classes','pf2e.feats-srd',
         'pf2e.conditionitems','pf2e.actionspf2e','battlezoo.options'],variants,
       sourceVersions
     },'',gmOrigin,'POST',paired.body.accessToken);
@@ -213,19 +213,46 @@ test('production API: bootstrap → pair world → create player → sync → re
         name:'Raise a Shield',slug:'raise-a-shield',description:'<p>Raise your shield.</p>'},
       {uuid:'Compendium.battlezoo.options.Item.BZFeat',type:'feat',
         name:'Battlezoo Test',level:2,rarity:'uncommon',traits:['rare-example'],
-        description:'<p>A selected third-party feat.</p>'}
+        description:'<p>A selected third-party feat.</p>'},
+      {uuid:'Compendium.pf2e.ancestries.Item.Anadi',type:'ancestry',
+        name:'Anadi',slug:'anadi',description:'<p>Anadi ancestry</p>'},
+      {uuid:'Compendium.pf2e.heritages.Item.Adaptive',type:'heritage',
+        name:'Adaptive Anadi',ancestrySlug:'anadi',
+        ancestryUuid:'Compendium.pf2e.ancestries.Item.Anadi',versatile:false},
+      {uuid:'Compendium.pf2e.heritages.Item.Merfolk',type:'heritage',
+        name:'Abyssal Merfolk',ancestrySlug:'merfolk',
+        ancestryUuid:'Compendium.pf2e.ancestries.Item.Merfolk',versatile:false},
+      {uuid:'Compendium.pf2e.heritages.Item.Aiuvarin',type:'heritage',
+        name:'Aiuvarin',versatile:true},
+      {uuid:'Compendium.pf2e.backgrounds.Item.Strength',type:'background',
+        name:'Strong Scholar',
+        boostChoices:[['str','con'],['str','dex','con','int','wis','cha']],
+        trainedSkills:['athletics'],grantedFeats:['Hefty Hauler']},
+      {uuid:'Compendium.pf2e.backgrounds.Item.Intellect',type:'background',
+        name:'Clever Scholar',
+        boostChoices:[['int','wis'],['str','dex','con','int','wis','cha']],
+        trainedSkills:['society'],grantedFeats:['Multilingual']},
+      {uuid:'Compendium.pf2e.spells.Item.Soothe',type:'spell',name:'Soothe',level:1,
+        spellRank:1,spellTraditions:['occult'],traits:[]},
+      {uuid:'Compendium.pf2e.spells.Item.TelekineticProjectile',type:'spell',
+        name:'Telekinetic Projectile',level:1,spellRank:1,
+        spellTraditions:['occult','arcane'],traits:['cantrip']},
+      {uuid:'Compendium.pf2e.classes.Item.Bard',type:'class',name:'Bard',
+        keyAbility:['cha'],spellcasting:true,spellTradition:'occult',
+        classFeatLevels:[2,4,6],skillFeatLevels:[2,4,6],
+        savingThrows:{fortitude:1,reflex:1,will:2}}
     ];
     const batch=await send(importRoute+'/batch',{
       snapshotId:started.body.snapshotId,batchNumber:0,items:entries
     },'',gmOrigin,'POST',paired.body.accessToken);
     assert.equal(batch.status,201,JSON.stringify(batch));
-    assert.equal(batch.body.staged,6);
+    assert.equal(batch.body.staged,15);
 
     const published=await send(importRoute+'/commit',{
       snapshotId:started.body.snapshotId
     },'',gmOrigin,'POST',paired.body.accessToken);
     assert.equal(published.status,201,JSON.stringify(published));
-    assert.equal(published.body.accepted,6);
+    assert.equal(published.body.accepted,15);
 
     const fullSummary=await send('/api/v1/campaigns/'+campaignId+'/catalog-summary',
       undefined,playerCookie,origin,'GET');
@@ -233,12 +260,45 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(fullSummary.body.complete,true);
     assert.equal(fullSummary.body.variants.freeArchetype,true);
     assert.equal(fullSummary.body.variants.dualClass,true);
-    assert.equal(fullSummary.body.totals.classes,1);
+    assert.equal(fullSummary.body.totals.classes,2);
     assert.equal(fullSummary.body.totals.feats,3);
-    assert.equal(fullSummary.body.totals.savedItems,6);
+    assert.equal(fullSummary.body.totals.savedItems,15);
     assert.ok(fullSummary.body.itemTypes.some(x=>x.type==='condition'&&x.count===1));
     assert.ok(fullSummary.body.itemTypes.some(x=>x.type==='action'&&x.count===1));
     assert.ok(fullSummary.body.packs.includes('battlezoo.options'));
+
+    const heritages=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-items?type=heritage&ancestryUuid=Compendium.pf2e.ancestries.Item.Anadi'+
+      '&ancestrySlug=anadi',undefined,playerCookie,origin,'GET');
+    assert.equal(heritages.status,200,JSON.stringify(heritages));
+    assert.equal(heritages.body.total,2,'Anadi and versatile only, no merfolk heritage');
+    assert.ok(!heritages.body.items.some(x=>x.name==='Abyssal Merfolk'));
+    const incompatible=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-items?type=heritage&ancestryUuid=Compendium.pf2e.ancestries.Item.Anadi'+
+      '&ancestrySlug=anadi&showAll=true',undefined,playerCookie,origin,'GET');
+    assert.equal(incompatible.body.total,3);
+    const boosted=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-items?type=background&bgBoosts=str,con',undefined,
+      playerCookie,origin,'GET');
+    assert.equal(boosted.status,200,JSON.stringify(boosted));
+    assert.equal(boosted.body.total,1,'OR matching str or con; free boost must not qualify alone');
+    const bgSkill=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-items?type=background&bgSkill=society&bgFeat=multilingual',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(bgSkill.status,200,JSON.stringify(bgSkill));
+    assert.equal(bgSkill.body.total,1);
+    const spells=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-items?type=spell&tradition=occult&spellRank=1',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(spells.status,200,JSON.stringify(spells));
+    assert.equal(spells.body.total,1,'Cantrips should not appear in ranked spell selection');
+    assert.equal(spells.body.items[0].name,'Soothe');
+    const cantrips=await send('/api/v1/campaigns/'+campaignId+
+      '/catalog-items?type=spell&tradition=occult&spellRank=0',
+      undefined,playerCookie,origin,'GET');
+    assert.equal(cantrips.status,200);
+    assert.equal(cantrips.body.total,1);
+    assert.equal(cantrips.body.items[0].name,'Telekinetic Projectile');
 
     const listing=await send('/api/v1/campaigns/'+campaignId+
       '/catalog-items?type=feat&rarity=common&level=2&trait=fighter&featType=class',
@@ -295,11 +355,14 @@ test('production API: bootstrap → pair world → create player → sync → re
       build:{
         classUuid:entries[0].uuid,
         feats:{'class-2':entries[1].uuid,'archetype-4':entries[2].uuid},
-        equipment:[entries[4].uuid],modifiers:{str:4,dex:0,con:3,int:0,wis:2,cha:0}
+        equipment:[entries[4].uuid],
+        spells:{'rank-1':[entries[12].uuid],cantrip:[entries[13].uuid]},
+        modifiers:{str:4,dex:0,con:3,int:0,wis:2,cha:0}
       }
     },playerCookie,origin,'PATCH');
     assert.equal(saved.status,200,JSON.stringify(saved));
     assert.equal(saved.body.character.level,10);
+    assert.equal(saved.body.character.build.spells['rank-1'][0],entries[12].uuid);
     assert.equal(saved.body.character.build.feats['class-2'],entries[1].uuid);
     const existing=await send(charDetail,undefined,playerCookie,origin,'GET');
     assert.equal(existing.status,200);
