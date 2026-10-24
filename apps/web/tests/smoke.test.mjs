@@ -187,7 +187,8 @@ test('production API: bootstrap → pair world → create player → sync → re
     };
     const started=await send(importRoute+'/start',{
       expectedCount:15,packs:['pf2e.classes','pf2e.feats-srd',
-        'pf2e.conditionitems','pf2e.actionspf2e','battlezoo.options'],variants,
+        'pf2e.conditionitems','pf2e.actionspf2e','battlezoo.options',
+        'pf2e.ancestries','pf2e.heritages','pf2e.backgrounds','pf2e.spells'],variants,
       sourceVersions
     },'',gmOrigin,'POST',paired.body.accessToken);
     assert.equal(started.status,201,JSON.stringify(started));
