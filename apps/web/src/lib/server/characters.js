@@ -68,6 +68,21 @@ export function validateBuild(value) {
     if(!Number.isInteger(n)||n< -5||n>10)problem(400,'invalid_modifier');
     result.modifiers[stat]=n;
   }
+  const creation=value.creationChoices??{};
+  if(!creation||typeof creation!=='object'||Array.isArray(creation)||
+     Object.keys(creation).length>32||JSON.stringify(creation).length>18000)
+    problem(400,'invalid_leveler_creation_choices');
+  const allowed=new Set(['subclass','dualSubclass','deity','sanctification',
+    'divineFont','subconsciousMind','thesis','implement','tactics','ikons',
+    'innovationItem','innovationModification','kineticGateMode',
+    'secondElement','apparitions','primaryApparition','mythicCalling',
+    'skills','languages','classSelections','dualClassBoosts']);
+  result.creationChoices={};
+  for(const [key,selection] of Object.entries(creation)){
+    if(!allowed.has(key)||JSON.stringify(selection).length>8000)
+      problem(400,'invalid_leveler_creation_choice');
+    result.creationChoices[key]=selection;
+  }
   const notes=value.notes??'';
   if(typeof notes!=='string'||notes.length>4000)problem(400,'invalid_notes');
   result.notes=notes;
