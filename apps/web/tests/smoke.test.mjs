@@ -422,6 +422,42 @@ test('production API: bootstrap → pair world → create player → sync → re
     const afterDelete=await send(charDetail,undefined,playerCookie,origin,'GET');
     assert.equal(afterDelete.status,404);
 
+    // Explicit import from a Foundry world actor opens a real website
+    // build, and repeated imports preserve website edits by default.
+    const actorRoute='/api/v1/bridge/'+integrationId+'/characters/import';
+    const actorPayload={
+      actorId:'ActorAlpha012345',name:'Kineticist Test',level:8,
+      build:{
+        classUuid:entries[0].uuid,
+        feats:{'class-2':entries[1].uuid,
+          'general-3':'Compendium.unselected.feats.Item.Missing'},
+        equipment:[entries[4].uuid],
+        modifiers:{str:3,dex:2,con:4,int:0,wis:1,cha:0}
+      }
+    };
+    const imported=await send(actorRoute,actorPayload,'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(imported.status,201,JSON.stringify(imported));
+    assert.equal(imported.body.skipped,1);
+    assert.match(imported.body.editorPath,/^\/campaigns\/.+\/characters\/.+$/);
+    const importedDetails=await send('/api/v1/campaigns/'+campaignId+
+      '/characters/'+imported.body.characterId,undefined,ownerCookie,origin,'GET');
+    assert.equal(importedDetails.status,200);
+    assert.equal(importedDetails.body.character.name,'Kineticist Test');
+    assert.deepEqual(Object.keys(importedDetails.body.character.build.feats),['class-2']);
+    const playerCannotRead=await send('/api/v1/campaigns/'+campaignId+
+      '/characters/'+imported.body.characterId,undefined,playerCookie,origin,'GET');
+    assert.equal(playerCannotRead.status,403);
+    const secondImport=await send(actorRoute,{...actorPayload,name:'Overwrite prohibited'},
+      '',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(secondImport.status,200);
+    assert.equal(secondImport.body.existing,true);
+    assert.equal(secondImport.body.updated,false);
+    assert.equal(secondImport.body.characterId,imported.body.characterId);
+    const forceUpdate=await send(actorRoute,{...actorPayload,name:'Updated from Foundry',
+      overwrite:true},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(forceUpdate.status,200);
+    assert.equal(forceUpdate.body.updated,true);
+
     // A repeat with the same pack hashes reuses all 15 stored entries
     // without uploading even one Item or resetting characters.
     const syncStatus=await send(importRoute+'/status',{},'',gmOrigin,'POST',paired.body.accessToken);
