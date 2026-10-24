@@ -447,6 +447,18 @@ test('production API: bootstrap → pair world → create player → sync → re
     const playerCannotRead=await send('/api/v1/campaigns/'+campaignId+
       '/characters/'+imported.body.characterId,undefined,playerCookie,origin,'GET');
     assert.equal(playerCannotRead.status,403);
+    const owners=await send('/api/v1/bridge/'+integrationId+'/characters/owners',
+      {},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(owners.status,200,JSON.stringify(owners));
+    assert.ok(owners.body.members.some(member=>member.id===newPlayer.body.userId));
+    const playerOwned=await send(actorRoute,{...actorPayload,
+      actorId:'ActorBeta0123456',name:'PC assigned to player',
+      ownerUserId:newPlayer.body.userId},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(playerOwned.status,201,JSON.stringify(playerOwned));
+    const playerOwnedRead=await send('/api/v1/campaigns/'+campaignId+
+      '/characters/'+playerOwned.body.characterId,undefined,playerCookie,origin,'GET');
+    assert.equal(playerOwnedRead.status,200);
+    assert.equal(playerOwnedRead.body.character.name,'PC assigned to player');
     const secondImport=await send(actorRoute,{...actorPayload,name:'Overwrite prohibited'},
       '',gmOrigin,'POST',paired.body.accessToken);
     assert.equal(secondImport.status,200);
