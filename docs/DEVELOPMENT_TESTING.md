@@ -388,3 +388,17 @@ Update Docker and the Bridge to 0.8.0, then run **Sync Now** as GM.
    Cleric: *Deity*, then sanctification/divine font only if the deity needs them.
 4. Boosts: a full row disables further picks; background enforces its two listed attributes.
 5. In Foundry, *Pull from Planner* on that actor: Leveler's wizard shows the same choices.
+
+## T. v0.9.0 — Levels 1–20 in one builder
+
+Update Docker and the Bridge to 0.9.0, then run **Sync Now** as GM.
+1. Open a character: the rail shows level-1 steps then levels 2–20, each with its picks written out.
+2. Level 2 skill feat: only feats whose skill prerequisites you meet are listed; *Show unavailable*
+   reveals the rest with reasons (e.g. "Needs Trained in Medicine").
+3. Plan Medicine as a skill increase at level 3: Medic Dedication becomes available at level 4.
+4. Level 5 boosts: an attribute at +4 shows a partial boost (½); a skill already Expert is capped
+   ("Max Expert at level 5") until level 7.
+5. Background step: tick STR, pick a trained skill, or type a granted feat to filter.
+6. Languages: tick *Show uncommon*/*Show rare*; nothing is blocked by rarity.
+7. Go back to Class or Ancestry after planning later levels: choices stay editable, and later feats
+   that no longer fit show a ⚠ reason instead of disappearing.

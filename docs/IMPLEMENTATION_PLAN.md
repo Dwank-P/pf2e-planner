@@ -222,3 +222,10 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Character Wizard with class-driven steps and live summary.
 - [ ] Phase 4: Level Planner rebuild and Leveler rules engine for prerequisites.
 - [ ] Phase 5: sign in from Foundry; retire invitation codes.
+
+## v0.9.0 one builder (phase 4, first part)
+- [x] Level planner 2–20 rebuilt into the builder; rail shows every pick.
+- [x] Legal-by-default feat options with readable prerequisites; show-unavailable toggle.
+- [x] Background filters; language rarity toggles from the world's settings.
+- [ ] Use Leveler's own rules engine for prerequisites it can parse but we can't.
+- [ ] Proficiency increases from class features in the level summary (saves, perception).

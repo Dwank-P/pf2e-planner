@@ -355,3 +355,22 @@ the T/E/M/L rank ladder) and three rebuilt screens:
 
 The project is now MIT licensed. **After updating the Bridge, run Sync Now once**:
 the wizard needs the rules data the new Bridge exports.
+
+### v0.9.0 — One builder for levels 1–20
+
+- **One screen for the whole character.** The rail lists the level-1 steps and levels 2–20, and shows
+  what you picked under each (feats, boosts, skill increases, spells), like Pathbuilder. Everything
+  stays editable at any time; nothing locks once you start planning later levels.
+- **Levels 2–20 rebuilt** in the new design: every slot Leveler's schedule gives (class, skill,
+  general, ancestry, archetype and dual-class feats, boosts with partial boosts above +4, skill
+  increases capped by level, spells learned per rank), plus the class features gained automatically.
+- **Legal options by default.** Feat lists show only what fits the character at that level: feat
+  level, ancestry access, skill-rank and attribute prerequisites, feats taken earlier, repeats and
+  the archetype dedication rule. Tick *Show unavailable* to see the rest with the reason. Anything
+  the planner can't read is marked *Check* instead of being hidden.
+- **Background filters**: by attribute boost, trained skill and granted feat.
+- **Languages are never gated**: uncommon, rare and secret languages sit behind show/hide tick
+  boxes, using your world's language rarities (Bridge 0.9 exports them).
+- The summary column follows the selected level: attributes, HP and skill ranks at that level.
+
+**After updating the Bridge, run Sync Now once** so the website gets your world's language rarities.

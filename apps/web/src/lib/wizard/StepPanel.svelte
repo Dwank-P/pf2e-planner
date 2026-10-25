@@ -8,8 +8,24 @@
   import ReviewStep from './ReviewStep.svelte';
   import * as C from '../builder/creation.js';
   import {taggedItems,heritagesFor,equipmentOptions} from './options.js';
-  import {titleCase} from '../builder/rules.js';
-  let {step,steps,creation,catalog,variants,update,info,go,planHref}=$props();
+  import {titleCase,ATTRIBUTES,SKILLS} from '../builder/rules.js';
+  let {step,steps,creation,plan,catalog,variants,update,info,go,onPlan}=$props();
+
+  // Background filters: a boost it can give (from its two listed attributes), a trained skill, a granted feat.
+  let bgBoosts=$state([]);
+  let bgSkill=$state('');
+  let bgFeat=$state('');
+  const lower=s=>String(s??'').toLowerCase();
+  function backgroundTest(item){
+    const m=item.metadata??{};
+    if(bgBoosts.length){
+      const listed=(m.boostChoices??[]).filter(g=>Array.isArray(g)&&g.length<6).flat();
+      if(!bgBoosts.some(a=>listed.includes(a)))return false;
+    }
+    if(bgSkill&&![...(m.trainedSkills??[]),...(m.loreSkills??[]).map(l=>lower(l)+' lore')].map(lower).some(s=>s===bgSkill||s.includes(bgSkill)))return false;
+    if(bgFeat.trim()&&!(m.grantedFeats??[]).some(f=>lower(f).includes(lower(bgFeat.trim()))))return false;
+    return true;
+  }
 
   const id=$derived(step.stepId??step.id);
   const target=$derived(step.target??'class');
@@ -76,11 +92,24 @@
     if(!same)go('next');
   }
 </script>
+{#snippet backgroundFilters()}
+  <div class="bg-boosts" role="group" aria-label="Attribute boost">
+    {#each ATTRIBUTES as a}<button class:on={bgBoosts.includes(a)} aria-pressed={bgBoosts.includes(a)}
+      onclick={()=>bgBoosts=bgBoosts.includes(a)?bgBoosts.filter(x=>x!==a):[...bgBoosts,a]}>{a.toUpperCase()}</button>{/each}
+  </div>
+  <select aria-label="Trained skill" bind:value={bgSkill}>
+    <option value="">Any trained skill</option>
+    {#each SKILLS as s}<option value={s}>{titleCase(s)}</option>{/each}
+  </select>
+  <input type="search" aria-label="Granted feat" placeholder="Granted feat…" bind:value={bgFeat}/>
+  {#if bgBoosts.length||bgSkill||bgFeat}<button class="link" onclick={()=>{bgBoosts=[];bgSkill='';bgFeat='';}}>Clear filters</button>{/if}
+{/snippet}
 <div class="step">
   {#if choice}
     {#if choice.hint}<p class="muted">{choice.hint}</p>{/if}
     <OptionGrid id={step.id} items={choice.items} {selected} max={choice.multi??1}
       onToggle={pick} onInfo={item=>info(item.uuid)} detail={choice.detail??(()=> '')}
+      test={id==='background'?backgroundTest:null} filters={id==='background'?backgroundFilters:undefined}
       placeholder={'Search '+choice.items.length+' options'}
       empty={'No options for this step are in the synced compendiums. Ask the GM to include the right packs in Leveler’s Compendium Manager.'}/>
   {:else if id==='sanctification'}
@@ -126,9 +155,9 @@
   {:else if id==='skills'}
     <SkillsStep {creation} lookup={catalog.get} {update}/>
   {:else if id==='feats'}
-    <FeatsStep {creation} {catalog} {variants} {update} {info}/>
+    <FeatsStep {creation} {plan} {catalog} {variants} {update} {info}/>
   {:else if id==='languages'}
-    <LanguagesStep {creation} lookup={catalog.get} {update}/>
+    <LanguagesStep {creation} lookup={catalog.get} {variants} {update}/>
   {:else if id==='spells'}
     <SpellsStep {creation} {catalog} {update} {info}/>
   {:else if id==='equipment'}
@@ -136,12 +165,15 @@
     <OptionGrid id="equipment" items={equipmentOptions(catalog)} selected={(creation.equipment??[]).map(e=>e.uuid)} max={60}
       onToggle={item=>update(c=>C.toggleEquipment(c,item))} onInfo={item=>info(item.uuid)} placeholder="Search level 0–1 gear"/>
   {:else if id==='review'}
-    <ReviewStep {steps} {creation} {go} {planHref}/>
+    <ReviewStep {steps} {creation} {go} {onPlan}/>
   {/if}
 </div>
 <style>
   .step{display:grid;gap:14px}
   .choices{display:flex;flex-wrap:wrap;gap:8px}
+  .bg-boosts{display:flex;gap:4px}
+  .bg-boosts button{border:1px solid var(--line);background:var(--panel-2);border-radius:6px;padding:5px 8px;font:600 .78rem var(--mono)}
+  .bg-boosts button.on{background:var(--brass);border-color:var(--brass);color:var(--on-brass)}
   .choices button{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:12px 18px;font-weight:700}
   .choices button.on{border-color:var(--brass);background:var(--brass-soft);color:var(--text)}
   h3{font-size:1rem;margin-top:6px}

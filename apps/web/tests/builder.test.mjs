@@ -120,6 +120,6 @@ test('local search ranks name prefixes and filters by tags, traits and level',()
   assert.equal(searchItems(catalog.ofType('spell'),'fireball',{maxLevel:2}).length,0);
   assert.deepEqual(searchItems(catalog.ofType('spell'),'fire',{maxLevel:2}).map(i=>i.name),['Ignition'],
     'trait words match too');
-  assert.deepEqual(searchItems(catalog.ofType('feat'),'',{traits:['fighter'],test:i=>i.metadata.category==='class'})
-    .map(i=>i.name),['Point-Blank Stance','Reactive Shield','Sudden Charge']);
+  assert.deepEqual(searchItems(catalog.ofType('feat'),'',{traits:['fighter'],maxLevel:1,test:i=>i.metadata.category==='class'})
+    .map(i=>i.name),['Double Slice','Point-Blank Stance','Power Attack','Reactive Shield','Sudden Charge']);
 });

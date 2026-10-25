@@ -72,7 +72,22 @@ export function getVariants(){
     variantRules[name]=optionalSetting('pf2e-leveler',key);
   }
   // Record precisely what Foundry provided; null means not configured/available.
+  variantRules.languages=languageRarities();
   return variantRules;
+}
+/** The world's language list and rarities (PF2e homebrew setting), for the web wizard. */
+function languageRarities(){
+  const all=Object.keys(CONFIG.PF2E?.languages??{}).filter(k=>/^[a-z0-9-]{1,40}$/.test(k)).sort();
+  if(!all.length)return null;
+  const list=value=>[...(value??[])].filter(k=>typeof k==='string').sort();
+  let rarities=null;
+  try{
+    const stored=game.settings.get('pf2e','homebrew.languageRarities');
+    rarities=stored?.toObject?.()??stored??null;
+  }catch{}
+  return {all,commonLanguage:rarities?.commonLanguage??'common',
+    common:list(rarities?.common),uncommon:list(rarities?.uncommon),rare:list(rarities?.rare),
+    secret:list(rarities?.secret),unavailable:list(rarities?.unavailable)};
 }
 export function getPackOptions(){
   requireGM();

@@ -1,0 +1,53 @@
+/** One-line descriptions of what was picked, for the builder rail (Pathbuilder-style). */
+import {attributeModifiers,formatModifier,ATTRIBUTES,titleCase,RANKS} from './rules.js';
+import {level1FeatSlots,featField,HANDLER_STEPS} from './schema.js';
+import {planFeat,planBoosts,planSkillIncrease,planSpells} from './plan.js';
+
+const names=list=>(list??[]).map(e=>e?.name).filter(Boolean).join(', ');
+export function stepSummary(step,creation,lookup,variants={}){
+  const c=creation??{};
+  const target=step.target??'class';
+  const bucket=c.classSelections?.[target]??c;
+  switch(step.stepId??step.id){
+    case 'ancestry':return c.ancestry?.name??'';
+    case 'heritage':return c.heritage?.name??'';
+    case 'background':return c.background?.name??'';
+    case 'class':return c.class?.name??'';
+    case 'dualClass':return c.dualClass?.name??'';
+    case 'subclass':return (target==='dualClass'?c.dualSubclass:c.subclass)?.name??'';
+    case 'sanctification':return bucket.sanctification?titleCase(bucket.sanctification):'';
+    case 'divineFont':return bucket.divineFont==='harmful'?'Harm':bucket.divineFont==='healing'?'Heal':'';
+    case 'kineticGate':return bucket.kineticGateMode
+      ?[bucket.kineticGateMode==='dual-gate'?'Dual gate':'Single gate',bucket.secondElement?.name,names(bucket.kineticImpulses)].filter(Boolean).join(' · '):'';
+    case 'boosts':{
+      const {mods}=attributeModifiers(c,lookup);
+      return ATTRIBUTES.filter(a=>mods[a]).map(a=>a.toUpperCase()+' '+formatModifier(mods[a])).join(' · ');
+    }
+    case 'skills':return (c.skills??[]).map(titleCase).join(', ');
+    case 'feats':return level1FeatSlots(c,lookup,variants).map(s=>c[featField(s.slot)]?.name).filter(Boolean).join(' · ');
+    case 'languages':return (c.languages??[]).map(titleCase).join(', ');
+    case 'spells':{
+      const cantrips=c.spells?.cantrips?.length??0,rank1=c.spells?.rank1?.length??0;
+      return cantrips||rank1?`${cantrips} cantrips · ${rank1} rank 1`:'';
+    }
+    case 'equipment':return c.equipment?.length?`${c.equipment.length} item${c.equipment.length===1?'':'s'}`:'';
+    default:{
+      const def=HANDLER_STEPS[step.stepId];
+      if(!def?.key)return '';
+      const value=bucket[def.key];
+      return Array.isArray(value)?names(value):value?.name??'';
+    }
+  }
+}
+
+/** Short lines describing one planned level's picks. */
+export function levelSummary(level,slots,plan){
+  const lines=[];
+  for(const slot of slots){
+    if(slot.type==='feat'){const f=planFeat(plan,slot);if(f?.name)lines.push(f.name);}
+    else if(slot.type==='ability'){const b=planBoosts(plan,level);if(b.length)lines.push('Boosts '+b.map(a=>a.toUpperCase()).join(' '));}
+    else if(slot.type==='skill'){const s=planSkillIncrease(plan,slot);if(s?.skill)lines.push(titleCase(s.skill)+' → '+(RANKS[s.toRank]??'+1'));}
+    else if(slot.type==='spells'){const n=planSpells(plan,level).length;if(n)lines.push(n+' spell'+(n===1?'':'s'));}
+  }
+  return [...new Set(lines)];
+}

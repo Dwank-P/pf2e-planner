@@ -164,7 +164,7 @@ function minimalItem(item){
   if(item.unresolved)out.unresolved=true;
   return out;
 }
-function featEntry(item){
+export function featEntry(item){
   return {...minimalItem(item),level:Number.isInteger(item.level)?item.level:null,
     traits:Array.isArray(item.traits)?[...item.traits]:[],choices:{}};
 }
@@ -188,7 +188,7 @@ function subclassEntry(item){
   return {...minimalItem(item),tradition:null,spellUuids:[],grantedSkills:[],grantedLores:[],
     choiceSets:[],choices:{},choiceCurricula:{},curriculum:null};
 }
-function spellEntry(item,rank,isCantrip){
+export function spellEntry(item,rank,isCantrip){
   const traits=[...(Array.isArray(item.traits)?item.traits:[]),
     ...(Array.isArray(item.metadata?.spellTraditions)?item.metadata.spellTraditions:[])];
   return {...minimalItem(item),rank:isCantrip?0:rank,

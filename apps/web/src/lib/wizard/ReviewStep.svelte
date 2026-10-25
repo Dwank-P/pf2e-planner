@@ -1,5 +1,5 @@
 <script>
-  let {steps,creation,go,planHref}=$props();
+  let {steps,creation,go,onPlan}=$props();
   const required=$derived(steps.filter(s=>s.id!=='review'&&!s.optional));
   const missing=$derived(required.filter(s=>!s.complete));
 </script>
@@ -21,7 +21,7 @@
   <div class="next panel">
     <div><b>In Foundry</b><p class="muted">Open the character's Level Planner or Character Wizard, click <i>Pull from Planner</i> and pick this build.
       {creation.class?'':'Choose a class first: Leveler plans are tied to it.'}</p></div>
-    <a class="btn primary" href={planHref}>Plan levels 2–20 →</a>
+    <button class="btn primary" disabled={!creation.class} onclick={onPlan}>Plan levels 2–20 →</button>
   </div>
 </div>
 <style>

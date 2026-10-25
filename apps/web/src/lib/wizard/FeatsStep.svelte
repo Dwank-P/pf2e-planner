@@ -2,9 +2,13 @@
   import OptionGrid from './OptionGrid.svelte';
   import {level1FeatSlots,featField} from '../builder/schema.js';
   import {setFeat} from '../builder/creation.js';
-  import {featOptions,ancestryFeatBlock} from './options.js';
-  let {creation,catalog,variants,update,info}=$props();
+  import {buildState,checkFeat,featNameIndex} from '../builder/legality.js';
+  import {featOptions} from './options.js';
+  let {creation,plan,catalog,variants,update,info}=$props();
   const slots=$derived(level1FeatSlots(creation,catalog.get,variants));
+  const state=$derived(buildState(creation,plan,catalog.get,1,variants));
+  const names=$derived(featNameIndex(catalog));
+  const kindOf=slot=>slot.slot==='dualClass'?'dual-class':slot.slot==='paragon'?'ancestry':slot.category;
   let open=$state(null);
   $effect(()=>{if(open===null){const first=slots.find(s=>!creation[featField(s.slot)]);open=first?.slot??null;}});
   function pick(slot,item){
@@ -28,11 +32,11 @@
         <span class="state" aria-hidden="true">{chosen?'✓':'○'}</span>
       </button>
       {#if open===slot.slot}
-        <OptionGrid id={'feat-'+slot.slot} items={featOptions(catalog,slot,creation)} selected={chosen?[chosen.uuid]:[]}
+        <OptionGrid id={'feat-'+slot.slot} items={featOptions(catalog,kindOf(slot),creation)} selected={chosen?[chosen.uuid]:[]}
           onToggle={item=>pick(slot,item)} onInfo={item=>info(item.uuid)}
-          blocked={item=>slot.category==='ancestry'?ancestryFeatBlock(item,creation):null}
+          check={item=>checkFeat(item,state,{kind:kindOf(slot),featNames:names,currentUuid:chosen?.uuid})}
           detail={item=>item.metadata?.prerequisites?.length?'Requires '+item.metadata.prerequisites.join('; '):''}
-          placeholder={'Search '+slot.label.toLowerCase()+'s'} empty="No level-1 feats of this kind are in the synced compendiums."/>
+          placeholder={'Search '+slot.label.toLowerCase()+'s'} empty="No feats of this kind are in the synced compendiums."/>
       {/if}
     </section>
   {/each}

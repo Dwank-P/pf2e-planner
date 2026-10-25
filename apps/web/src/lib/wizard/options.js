@@ -41,17 +41,25 @@ export function ancestryFeatBlock(feat,creation){
   return null;
 }
 const category=item=>meta(item).category??meta(item).featType;
-export function featOptions(catalog,slot,creation,level=1){
-  const feats=catalog.ofType('feat').filter(f=>!Number.isFinite(f.level)||f.level<=level);
-  if(slot.category==='ancestry')return feats.filter(f=>category(f)==='ancestry');
-  if(slot.category==='class'){
-    const cls=slug(slot.classEntry?.slug);
-    return feats.filter(f=>category(f)==='class'&&(f.traits??[]).includes(cls)&&!(f.traits??[]).includes('archetype'));
+/**
+ * Feats a slot can hold, by slot kind (class, archetype, dual-class, skill,
+ * general, ancestry, mythic). Level, prerequisites and access are judged by
+ * legality.checkFeat so unavailable options can still be shown with a reason.
+ */
+export function featOptions(catalog,kind,creation){
+  const feats=catalog.ofType('feat').filter(f=>category(f)!=='classfeature');
+  const has=(f,t)=>(f.traits??[]).includes(t);
+  const classSlug=slug(creation?.class?.slug),dualSlug=slug(creation?.dualClass?.slug);
+  switch(kind){
+    case 'ancestry':return feats.filter(f=>category(f)==='ancestry');
+    case 'class':return feats.filter(f=>category(f)==='class'&&(has(f,classSlug)||has(f,'archetype')));
+    case 'dual-class':return feats.filter(f=>category(f)==='class'&&(has(f,dualSlug)||has(f,'archetype')));
+    case 'archetype':return feats.filter(f=>has(f,'archetype'));
+    case 'skill':return feats.filter(f=>category(f)==='skill');
+    case 'general':return feats.filter(f=>category(f)==='general'||category(f)==='skill');
+    case 'mythic':return feats.filter(f=>has(f,'mythic'));
+    default:return [];
   }
-  if(slot.category==='skill')return feats.filter(f=>category(f)==='skill');
-  if(slot.category==='general')return feats.filter(f=>category(f)==='general'||category(f)==='skill');
-  if(slot.category==='mythic')return feats.filter(f=>(f.traits??[]).includes('mythic')&&(f.traits??[]).includes('calling'));
-  return [];
 }
 /** Spell options for level-1 picks; a non-standard tradition (e.g. "bloodline") lists all. */
 export function spellOptions(catalog,{cantrip,tradition}){
@@ -69,5 +77,27 @@ export function equipmentOptions(catalog){
   return GEAR_TYPES.flatMap(t=>catalog.ofType(t)).filter(i=>!Number.isFinite(i.level)||i.level<=1)
     .sort((a,b)=>a.name.localeCompare(b.name));
 }
-/** PF2e remaster common languages, offered alongside the ancestry's own list. */
+/** PF2e remaster language rarities, used until the Bridge sends the world's own list. */
 export const COMMON_LANGUAGES=['common','draconic','dwarven','elven','fey','gnomish','goblin','halfling','jotun','orcish','sakvroth'];
+const FALLBACK_UNCOMMON=['aklo','alghollthu','amurrun','anadi','arboreal','boggard','calda','caligni','chthonian','cyclops',
+  'daemonic','diabolic','empyrean','grippli','hallit','iruxi','jistkan','kholo','kitsune','kobold','muan','mzunu',
+  'nagaji','necril','petran','protean','pyric','requian','shadowtongue','shoony','sussuran','talican','tengu',
+  'thalassic','utopian','vanara','vishkanya','wayang','ysoki'];
+const FALLBACK_RARE=['ancient-osiriani','azlanti','elder-thing','jyoti','sphinx','thassilonian','tien','varisian'];
+const FALLBACK_SECRET=['wildsong'];
+/** Language → rarity from the world's PF2e setting (Bridge 0.9+) or the remaster defaults. */
+export function languageRarityMap(world,extra=[]){
+  const map=new Map();
+  if(world?.all?.length){
+    for(const l of world.all)map.set(l,'uncommon');
+    for(const r of ['common','uncommon','rare','secret'])for(const l of world[r]??[])map.set(l,r);
+    for(const l of world.unavailable??[])map.delete(l);
+  }else{
+    for(const l of COMMON_LANGUAGES)map.set(l,'common');
+    for(const l of FALLBACK_UNCOMMON)map.set(l,'uncommon');
+    for(const l of FALLBACK_RARE)map.set(l,'rare');
+    for(const l of FALLBACK_SECRET)map.set(l,'secret');
+  }
+  for(const l of extra)if(!map.has(l))map.set(l,'uncommon');
+  return map;
+}
