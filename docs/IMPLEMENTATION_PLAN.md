@@ -215,3 +215,10 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Per-level spell learning limits (Leveler rules); spells stored at the level learned.
 - [ ] Class-specific creation steps beyond subclass (deity, implement, kinetic gate, …).
 - [ ] Granted/curriculum spells reducing level-1 picks (Leveler resolves these in Foundry).
+
+## v0.8.0 redesign (phases 1–3)
+- [x] MIT licence, design system, sign-in/setup, party, campaign settings.
+- [x] Catalog downloaded once per sync and searched in the browser.
+- [x] Character Wizard with class-driven steps and live summary.
+- [ ] Phase 4: Level Planner rebuild and Leveler rules engine for prerequisites.
+- [ ] Phase 5: sign in from Foundry; retire invitation codes.

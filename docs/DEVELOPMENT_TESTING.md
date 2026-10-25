@@ -377,3 +377,14 @@ class features, `otherTags` and level-1 spell counts).
    level 3 allows 3 rank-2 (Leveler's slot growth). Wizard: 10 + 5 at level 1,
    then 2 of any castable rank per level. Cleric: no spell slots on the track.
 7. In Foundry, the Send/Pull buttons appear left of the Leveler window's close button.
+
+## S. v0.8.0 — Redesigned party, settings and Character Wizard
+
+Update Docker and the Bridge to 0.8.0, then run **Sync Now** as GM.
+1. Sign in: you land on the party screen of your last campaign.
+2. Campaign settings (GM): versions, variant rules and packs match Foundry.
+3. New character → wizard. Fighter: level-1 class feat under Feats. Wizard:
+   *Wizard specialization*, *Arcane thesis* and *Spells* (10 cantrips + 5 rank 1).
+   Cleric: *Deity*, then sanctification/divine font only if the deity needs them.
+4. Boosts: a full row disables further picks; background enforces its two listed attributes.
+5. In Foundry, *Pull from Planner* on that actor: Leveler's wizard shows the same choices.

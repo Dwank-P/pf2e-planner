@@ -337,3 +337,21 @@ class-specific creation choices stay read-only on the website.
 
 **After updating, the GM must run Sync Now once** so the website receives
 class features, specialization tags and spell counts.
+
+### v0.8.0 — Redesign: party, campaign settings and Character Wizard
+
+A new look and layout (dark by default, full light theme, PF2e trait chips and
+the T/E/M/L rank ladder) and three rebuilt screens:
+
+- **Party**: every character with plan progress and Foundry link; GM tools live
+  under **Campaign settings** (sync status, variant rules, packs, pairing,
+  players and invitations).
+- **Character Wizard** (level 1): steps are generated from your class the way
+  Leveler's wizard does it (specialization, deity and sanctification, thesis,
+  implement, kinetic gate and so on appear only when your class needs them),
+  with a live summary of attributes, HP, proficiencies and skills. It saves
+  straight into Leveler's creation data.
+- **Level Planner** for levels 2–20 is still the previous screen (rebuilt next).
+
+The project is now MIT licensed. **After updating the Bridge, run Sync Now once**:
+the wizard needs the rules data the new Bridge exports.
