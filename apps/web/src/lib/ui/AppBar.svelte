@@ -59,6 +59,8 @@
               <button class:on={theme===value} aria-pressed={theme===value} onclick={()=>setTheme(value)}>{label}</button>
             {/each}
           </div>
+          <a role="menuitem" href="/account">Account</a>
+          {#if me.siteRole==='owner'}<a role="menuitem" href="/admin">Server admin</a>{/if}
           <button role="menuitem" class="item" onclick={signOut}>Sign out</button>
         </div>
       {/if}

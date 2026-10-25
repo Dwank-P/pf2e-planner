@@ -25,7 +25,22 @@ const MESSAGES={
   cannot_delete_site_owner:'The server owner account can’t be deleted.',
   owner_required:'Only the server owner can do that.',
   member_not_found:'That person isn’t in this campaign any more.',
-  invalid_or_expired_code:'That invitation code is invalid or has expired. Ask your GM for a new one.'
+  invalid_or_expired_code:'That code is invalid or has expired. Ask for a new one.',
+  current_password_incorrect:'Your current password isn’t right.',
+  invalid_name:'Display names need 1 to 80 characters.',
+  user_not_found:'That account no longer exists.',
+  unknown_storage_action:'Unknown maintenance action.',
+  not_enough_free_space_for_vacuum:'Not enough free disk space to compact the database (it needs about its own size again).',
+  last_origin_disconnect_world_instead:'This is the world’s only Foundry address. Disconnect the world instead.',
+  origin_not_found:'That Foundry address isn’t connected any more.',
+  character_view_only:'You can view this character but not change it.',
+  character_manager_required:'Only the character’s owner or the GM can change who it’s shared with.',
+  invalid_sharing:'Choose who can see or edit this character.',
+  pathbuilder_id_invalid:'Enter the Pathbuilder JSON ID (the number from Export → Export JSON).',
+  pathbuilder_not_found:'Pathbuilder has no character with that ID. Check the number and that the export is still shared.',
+  pathbuilder_unreachable:'Couldn’t reach Pathbuilder. Try again in a moment.',
+  pathbuilder_blocked:'Pathbuilder didn’t let the server fetch that export. Open the export link in your browser, copy the JSON and paste it instead.',
+  pathbuilder_invalid_json:'That Pathbuilder export couldn’t be read.'
 };
 export class ApiError extends Error{
   constructor(code,status){super(MESSAGES[code]??code??'Request failed (HTTP '+status+')');this.code=code;this.status=status;}

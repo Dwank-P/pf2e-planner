@@ -63,7 +63,7 @@ export function bridgeAuth(event, integrationId) {
   const hash = digest(header.slice(7));
   const origin = event.request.headers.get('origin');
   const row = db().prepare(`
-    SELECT bc.*,i.foundry_origin,i.revoked_at AS integration_revoked,i.campaign_id,
+    SELECT bc.*,COALESCE(bc.origin,i.foundry_origin) AS credential_origin,i.revoked_at AS integration_revoked,i.campaign_id,
            u.status AS user_status,u.site_role,m.role AS member_role
     FROM bridge_credentials bc
     JOIN integrations i ON i.id=bc.integration_id
@@ -74,6 +74,6 @@ export function bridgeAuth(event, integrationId) {
   if (!row || row.revoked_at || row.integration_revoked ||
       row.access_expires_at <= Math.floor(Date.now() / 1000) ||
       row.user_status !== 'active' || (row.site_role !== 'owner' && row.member_role !== 'gm') ||
-      !origin || origin !== row.foundry_origin) problem(401, 'invalid_bridge_authorization');
+      !origin || origin !== row.credential_origin) problem(401, 'invalid_bridge_authorization');
   return row;
 }

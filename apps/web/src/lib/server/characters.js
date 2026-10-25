@@ -185,13 +185,42 @@ export function validateLevelerDocuments(value) {
     problem(400,'invalid_leveler_plan');
   return {creation,plan};
 }
-export function characterAccess(user, row) {
-  if(!row)problem(404,'character_not_found');
-  if(user.id!==row.owner_user_id && user.site_role!=='owner'){
-    const membership=db().prepare('SELECT role FROM memberships WHERE campaign_id=? AND user_id=?')
-      .get(row.campaign_id,user.id);
-    if(membership?.role!=='gm')problem(403,'character_owner_or_gm_required');
+/**
+ * Sharing: the owner and the campaign's GMs (and the server owner) always manage
+ * a character. Visibility opens it further: 'private' (owner and GM only),
+ * 'campaign-view' / 'campaign-edit' (every campaign member), or 'custom' (the
+ * members in character_shares, each with view or edit).
+ */
+export const VISIBILITY=['private','campaign-view','campaign-edit','custom'];
+export function characterRights(user,row){
+  const membership=db().prepare('SELECT role FROM memberships WHERE campaign_id=? AND user_id=?')
+    .get(row.campaign_id,user.id);
+  const manage=user.id===row.owner_user_id||user.site_role==='owner'||membership?.role==='gm';
+  if(manage)return {view:true,edit:true,manage:true};
+  if(!membership)return {view:false,edit:false,manage:false};
+  const visibility=row.visibility??'private';
+  if(visibility==='campaign-edit')return {view:true,edit:true,manage:false};
+  if(visibility==='campaign-view')return {view:true,edit:false,manage:false};
+  if(visibility==='custom'){
+    const share=db().prepare('SELECT access FROM character_shares WHERE character_id=? AND user_id=?').get(row.id,user.id);
+    if(share)return {view:true,edit:share.access==='edit',manage:false};
   }
+  return {view:false,edit:false,manage:false};
+}
+/** Require `need` ('view', 'edit' or 'manage') on a character; returns the user's rights. */
+export function characterAccess(user, row, need='edit') {
+  if(!row)problem(404,'character_not_found');
+  const rights=characterRights(user,row);
+  if(!rights.view)problem(403,'character_owner_or_gm_required');
+  if(need==='edit'&&!rights.edit)problem(403,'character_view_only');
+  if(need==='manage'&&!rights.manage)problem(403,'character_manager_required');
+  return rights;
+}
+/** Who a character is shared with (for its managers). */
+export function characterSharing(row){
+  const shares=db().prepare(`SELECT s.user_id AS userId,s.access,u.display_name AS displayName,u.username
+    FROM character_shares s JOIN users u ON u.id=s.user_id WHERE s.character_id=? ORDER BY u.display_name`).all(row.id);
+  return {visibility:row.visibility??'private',shares};
 }
 export function toCharacter(row,{includeLeveler=true}={}) {
   const stored=readDocument(row);
@@ -201,7 +230,7 @@ export function toCharacter(row,{includeLeveler=true}={}) {
   const doc=stored.doc??converted;
   const view=converted?projectView(converted):stored.view;
   return {id:row.id,campaignId:row.campaign_id,ownerUserId:row.owner_user_id,
-    name:row.name,level:row.level,build:view,
+    name:row.name,level:row.level,build:view,visibility:row.visibility??'private',
     format:stored.doc?'leveler':'legacy',
     summary:characterSummary(stored.doc,stored.view),
     ...(includeLeveler?{leveler:doc?.leveler??null,planner:doc?.planner??null}:{}),

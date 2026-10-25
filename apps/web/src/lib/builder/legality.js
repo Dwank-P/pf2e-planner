@@ -33,10 +33,13 @@ export function skillRanks(creation,plan,lookup,level){
   const ranks=new Map();
   for(const skill of [...training.granted.keys(),...training.chosen])ranks.set(skill,1);
   for(const lore of training.lores)ranks.set(norm(lore).replace(/ lore$/,'')+' lore',1);
-  for(const lore of creation?.lores??[])ranks.set(norm(lore).replace(/ lore$/,'')+' lore',1);
+  for(const lore of [...(creation?.lores??[]),...(creation?.selectedLoreSkills??[])])
+    ranks.set(norm(lore).replace(/ lore$/,'')+' lore',1);
   for(let l=2;l<=level;l++){
     for(const inc of plan?.levels?.[l]?.skillIncreases??[]){
-      const skill=norm(inc?.skill);
+      // Leveler stores lores as slugs ("scribing-lore"); ranks use "scribing lore".
+      const raw=norm(inc?.skill);
+      const skill=/-lore$/.test(raw)?raw.replace(/-/g,' '):raw;
       if(!skill)continue;
       const to=Number(inc.toRank)||((ranks.get(skill)??0)+1);
       ranks.set(skill,Math.max(ranks.get(skill)??0,Math.min(4,to)));

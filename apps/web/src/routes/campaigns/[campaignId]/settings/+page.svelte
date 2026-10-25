@@ -56,6 +56,14 @@
     notice=`${m.displayName}’s account was deleted. Their characters are now yours.`;
     confirming=null;members=(await api(base+'/members')).members;
   });
+  // Foundry addresses (domains) this world is opened from; pairing from a new one adds it.
+  let origins=$state([]);
+  const originsUrl=$derived(sync?.integrationId?'/api/v1/integrations/'+encodeURIComponent(sync.integrationId)+'/origins':null);
+  $effect(()=>{const url=originsUrl;if(url)api(url).then(r=>origins=r.origins).catch(()=>origins=[]);});
+  const removeOrigin=origin=>run(async()=>{
+    origins=(await api(originsUrl,{method:'DELETE',body:{origin}})).origins;
+    notice=`${origin} removed. GM browsers there need a new pairing code.`;
+  });
   const disconnect=()=>run(async()=>{
     await api('/api/v1/integrations/'+encodeURIComponent(sync.integrationId)+'/revoke',{method:'POST',body:{}});
     location.reload();
@@ -90,6 +98,15 @@
             <p class="muted small">Off: {rules.filter(([,on])=>!on).map(([key])=>variantNames[key]??key).join(', ')}</p>
           {/if}
         </div>
+        {#if origins.length}
+          <div class="sub"><span class="eyebrow">Foundry addresses</span>
+            <ul class="origins">{#each origins as o (o.origin)}
+              <li><span class="num">{o.origin}</span><small class="muted">{o.browsers} GM browser{o.browsers===1?'':'s'}</small>
+                {#if origins.length>1}<button class="link danger" disabled={busy} onclick={()=>removeOrigin(o.origin)}>Remove</button>{/if}</li>
+            {/each}</ul>
+            <p class="muted small">Opening the world from another address? Generate a pairing code below and enter it in the Bridge there.</p>
+          </div>
+        {/if}
         <details class="sub"><summary>Synced compendiums ({sync.packs?.length??0})</summary>
           <ul class="packs">{#each sync.packs??[] as pack}<li class="num">{pack}</li>{/each}</ul>
         </details>
@@ -177,6 +194,9 @@
   dt{color:var(--muted);font-size:.8rem}dd{margin:2px 0 0;font-weight:700}
   .sub{display:grid;gap:8px}
   summary{cursor:pointer;font-weight:700}
+  .origins{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
+  .origins li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:.9rem}
+  .origins .num{overflow-wrap:anywhere}
   .packs{columns:2;margin:6px 0 0;padding-left:1.1rem;font-size:.85rem;color:var(--text-2)}
   .danger-zone{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:10px}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}

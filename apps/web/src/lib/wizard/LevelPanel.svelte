@@ -125,7 +125,7 @@
           <div class="skills">
             {#each [...SKILLS,...lores].filter(s=>!slot.allowedSkills?.length||slot.allowedSkills.includes(s)) as skill}
               {@const rank=ranksBefore.get(skill)??0}
-              {@const on=chosen?.skill===skill}
+              {@const on=chosen?.skill===P.levelerSkill(skill)}
               <button class="skill" class:on disabled={!on&&rank>=cap}
                 onclick={()=>{updatePlan(p=>P.setSkillIncrease(p,slot,on?null:skill,rank+1));open=null;}}>
                 <span>{titleCase(skill)}</span><RankLadder rank={on?rank+1:rank}/>

@@ -11,7 +11,7 @@ export async function PUT(event){
   requireMembership(user,event.params.campaignId);
   const row=db().prepare('SELECT * FROM character_builds WHERE id=? AND campaign_id=?')
     .get(event.params.characterId,event.params.campaignId);
-  characterAccess(user,row);
+  characterAccess(user,row,'edit');
   const body=await input(event.request,1000000);
   const name=typeof body.name==='string'?body.name.trim():'';
   if(!name||name.length>80)problem(400,'character_name_required');

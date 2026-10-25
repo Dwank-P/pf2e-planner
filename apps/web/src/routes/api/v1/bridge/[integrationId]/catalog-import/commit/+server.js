@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {transaction,unix} from '#lib/server/db.js';
 import {input,bridgeAuth,respond,problem} from '#lib/server/api.js';
+import {checkpointIfLarge} from '#lib/server/storage.js';
 export async function POST(event){
   bridgeAuth(event,event.params.integrationId);
   const b=await input(event.request);
@@ -52,5 +53,7 @@ export async function POST(event){
       .run(i.integration_id,i.id);
     return {snapshotId:i.id,accepted:rows.length,sha256};
   });
+  // A big sync writes the whole catalog through the WAL; fold it back into the database.
+  checkpointIfLarge();
   return respond(result,201);
 }

@@ -1,22 +1,25 @@
 import {db,unix} from '#lib/server/db.js';
 import {sessionUser,requireMembership,input,problem,respond} from '#lib/server/api.js';
-import {characterAccess,validateBuild,validateReferences,readDocument,mergeView,toCharacter}
+import {characterAccess,characterSharing,validateBuild,validateReferences,readDocument,mergeView,toCharacter}
   from '#lib/server/characters.js';
 
-function load(event) {
+function load(event,need) {
   const user=sessionUser(event);
   requireMembership(user,event.params.campaignId);
   const row=db().prepare('SELECT * FROM character_builds WHERE id=? AND campaign_id=?')
     .get(event.params.characterId,event.params.campaignId);
-  characterAccess(user,row);
-  return {row,user};
+  const rights=characterAccess(user,row,need);
+  return {row,user,rights};
 }
 export function GET(event) {
-  const {row}=load(event);
-  return respond({character:toCharacter(row)});
+  const {row,rights}=load(event,'view');
+  const owner=db().prepare('SELECT display_name FROM users WHERE id=?').get(row.owner_user_id);
+  return respond({character:{...toCharacter(row),ownerName:owner?.display_name??null,
+    access:{edit:rights.edit,manage:rights.manage},
+    ...(rights.manage?{sharing:characterSharing(row)}:{})}});
 }
 export async function PATCH(event) {
-  const {row}=load(event),body=await input(event.request,22000);
+  const {row}=load(event,'edit'),body=await input(event.request,22000);
   const name=typeof body.name==='string'?body.name.trim():'';
   if(!name||name.length>80)problem(400,'character_name_required');
   if(!Number.isInteger(body.level)||body.level<1||body.level>20)problem(400,'level_1_to_20_required');
@@ -35,7 +38,7 @@ export async function PATCH(event) {
   return respond({character:toCharacter(db().prepare('SELECT * FROM character_builds WHERE id=?').get(row.id))});
 }
 export function DELETE(event) {
-  const {row}=load(event);
+  const {row}=load(event,'manage');
   db().prepare('DELETE FROM character_builds WHERE id=?').run(row.id);
   return respond({deleted:true});
 }

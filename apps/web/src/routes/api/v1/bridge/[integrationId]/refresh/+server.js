@@ -11,7 +11,7 @@ export async function POST(event) {
   const hash=digest(body.refreshToken);
   const result=transaction(sql=>{
     sql.prepare('DELETE FROM bridge_spent_refresh_tokens WHERE expires_at<?').run(unix());
-    const credential=sql.prepare(`SELECT bc.*,i.foundry_origin,i.revoked_at AS integration_revoked,i.campaign_id,
+    const credential=sql.prepare(`SELECT bc.*,COALESCE(bc.origin,i.foundry_origin) AS credential_origin,i.revoked_at AS integration_revoked,i.campaign_id,
        u.status AS user_status,u.site_role,m.role AS member_role
        FROM bridge_credentials bc JOIN integrations i ON i.id=bc.integration_id
        JOIN users u ON u.id=bc.user_id
@@ -20,12 +20,12 @@ export async function POST(event) {
       .get(id,hash);
 
     if (!credential) {
-      const replay=sql.prepare(`SELECT r.credential_id,i.foundry_origin
+      const replay=sql.prepare(`SELECT r.credential_id,COALESCE(bc.origin,i.foundry_origin) AS credential_origin
         FROM bridge_spent_refresh_tokens r
         JOIN bridge_credentials bc ON bc.id=r.credential_id
         JOIN integrations i ON i.id=bc.integration_id
         WHERE r.token_hash=? AND bc.integration_id=?`).get(hash,id);
-      if (replay && replay.foundry_origin===origin) {
+      if (replay && replay.credential_origin===origin) {
         sql.prepare('UPDATE bridge_credentials SET revoked_at=? WHERE id=? AND revoked_at IS NULL')
           .run(unix(),replay.credential_id);
         return { revoked:true }; // Commit revocation, then fail outside transaction.
@@ -34,7 +34,7 @@ export async function POST(event) {
     }
 
     if (credential.revoked_at || credential.integration_revoked ||
-        credential.foundry_origin!==origin || credential.user_status!=='active' ||
+        credential.credential_origin!==origin || credential.user_status!=='active' ||
         (credential.site_role!=='owner' && credential.member_role!=='gm')) problem(401,'invalid_refresh');
     if (credential.refresh_expires_at<=unix()) problem(401,'refresh_expired');
 

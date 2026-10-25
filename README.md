@@ -425,3 +425,36 @@ proficiency features.
   formulas at the level you take them. The rules follow Leveler's own feat-grant detection.
 
 **After updating the Bridge, run Sync Now once**: it uploads icons and the feat data formulas need.
+
+### v0.13.0 — Sharing, accounts, storage and Pathbuilder import
+
+Website only; the Foundry Bridge stays at 0.12.0.
+
+- **One world, several Foundry addresses**: opening the same world from another domain no longer
+  fails with a CORS error. Generate a pairing code on the website and enter it in the Bridge at the
+  new address; Campaign settings → Foundry world lists each address and can remove one.
+- **Character sharing**: *Share* on a character offers Only me (and the GM), Campaign can view,
+  Campaign can edit, or Chosen people with view or edit each. GMs always keep access. Viewers see
+  the build read-only; shared characters appear on the party page.
+- **Pathbuilder import**: *Import from Pathbuilder* on the party page takes a Pathbuilder 2e JSON ID
+  (or a pasted export) and builds the character from your campaign's compendiums: origin, class,
+  boosts, skills, feats, spells, lores, languages and gear (into the equipment plan as bought).
+  Pathbuilder doesn't record when skill increases and later spells were chosen, so they're placed at
+  the earliest legal level; the import report lists anything it couldn't match.
+- **Your account**: account menu → *Account* changes your username, display name and password.
+- **Server admin** (server owner): account menu → *Server admin* shows database, write-log (WAL),
+  compendium, icon and character storage, overall and per world; runs checkpoint, cleanup, optimize
+  and compact; and issues one-time password reset links for locked-out users.
+- **Lores**: lore skill increases are now stored the way Leveler stores them (`warfare-lore`).
+
+**Storage settings (compose.yaml)**, both optional; unset keeps today's behaviour:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `PLANNER_DATA_SOURCE` | `planner-data` (named volume) | Volume name or host folder mounted at `/data`. A host folder must be writable by uid 1000. |
+| `PLANNER_DB_PATH` | `/data/planner.sqlite` | Database file in the container. Keep it under `/data` so it persists. |
+
+After a large catalog sync the website folds the write-ahead log back into the database
+automatically (once it passes 32 MB) and caps it at 64 MB after checkpoints. *Compact* rebuilds the
+file to return free pages to the disk; it needs about the database's size again in free space and
+pauses saving while it runs, so back up the data folder first and run it when nobody is syncing.

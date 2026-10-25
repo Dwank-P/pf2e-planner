@@ -437,3 +437,14 @@ Update Docker and the Bridge to 0.9.0, then run **Sync Now** as GM.
    Locally: `DEV_DUAL_CLASS=1 DB_PATH=./data/dev.sqlite node scripts/seed-dev.mjs`.
 4. Take Alchemical Crafting as a skill feat: that level asks for four formulas.
 5. Pull into Foundry and level up: Leveler adds the chosen formulas to the formula book.
+
+## X. v0.13.0 — Sharing, accounts, storage, Pathbuilder
+
+1. Open the world from a second Foundry address, enter a new pairing code in the Bridge there: it
+   authorizes; Campaign settings lists both addresses.
+2. As a player, Share → Campaign can view: another player sees it read-only ("View only"); switch to
+   Chosen people → Can edit for them and they can save.
+3. Account → change display name, username and password (other browsers are signed out).
+4. Server admin → Reset password for a user, open the link in a private window, set a password.
+5. Server admin → storage figures; Checkpoint WAL shrinks the WAL; Clean up lists what it removed.
+6. Party → Import from Pathbuilder with a real JSON ID; open the character and compare.

@@ -10,7 +10,8 @@ export function db() {
   const path = process.env.DB_PATH || './data/planner.sqlite';
   if (path !== ':memory:') mkdirSync(dirname(resolve(path)), { recursive: true, mode: 0o700 });
   database = new DatabaseSync(path, { timeout: 5000 });
-  database.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;');
+  // journal_size_limit shrinks the WAL back to 64 MB after checkpoints instead of keeping its peak size.
+  database.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA journal_size_limit = 67108864;');
   database.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY, display_name TEXT NOT NULL, username TEXT UNIQUE COLLATE NOCASE,
@@ -123,8 +124,40 @@ export function db() {
     CREATE INDEX IF NOT EXISTS idx_invitations_user ON invitations(user_id);
     CREATE INDEX IF NOT EXISTS idx_credentials_integration ON bridge_credentials(integration_id);
     CREATE INDEX IF NOT EXISTS idx_memberships_user ON memberships(user_id);
+    -- Every Foundry address a paired world may be opened from (one world, several domains).
+    CREATE TABLE IF NOT EXISTS integration_origins (
+      integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
+      origin TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(integration_id,origin)
+    );
+    -- Characters shared with chosen campaign members (visibility 'custom').
+    CREATE TABLE IF NOT EXISTS character_shares (
+      character_id TEXT NOT NULL REFERENCES character_builds(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      access TEXT NOT NULL CHECK(access IN ('view','edit')), PRIMARY KEY(character_id,user_id)
+    );
+    -- One-time password reset codes issued by the server owner.
+    CREATE TABLE IF NOT EXISTS password_resets (
+      code_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at INTEGER NOT NULL, consumed_at INTEGER
+    );
   `);
+  migrate(database);
   return database;
+}
+
+/** Additive schema changes for databases created by earlier versions. */
+function migrate(sql) {
+  const columns = table => new Set(sql.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name));
+  const addColumn = (table, column, definition) => {
+    if (!columns(table).has(column)) sql.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  };
+  // A Bridge credential works only from the Foundry address it was issued to.
+  addColumn('bridge_credentials', 'origin', 'TEXT');
+  addColumn('character_builds', 'visibility',
+    "TEXT NOT NULL DEFAULT 'private' CHECK(visibility IN ('private','campaign-view','campaign-edit','custom'))");
+  sql.exec(`INSERT OR IGNORE INTO integration_origins(integration_id,origin,created_at)
+    SELECT id,foundry_origin,created_at FROM integrations`);
 }
 
 export function unix() { return Math.floor(Date.now() / 1000); }

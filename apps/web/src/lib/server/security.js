@@ -51,14 +51,15 @@ export function logout(cookies) {
   cookies.delete(cookieName(), { path: '/' });
 }
 
-export function newCredential(sql, integrationId, userId) {
+/** A Bridge login for one GM browser, valid only from the Foundry address (origin) it paired from. */
+export function newCredential(sql, integrationId, userId, origin) {
   const accessToken = token(), refreshToken = token();
   const id = randomUUID();
   const now = unix();
   sql.prepare(`INSERT INTO bridge_credentials
-    (id,integration_id,user_id,access_hash,access_expires_at,refresh_hash,refresh_expires_at,created_at)
-    VALUES(?,?,?,?,?,?,?,?)`)
+    (id,integration_id,user_id,access_hash,access_expires_at,refresh_hash,refresh_expires_at,created_at,origin)
+    VALUES(?,?,?,?,?,?,?,?,?)`)
     .run(id, integrationId, userId, digest(accessToken), now + ACCESS_TTL,
-         digest(refreshToken), now + REFRESH_TTL, now);
+         digest(refreshToken), now + REFRESH_TTL, now, origin);
   return { integrationId, accessToken, accessExpiresAt: now + ACCESS_TTL, refreshToken, refreshExpiresAt: now + REFRESH_TTL };
 }

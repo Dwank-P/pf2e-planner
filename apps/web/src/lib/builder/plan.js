@@ -64,7 +64,11 @@ export function planSkillIncrease(plan,slot){
   if(source)return list.find(e=>sourceOf(e)===source)??null;
   return list.filter(e=>!sourceOf(e))[slotIndex(slot)]??null;
 }
+/** Leveler's skill slug: lores as "scribing-lore", other skills unchanged. */
+export const levelerSkill=skill=>/\slore$/i.test(String(skill??''))
+  ?String(skill).trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''):skill;
 export function setSkillIncrease(plan,slot,skill,toRank){
+  skill=skill?levelerSkill(skill):skill;
   return edit(plan,slot.level,data=>{
     const list=[...(data.skillIncreases??[])];
     const source=slot.choiceSource??'';

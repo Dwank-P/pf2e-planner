@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.12\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.13\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.12.0');
+    assert.equal(health.body.version,'0.13.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.12.0');
+    assert.equal(check.body.version,'0.13.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -575,6 +575,122 @@ test('production API: bootstrap → pair world → create player → sync → re
     const afterFail=await send('/api/v1/campaigns/'+campaignId+'/catalog-summary',
       undefined,playerCookie,origin,'GET');
     assert.equal(afterFail.body.snapshotId,reuse.body.snapshotId);
+
+    // v0.13: character sharing.
+    const sharedChar=await send(charRoute,{name:'Shared Hero',level:1,build:{}},playerCookie);
+    assert.equal(sharedChar.status,201,JSON.stringify(sharedChar));
+    const sharedDetail=charRoute+'/'+sharedChar.body.character.id,sharedDoc=sharedDetail+'/document';
+    const secondInvite=await send('/api/v1/campaigns/'+campaignId+'/members',{},ownerCookie);
+    const secondActivation=await send('/api/v1/join/redeem',{code:secondInvite.body.inviteCode,
+      username:'second-player',password:'another-long-test-password'});
+    assert.equal(secondActivation.status,201,JSON.stringify(secondActivation));
+    const secondCookie=secondActivation.cookie,secondId=secondInvite.body.userId;
+    const hiddenList=await send(charRoute,undefined,secondCookie,origin,'GET');
+    assert.equal(hiddenList.body.characters.length,0,'Private characters stay private');
+    assert.equal((await send(sharedDetail,undefined,secondCookie,origin,'GET')).status,403);
+    const shareRoute=sharedDetail+'/sharing';
+    const viewShare=await send(shareRoute,{visibility:'campaign-view'},playerCookie,origin,'PUT');
+    assert.equal(viewShare.status,200,JSON.stringify(viewShare));
+    const sharedList=await send(charRoute,undefined,secondCookie,origin,'GET');
+    assert.equal(sharedList.body.characters.length,1);
+    assert.equal(sharedList.body.characters[0].access.edit,false);
+    const viewed=await send(sharedDetail,undefined,secondCookie,origin,'GET');
+    assert.equal(viewed.status,200);
+    assert.equal(viewed.body.character.access.edit,false);
+    assert.equal(viewed.body.character.sharing,undefined,'Viewers do not see the share list');
+    const viewerSave=await send(sharedDoc,{name:viewed.body.character.name,level:viewed.body.character.level,
+      revision:viewed.body.character.revision,document:{leveler:viewed.body.character.leveler,planner:viewed.body.character.planner}},
+      secondCookie,origin,'PUT');
+    assert.equal(viewerSave.status,403,'View-only characters cannot be saved');
+    assert.equal((await send(shareRoute,{visibility:'campaign-edit'},secondCookie,origin,'PUT')).status,403);
+    const shareOptions=await send(shareRoute,undefined,playerCookie,origin,'GET');
+    assert.ok(shareOptions.body.members.some(m=>m.id===secondId));
+    assert.equal((await send(shareRoute,{visibility:'custom',shares:[{userId:randomUUID(),access:'edit'}]},
+      playerCookie,origin,'PUT')).status,400,'Only campaign members can be chosen');
+    const editShare=await send(shareRoute,{visibility:'custom',shares:[{userId:secondId,access:'edit'}]},playerCookie,origin,'PUT');
+    assert.equal(editShare.status,200,JSON.stringify(editShare));
+    assert.deepEqual(editShare.body.sharing.shares.map(s=>[s.userId,s.access]),[[secondId,'edit']]);
+    const editorSave=await send(sharedDoc,{name:viewed.body.character.name,level:viewed.body.character.level,
+      revision:viewed.body.character.revision,document:{leveler:viewed.body.character.leveler,planner:viewed.body.character.planner}},
+      secondCookie,origin,'PUT');
+    assert.equal(editorSave.status,200,JSON.stringify(editorSave));
+    await send(shareRoute,{visibility:'private'},playerCookie,origin,'PUT');
+    assert.equal((await send(sharedDetail,undefined,secondCookie,origin,'GET')).status,403);
+
+    // v0.13: one world opened from a second Foundry address.
+    const otherOrigin='https://other-domain.test.invalid';
+    const preflight=await fetch(origin+'/api/v1/bridge/'+integrationId+'/authorize',{method:'OPTIONS',
+      headers:{origin:otherOrigin,'access-control-request-method':'POST'}});
+    assert.equal(preflight.status,204);
+    assert.equal(preflight.headers.get('access-control-allow-origin'),otherOrigin);
+    const syncPreflight=await fetch(origin+'/api/v1/bridge/'+integrationId+'/catalog-import/status',{method:'OPTIONS',
+      headers:{origin:otherOrigin,'access-control-request-method':'POST'}});
+    assert.equal(syncPreflight.status,403,'Unknown addresses cannot sync before authorizing');
+    const secondCode=await send('/api/v1/pairing-codes',{},ownerCookie);
+    const otherAuth=await send('/api/v1/bridge/'+integrationId+'/authorize',{code:secondCode.body.code,worldId:'test-world'},
+      '',otherOrigin);
+    assert.equal(otherAuth.status,201,JSON.stringify(otherAuth));
+    const otherStatus=await send(importRoute+'/status',{},'',otherOrigin,'POST',otherAuth.body.accessToken);
+    assert.equal(otherStatus.status,200,JSON.stringify(otherStatus));
+    const crossed=await send(importRoute+'/status',{},'',otherOrigin,'POST',paired.body.accessToken);
+    assert.equal(crossed.status,401,'A Bridge login works only from the address it was issued to');
+    const originsRoute='/api/v1/integrations/'+integrationId+'/origins';
+    const origins=await send(originsRoute,undefined,ownerCookie,origin,'GET');
+    assert.deepEqual(origins.body.origins.map(o=>o.origin).sort(),[gmOrigin,otherOrigin].sort());
+    const dropped=await send(originsRoute,{origin:otherOrigin},ownerCookie,origin,'DELETE');
+    assert.equal(dropped.status,200,JSON.stringify(dropped));
+    assert.equal((await send(importRoute+'/status',{},'',otherOrigin,'POST',otherAuth.body.accessToken)).status,403);
+    assert.equal((await send(originsRoute,{origin:gmOrigin},ownerCookie,origin,'DELETE')).status,409,
+      'The last address stays; disconnect the world instead');
+
+    // v0.13: profile, password change and owner-issued reset links.
+    const renamed=await send('/api/v1/me',{displayName:'Second Player',username:'second.player'},secondCookie,origin,'PATCH');
+    assert.equal(renamed.status,200,JSON.stringify(renamed));
+    assert.equal((await send('/api/v1/me',{username:'new-player'},secondCookie,origin,'PATCH')).status,409);
+    assert.equal((await send('/api/v1/me/password',{currentPassword:'wrong-password-123',newPassword:'brand-new-password-456'},
+      secondCookie)).status,403);
+    const changed=await send('/api/v1/me/password',{currentPassword:'another-long-test-password',newPassword:'brand-new-password-456'},
+      secondCookie);
+    assert.equal(changed.status,200,JSON.stringify(changed));
+    assert.equal((await send('/api/v1/me',undefined,secondCookie,origin,'GET')).status,401,'Other sessions are signed out');
+    assert.equal((await send('/api/v1/me',undefined,changed.cookie,origin,'GET')).status,200);
+    assert.equal((await send('/api/v1/users/'+secondId+'/password-reset',{},playerCookie)).status,403);
+    const resetLink=await send('/api/v1/users/'+secondId+'/password-reset',{},ownerCookie);
+    assert.equal(resetLink.status,201,JSON.stringify(resetLink));
+    assert.ok(resetLink.body.resetUrl.endsWith('#'+resetLink.body.code));
+    const resetDone=await send('/api/v1/auth/reset',{code:resetLink.body.code,password:'reset-password-789-long'});
+    assert.equal(resetDone.status,200,JSON.stringify(resetDone));
+    assert.equal((await send('/api/v1/auth/reset',{code:resetLink.body.code,password:'reset-password-789-long'})).status,400);
+    const relogin=await send('/api/v1/auth/login',{username:'second.player',password:'reset-password-789-long'});
+    assert.equal(relogin.status,200,JSON.stringify(relogin));
+    const adminUsers=await send('/api/v1/admin/users',undefined,ownerCookie,origin,'GET');
+    assert.ok(adminUsers.body.users.some(u=>u.username==='second.player'));
+
+    // v0.13: storage report and maintenance (server owner only).
+    assert.equal((await send('/api/v1/admin/storage',undefined,playerCookie,origin,'GET')).status,403);
+    const storage=await send('/api/v1/admin/storage',undefined,ownerCookie,origin,'GET');
+    assert.equal(storage.status,200,JSON.stringify(storage));
+    assert.ok(storage.body.files.database>0);
+    assert.equal(storage.body.worlds.length,1);
+    assert.equal(storage.body.worlds[0].icons,1);
+    for(const action of ['checkpoint','cleanup','optimize']){
+      const done=await send('/api/v1/admin/storage',{action},ownerCookie);
+      assert.equal(done.status,200,action+' '+JSON.stringify(done));
+    }
+
+    // v0.13: Pathbuilder import (pasted JSON; fetching by id needs pathbuilder2e.com).
+    const pbRoute=charRoute+'/import-pathbuilder';
+    assert.equal((await send(pbRoute,{pathbuilderId:'abc'},playerCookie)).status,400);
+    const pbImport=await send(pbRoute,{json:{success:true,build:{name:'From Pathbuilder',class:'Fighter',level:2,
+      ancestry:'Anadi',heritage:'Adaptive Anadi',background:'Nonexistent Background',
+      feats:[['Demonstration Feat',null,'Class Feat',2]],proficiencies:{athletics:2},languages:[]}}},playerCookie);
+    assert.equal(pbImport.status,201,JSON.stringify(pbImport));
+    assert.equal(pbImport.body.character.name,'From Pathbuilder');
+    assert.equal(pbImport.body.character.level,2);
+    assert.ok(pbImport.body.report.missing.some(m=>m.name==='Nonexistent Background'));
+    const pbCharacter=await send(charRoute+'/'+pbImport.body.character.id,undefined,playerCookie,origin,'GET');
+    assert.equal(pbCharacter.body.character.leveler.creation.class.name,'Fighter');
+    assert.equal(pbCharacter.body.character.leveler.plan.levels[2].classFeats[0].name,'Demonstration Feat');
 
     const wrongOrigin=await send('/api/v1/bridge/'+integrationId+'/refresh',
       {refreshToken:paired.body.refreshToken},'','https://untrusted.test.invalid');

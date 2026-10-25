@@ -21,8 +21,12 @@ function bridgeCors(event) {
   if (path === '/api/v1/bridge/pair' || path === '/api/v1/bridge/status') return origin;
   const id = /^\/api\/v1\/bridge\/([a-f0-9-]{36})\/(refresh|catalog-preview|authorize|catalog-import\/(?:start|batch|commit|status)|icons\/(?:missing|batch)|characters\/(?:import|owners|list|export))$/.exec(path)?.[1];
   if (!id) return null;
-  const row = db().prepare('SELECT foundry_origin, revoked_at FROM integrations WHERE id=?').get(id);
-  return row && !row.revoked_at && row.foundry_origin === origin ? origin : null;
+  const row = db().prepare('SELECT revoked_at FROM integrations WHERE id=?').get(id);
+  if (!row || row.revoked_at) return null;
+  // Authorizing a new GM browser may come from a new Foundry address; it needs a GM code.
+  if (path.endsWith('/authorize')) return origin;
+  const known = db().prepare('SELECT 1 FROM integration_origins WHERE integration_id=? AND origin=?').get(id, origin);
+  return known ? origin : null;
 }
 export async function handle({ event, resolve }) {
   const path = event.url.pathname;

@@ -243,3 +243,12 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Leveler feat grants (formulas/items/spells) at level 1 and planned levels.
 - [ ] Subclass and feat ChoiceSets (Leveler's subclassChoices/featChoices); Foundry prompts for them on apply today.
 - [ ] Grants from background-granted feats (Leveler grantedFeatSections).
+
+## v0.13.0 sharing, accounts, storage, Pathbuilder
+- [x] Several Foundry origins per world; Bridge credentials bound to their origin.
+- [x] Character visibility (private, campaign view/edit, chosen people) with GM override.
+- [x] Profile and password changes; owner-issued one-time reset links.
+- [x] Storage report per world; checkpoint, cleanup, optimize, compact; auto-checkpoint after big syncs.
+- [x] Pathbuilder 2e import (browser fetch by JSON id, server fallback, paste).
+- [ ] Lores as first-class picks: choose extra lores in Skills and from feats like Additional Lore.
+- [ ] Scheduled database backups.

@@ -22,7 +22,8 @@ export async function POST(event) {
     if (!pairing) problem(400,'invalid_pairing_code');
     if (pairing.site_role!=='owner' && !sql.prepare("SELECT 1 FROM memberships WHERE user_id=? AND role='gm'").get(pairing.creator_id)) problem(403,'gm_required');
     // Prevent duplicates or a copied world silently claiming the same web campaign.
-    const duplicate=sql.prepare("SELECT 1 FROM integrations WHERE foundry_origin=? AND world_id=? AND revoked_at IS NULL").get(origin,worldId);
+    const duplicate=sql.prepare(`SELECT 1 FROM integrations i JOIN integration_origins o ON o.integration_id=i.id
+      WHERE o.origin=? AND i.world_id=? AND i.revoked_at IS NULL`).get(origin,worldId);
     if (duplicate) problem(409,'world_already_paired_reauthorize_in_website');
     sql.prepare("UPDATE pairing_codes SET consumed_at=? WHERE code_hash=? AND consumed_at IS NULL").run(unix(),digest(body.code));
     sql.prepare("INSERT INTO campaigns(id,title,owner_id,world_id,system_id,created_at) VALUES(?,?,?,?,?,?)")
@@ -31,7 +32,9 @@ export async function POST(event) {
       .run(campaignId,pairing.creator_id);
     sql.prepare("INSERT INTO integrations(id,campaign_id,foundry_origin,world_id,created_at) VALUES(?,?,?,?,?)")
       .run(integrationId,campaignId,origin,worldId,unix());
-    return newCredential(sql,integrationId,pairing.creator_id);
+    sql.prepare('INSERT INTO integration_origins(integration_id,origin,created_at) VALUES(?,?,?)')
+      .run(integrationId,origin,unix());
+    return newCredential(sql,integrationId,pairing.creator_id,origin);
   });
   return respond({...result,campaignId},201);
 }

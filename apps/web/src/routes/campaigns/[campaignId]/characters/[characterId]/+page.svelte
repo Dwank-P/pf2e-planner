@@ -6,6 +6,7 @@
   import SummaryPanel from '../../../../../lib/wizard/SummaryPanel.svelte';
   import WishlistPanel from '../../../../../lib/wizard/WishlistPanel.svelte';
   import ItemDrawer from '../../../../../lib/wizard/ItemDrawer.svelte';
+  import SharePanel from '../../../../../lib/ui/SharePanel.svelte';
   import {api} from '../../../../../lib/ui/api.js';
   import {loadCampaign} from '../../../../../lib/ui/session.js';
   import {loadCatalog} from '../../../../../lib/builder/catalog.js';
@@ -98,10 +99,14 @@
   }
   const wishCount=level=>wishlist(planner).filter(w=>w.targetLevel===level).length;
 
-  function update(change){creation=change(creation);schedule();}
-  function updatePlan(change){plan=change(ensurePlan(plan,creation));schedule();}
-  function updatePlanner(change){planner=change(planner);schedule();}
-  function schedule(){saveState='unsaved';clearTimeout(timer);timer=setTimeout(save,700);}
+  // Characters shared for viewing open read-only: edits are ignored and nothing is saved.
+  const canEdit=$derived(character?.access?.edit!==false);
+  const canManage=$derived(character?.access?.manage===true);
+  let sharing=$state(false);
+  function update(change){if(!canEdit)return;creation=change(creation);schedule();}
+  function updatePlan(change){if(!canEdit)return;plan=change(ensurePlan(plan,creation));schedule();}
+  function updatePlanner(change){if(!canEdit)return;planner=change(planner);schedule();}
+  function schedule(){if(!canEdit)return;saveState='unsaved';clearTimeout(timer);timer=setTimeout(save,700);}
   async function save(){
     if(saveState==='saving'||conflict){if(!conflict)schedule();return;}
     saveState='saving';
@@ -136,8 +141,18 @@
 <svelte:head><title>{name||'Character'} · PF2e Planner</title></svelte:head>
 {#if ctx}
   <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name}>
-    {#snippet actions()}<span class="save {saveState}" role="status">{saveLabel}</span>{/snippet}
+    {#snippet actions()}
+      {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">View only</span>{/if}
+      {#if canManage}<button class="btn small ghost" onclick={()=>sharing=true}>Share</button>{/if}
+    {/snippet}
   </AppBar>
+{/if}
+{#if sharing}
+  <SharePanel url={'/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/'+encodeURIComponent(characterId)+'/sharing'}
+    onClose={()=>sharing=false} onSaved={s=>character={...character,visibility:s.visibility}}/>
+{/if}
+{#if character&&!canEdit}
+  <div class="banner"><p class="notice">{character.ownerName??'Its owner'} shared this character with you to view. Changes you make here aren’t saved.</p></div>
 {/if}
 {#if error}
   <div class="banner" role="alert"><p class="notice bad">{error}
@@ -154,9 +169,9 @@
     <nav class="rail" class:open={railOpen} id="builder-rail" aria-label="Levels">
       <div class="identity">
         <label class="field" for="character-name"><span class="eyebrow">Character</span>
-          <input id="character-name" maxlength="80" bind:value={name} oninput={schedule}/></label>
+          <input id="character-name" maxlength="80" bind:value={name} oninput={schedule} readonly={!canEdit}/></label>
         <label class="field level-pick" for="current-level"><span class="eyebrow">Level</span>
-          <select id="current-level" bind:value={currentLevel} onchange={schedule}>
+          <select id="current-level" bind:value={currentLevel} onchange={schedule} disabled={!canEdit}>
             {#each Array.from({length:20},(_,i)=>i+1) as n}<option value={n}>{n}</option>{/each}
           </select></label>
       </div>

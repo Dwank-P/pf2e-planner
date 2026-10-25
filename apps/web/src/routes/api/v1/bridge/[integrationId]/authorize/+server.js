@@ -5,6 +5,7 @@ import { input, respond, problem, throttle } from '#lib/server/api.js';
 
 /** Authorize a second GM browser/device for an existing paired world.
  * Caller has a site-issued code; the associated site user must be this campaign's GM.
+ * The world may be opened from another Foundry address (domain): a valid code adds it.
  */
 export async function POST(event) {
   throttle(event,'bridge-authorize',10,600);
@@ -13,8 +14,7 @@ export async function POST(event) {
   if (typeof body.code!=='string'||body.code.length<40||body.code.length>70) problem(400,'invalid_pairing_code');
   const result=transaction(sql=>{
     const integration=sql.prepare('SELECT * FROM integrations WHERE id=? AND revoked_at IS NULL').get(id);
-    if (!integration || integration.foundry_origin!==origin ||
-        integration.world_id!==body.worldId) problem(404,'integration_not_found_or_mismatch');
+    if (!integration || !origin || integration.world_id!==body.worldId) problem(404,'integration_not_found_or_mismatch');
     const pairing=sql.prepare(`SELECT p.creator_id,u.site_role FROM pairing_codes p
       JOIN users u ON u.id=p.creator_id
       WHERE p.code_hash=? AND p.expires_at>? AND p.consumed_at IS NULL AND u.status='active'`)
@@ -24,7 +24,9 @@ export async function POST(event) {
       .get(integration.campaign_id,pairing.creator_id);
     if (pairing.site_role!=='owner' && gm?.role!=='gm') problem(403,'campaign_gm_required');
     sql.prepare('UPDATE pairing_codes SET consumed_at=? WHERE code_hash=?').run(unix(),digest(body.code));
-    return newCredential(sql,id,pairing.creator_id);
+    sql.prepare('INSERT OR IGNORE INTO integration_origins(integration_id,origin,created_at) VALUES(?,?,?)')
+      .run(id,origin,unix());
+    return newCredential(sql,id,pairing.creator_id,origin);
   });
   const group=db().prepare('SELECT campaign_id FROM integrations WHERE id=?').get(id);
   return respond({...result,campaignId:group.campaign_id},201);
