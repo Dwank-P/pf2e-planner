@@ -13,7 +13,7 @@ export function normalizeWebsiteUrl(input) {
     ? raw : 'https://' + raw;
   let parsed;
   try { parsed = new URL(withScheme); }
-  catch { throw new TypeError('Enter a valid URL, domain or IP address (example: level.dwank.uk).'); }
+  catch { throw new TypeError('Enter a valid URL, domain or IP address (example: level-plan.mydomain.com).'); }
 
   if (parsed.username || parsed.password || parsed.search || parsed.hash ||
       parsed.pathname !== '/' || !parsed.hostname) {
@@ -31,7 +31,7 @@ export function normalizeWebsiteUrl(input) {
     hostname.split('.').every(label =>
       /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label));
   if (!ipv6 && !ipv4 && !local && !validDomain) {
-    throw new TypeError('Enter a valid domain or IP address (for example level.dwank.uk or 192.168.1.40).');
+    throw new TypeError('Enter a valid domain or IP address (for example level-plan.mydomain.com or 192.168.1.40).');
   }
   if (parsed.protocol !== 'https:' && !(local && parsed.protocol === 'http:')) {
     throw new TypeError('Use HTTPS. HTTP is permitted only for localhost or loopback testing.');

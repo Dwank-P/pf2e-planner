@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { normalizeWebsiteUrl } from '../apps/foundry-module/scripts/url.mjs';
 
 test('accepts domains and defaults to https', () => {
-  assert.equal(normalizeWebsiteUrl('level.dwank.uk'), 'https://level.dwank.uk');
-  assert.equal(normalizeWebsiteUrl(' https://level.dwank.uk/ '), 'https://level.dwank.uk');
+  assert.equal(normalizeWebsiteUrl('level-plan.mydomain.com'), 'https://level-plan.mydomain.com');
+  assert.equal(normalizeWebsiteUrl(' https://level-plan.mydomain.com/ '), 'https://level-plan.mydomain.com');
   assert.equal(normalizeWebsiteUrl('example.com:8443'), 'https://example.com:8443');
 });
 test('accepts IPv4 and bracketed IPv6', () => {

@@ -481,3 +481,7 @@ pauses saving while it runs, so back up the data folder first and run it when no
   that campaign.
 
 **Update the Bridge to 0.14.0** for the faster icon sync (0.12 still works).
+
+### v0.14.1 — Generic examples
+
+- Examples and placeholders use a generic address (`level-plan.mydomain.com`) instead of a real site.

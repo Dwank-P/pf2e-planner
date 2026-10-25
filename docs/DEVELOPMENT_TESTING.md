@@ -86,7 +86,7 @@ then **Pull and redeploy** the stack. Confirm the port is published as
 `192.168.1.40:3000->3000/tcp`, not `127.0.0.1:3000->3000/tcp`.
 The IP must exist on the Docker host (`ip -br addr`). Use an appropriate firewall
 and restrict incoming access to the reverse proxy. Keep `PUBLIC_ORIGIN` as
-`https://level.dwank.uk`. No need to expose port 3000 to the public WAN.
+`https://level-plan.mydomain.com`. No need to expose port 3000 to the public WAN.
 
 ## H. Pairing UI introduced in module v0.2.2
 
@@ -104,7 +104,7 @@ displayed but cannot silently constitute a pairing. The website must also be
 updated to v0.2.2 for the status-check endpoint.
 
 DevTools GM console fallback: `PF2ePlannerBridge.openPairingDialog()`,
-`PF2ePlannerBridge.testWebsite('https://level.dwank.uk')`,
+`PF2ePlannerBridge.testWebsite('https://level-plan.mydomain.com')`,
 `PF2ePlannerBridge.status()`. Never paste or report live pairing codes or
 access/refresh tokens in diagnostic messages. The actual sync remains a limited
 preview; browser/Foundry v14 UI still requires real-world verification.
@@ -139,7 +139,7 @@ valid. Existing account addition works as before.
   Confirm the new user remains logged in, and a second redemption fails.
 - Generate a Foundry pairing code and test its copy icon.
 - In Foundry, only **Open Pairing Dialog** should appear in Planner Bridge's
-  module settings (not a separate editable website URL). Test `level.dwank.uk`
+  module settings (not a separate editable website URL). Test `level-plan.mydomain.com`
   and `192.168.1.40`: both should normalize to HTTPS URLs automatically;
   HTTP should work only for localhost/127.0.0.1. Invalid inputs should
   produce actionable notifications and must not persist.

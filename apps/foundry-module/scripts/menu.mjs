@@ -30,7 +30,7 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
         <div class="form-group">
           <label>Website domain or IP address</label>
           <input name="website" type="text" inputmode="url" required
-            placeholder="level.dwank.uk" value="${url}"/>
+            placeholder="level-plan.mydomain.com" value="${url}"/>
           <p class="hint">HTTPS will be added automatically if omitted.</p>
         </div>
         <div class="form-group">
