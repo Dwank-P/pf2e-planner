@@ -9,6 +9,8 @@ import {featOptions} from '../src/lib/wizard/options.js';
 import {levelerChoiceSlots} from '../src/lib/leveler-progression.js';
 import {proficienciesAt,proficiencyBonus} from '../src/lib/builder/rules.js';
 import * as E from '../src/lib/builder/equipment.js';
+import * as G from '../src/lib/builder/grants.js';
+import {creationSteps} from '../src/lib/builder/schema.js';
 import {emptyCreation,projectView} from '../src/lib/leveler-format.js';
 
 const catalog=indexCatalog(bundle);
@@ -140,4 +142,64 @@ test('equipment wishlist: prices, consumables, grouping by target level',()=>{
   planner=E.removeWish(planner,potionWish.id);
   assert.equal(E.wishlist(planner).length,2);
   assert.equal(planner.notes,'','other planner fields survive');
+});
+
+test('alchemist formulas follow Leveler: 4 + 2 at level 1, 2 per level, filtered and stored as featGrants',()=>{
+  let creation=fighter();
+  creation=C.setClass(creation,catalog.ofType('class').find(c=>c.name==='Alchemist'));
+  const requirements=G.creationGrantRequirements(creation,lookup);
+  assert.deepEqual(requirements.map(r=>[r.sourceFeatName,r.count]),[['Alchemical Crafting',4],['Formula Book',2]]);
+  const candidates=G.grantCandidates(catalog,requirements[0],{maxLevelCap:1}).map(i=>i.name);
+  assert.ok(candidates.includes("Lesser Alchemist's Fire"));
+  assert.ok(!candidates.includes("Moderate Alchemist's Fire"),'level-1 formulas only');
+  assert.ok(!candidates.includes('Minor Healing Potion'),'alchemical items only');
+  const fire=catalog.ofType('consumable').find(i=>i.name==="Lesser Alchemist's Fire");
+  creation=G.toggleGrantSelection(creation,requirements[0],fire);
+  assert.equal(creation.featGrants[0].requirementId,requirements[0].id);
+  assert.equal(creation.featGrants[0].sourceFeatUuid,creation.class.uuid,'Leveler applies grants whose source is the class');
+  assert.equal(G.grantSelections(creation,requirements[0])[0].uuid,fire.uuid);
+  assert.equal(G.takenFormulas(creation,null).get(fire.uuid),1);
+  creation=G.toggleGrantSelection(creation,requirements[0],fire);
+  assert.deepEqual(creation.featGrants,[],'empty grants are dropped');
+  const steps=creationSteps(creation,lookup,{});
+  assert.ok(steps.some(s=>s.id==='grants'&&s.label==='Formulas'&&!s.complete));
+
+  const plan=P.ensurePlan(null,creation);
+  const level2=G.levelGrantRequirements(creation,plan,lookup,2);
+  assert.deepEqual(level2.map(r=>[r.id,r.count,r.filters.maxLevel]),[['class:alchemist:formula-book-level-2-formula',2,2]]);
+});
+
+test('feats that grant formulas ask for them at the level they are taken',()=>{
+  const creation=fighter();
+  let plan=P.ensurePlan(null,creation);
+  const slot=slotsFor(creation).find(s=>s.key==='skill-2');
+  plan=P.setPlanFeat(plan,slot,feat('Alchemical Crafting'));
+  const requirements=G.levelGrantRequirements(creation,plan,lookup,2);
+  assert.equal(requirements.length,1);
+  assert.equal(requirements[0].count,4);
+  assert.equal(requirements[0].kind,'formula');
+});
+
+test('a dual class casts from its own entry, like Leveler',()=>{
+  const fighterClass=catalog.ofType('class').find(c=>c.name==='Fighter');
+  const wizard=catalog.ofType('class').find(c=>c.name==='Wizard');
+  const {slots}=levelerChoiceSlots(fighterClass,wizard,{dualClass:true});
+  const dual=slots.filter(s=>s.type==='spells');
+  assert.ok(dual.some(s=>s.key==='dual-spells-1'&&s.entryType==='class:wizard'&&s.tradition==='arcane'));
+  assert.ok(dual.some(s=>s.key==='dual-spells-3'&&s.entryType==='class:wizard'));
+  let plan=P.ensurePlan(null,fighter());
+  const shield=catalog.ofType('spell').find(s=>s.name==='Shield');
+  plan=P.togglePlanSpell(plan,3,shield,{rank:1,cantrip:false,entryType:'class:wizard'});
+  assert.equal(P.planSpells(plan,3).length,0,'not in the primary entry');
+  assert.equal(P.planSpells(plan,3,'class:wizard')[0].entryType,'class:wizard');
+  assert.equal(P.learnedSpellLevels(null,plan,'class:wizard').get(shield.uuid),3);
+
+  let creation=fighter();
+  creation=C.setDualClass(creation,wizard);
+  const steps=creationSteps(creation,lookup,{dualClass:true});
+  const spellSteps=steps.filter(s=>s.stepId==='spells');
+  assert.deepEqual(spellSteps.map(s=>[s.id,s.target]),[['spells-dual','dualClass']]);
+  creation=C.toggleSpell(creation,shield,{cantrip:false,max:2,target:'secondary'});
+  assert.equal(creation.dualSpells.rank1[0].uuid,shield.uuid);
+  assert.equal(P.learnedSpellLevels(creation,null,'class:wizard').get(shield.uuid),1);
 });

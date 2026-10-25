@@ -27,8 +27,13 @@ export function stepSummary(step,creation,lookup,variants={}){
     case 'feats':return level1FeatSlots(c,lookup,variants).map(s=>c[featField(s.slot)]?.name).filter(Boolean).join(' · ');
     case 'languages':return (c.languages??[]).map(titleCase).join(', ');
     case 'spells':{
-      const cantrips=c.spells?.cantrips?.length??0,rank1=c.spells?.rank1?.length??0;
+      const store=target==='dualClass'?c.dualSpells:c.spells;
+      const cantrips=store?.cantrips?.length??0,rank1=store?.rank1?.length??0;
       return cantrips||rank1?`${cantrips} cantrips · ${rank1} rank 1`:'';
+    }
+    case 'grants':{
+      const n=(c.featGrants??[]).reduce((sum,g)=>sum+(g.selections?.length??0),0);
+      return n?n+' chosen':'';
     }
     case 'equipment':return c.equipment?.length?`${c.equipment.length} item${c.equipment.length===1?'':'s'}`:'';
     default:{
@@ -47,8 +52,8 @@ export function levelSummary(level,slots,plan){
     if(slot.type==='feat'){const f=planFeat(plan,slot);if(f?.name)lines.push(f.name);}
     else if(slot.type==='ability'){const b=planBoosts(plan,level);if(b.length)lines.push('Boosts '+b.map(a=>a.toUpperCase()).join(' '));}
     else if(slot.type==='skill'){const s=planSkillIncrease(plan,slot);if(s?.skill)lines.push(titleCase(s.skill)+' → '+(RANKS[s.toRank]??'+1'));}
-    else if(slot.type==='spells'){const n=planSpells(plan,level).length;if(n)lines.push(n+' spell'+(n===1?'':'s'));}
-    else if(slot.type==='signature'){const s=slot.ranks.map(r=>planSignature(plan,level,r)?.name).filter(Boolean);if(s.length)lines.push('★ '+s.join(', '));}
+    else if(slot.type==='spells'){const n=planSpells(plan,level,slot.entryType).length;if(n)lines.push(n+' spell'+(n===1?'':'s'));}
+    else if(slot.type==='signature'){const s=slot.ranks.map(r=>planSignature(plan,level,r,slot.entryType)?.name).filter(Boolean);if(s.length)lines.push('★ '+s.join(', '));}
   }
   return [...new Set(lines)];
 }

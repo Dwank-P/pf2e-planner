@@ -1,5 +1,6 @@
 <script>
   import Traits from '../ui/Traits.svelte';
+  import Icon from '../ui/Icon.svelte';
   import {searchItems} from '../builder/catalog.js';
   import {spellDefense} from './options.js';
   /**
@@ -54,7 +55,7 @@
         {@const reason=isOn?null:result.blocked}
         <div class="opt" class:on={isOn} class:blocked={!!reason}>
           <button class="pick" disabled={!isOn&&(!!reason||(full&&max>1))} aria-pressed={isOn} onclick={()=>onToggle(item)}>
-            <span class="top"><b>{item.name}</b>{#if Number.isFinite(item.level)&&item.type!=='class'&&item.metadata?.category!=='classfeature'&&!(item.traits??[]).includes('cantrip')}<span class="lvl num">{item.level}</span>{/if}</span>
+            <span class="top"><span class="name"><Icon src={item.img} size={28}/><b>{item.name}</b></span>{#if Number.isFinite(item.level)&&item.type!=='class'&&item.metadata?.category!=='classfeature'&&!(item.traits??[]).includes('cantrip')}<span class="lvl num">{item.level}</span>{/if}</span>
             {#if detail(item)}<span class="detail">{detail(item)}</span>{/if}
             <Traits traits={item.traits??[]} rarity={item.rarity} max={4}/>
             {#if reason}<span class="reason">{reason}</span>
@@ -92,6 +93,7 @@
   .pick{display:grid;gap:7px;width:100%;text-align:left;background:none;border:0;padding:12px 12px 30px;color:var(--text);border-radius:inherit}
   .pick:disabled{opacity:1;cursor:not-allowed}
   .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding-right:18px}
+  .name{display:flex;gap:8px;align-items:center;min-width:0}
   .top b{font:800 .95rem var(--display)}
   .lvl{font-size:.75rem;color:var(--muted)}
   .detail{color:var(--text-2);font-size:.83rem}

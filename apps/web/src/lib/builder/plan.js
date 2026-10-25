@@ -78,40 +78,48 @@ export function setSkillIncrease(plan,slot,skill,toRank){
 }
 
 /** Signature spell chosen for a rank at a level (Leveler's levelData.signatureSpells). */
-export function planSignature(plan,level,rank){
+export function planSignature(plan,level,rank,entryType=PRIMARY){
   return (plan?.levels?.[level]?.signatureSpells??[])
-    .find(s=>(s.entryType??'primary')==='primary'&&Number(s.rank)===rank)??null;
+    .find(s=>entryOf(s)===entryType&&Number(s.rank)===rank)??null;
 }
-export function setSignatureSpell(plan,level,rank,spell){
+export function setSignatureSpell(plan,level,rank,spell,entryType=PRIMARY){
   return edit(plan,level,data=>{
-    const list=(data.signatureSpells??[]).filter(s=>(s.entryType??'primary')!=='primary'||Number(s.rank)!==rank);
-    if(spell)list.push({...(spell.entryType?spell:spellEntry(spell,rank,false)),entryType:'primary',rank});
+    const list=(data.signatureSpells??[]).filter(s=>entryOf(s)!==entryType||Number(s.rank)!==rank);
+    if(spell)list.push({...(spell.entryType?spell:spellEntry(spell,rank,false)),entryType,rank});
     data.signatureSpells=list;
   });
 }
-/** Every learned spell (cantrips included) → the level it is learned at. */
-export function learnedSpellLevels(creation,plan){
+/** Every spell learned by one entry (cantrips included) → the level it is learned at. */
+export function learnedSpellLevels(creation,plan,entryType=PRIMARY){
   const out=new Map();
-  for(const s of [...(creation?.spells?.cantrips??[]),...(creation?.spells?.rank1??[])])if(s?.uuid)out.set(s.uuid,1);
-  for(let l=2;l<=20;l++)for(const s of planSpells(plan,l))if(s?.uuid&&!out.has(s.uuid))out.set(s.uuid,l);
+  const start=creationSpells(creation,entryType);
+  for(const s of [...(start?.cantrips??[]),...(start?.rank1??[])])if(s?.uuid)out.set(s.uuid,1);
+  for(let l=2;l<=20;l++)for(const s of planSpells(plan,l,entryType))if(s?.uuid&&!out.has(s.uuid))out.set(s.uuid,l);
   return out;
 }
+/**
+ * Spellcasting entries follow Leveler: 'primary' for the class, and
+ * 'class:<slug>' for a dual class (its level-1 picks live in creation.dualSpells).
+ */
+export const PRIMARY='primary';
+const entryOf=s=>s?.entryType??PRIMARY;
+const creationSpells=(creation,entryType)=>entryType===PRIMARY?creation?.spells:creation?.dualSpells;
 /** Every spell in the repertoire up to `level`: creation picks plus planned levels. */
-export function repertoire(creation,plan,level){
-  const out=[...(creation?.spells?.rank1??[]).map(s=>({...s,rank:1}))];
-  for(let l=2;l<=level;l++)out.push(...planSpells(plan,l).filter(s=>!s.isCantrip));
+export function repertoire(creation,plan,level,entryType=PRIMARY){
+  const out=[...(creationSpells(creation,entryType)?.rank1??[]).map(s=>({...s,rank:1}))];
+  for(let l=2;l<=level;l++)out.push(...planSpells(plan,l,entryType).filter(s=>!s.isCantrip));
   return out;
 }
-/** Spells learned at a level (primary class list). */
-export function planSpells(plan,level){
-  return (plan?.levels?.[level]?.spells??[]).filter(s=>(s.entryType??'primary')==='primary');
+/** Spells learned at a level for one spellcasting entry. */
+export function planSpells(plan,level,entryType=PRIMARY){
+  return (plan?.levels?.[level]?.spells??[]).filter(s=>entryOf(s)===entryType);
 }
-export function togglePlanSpell(plan,level,item,{rank,cantrip}){
+export function togglePlanSpell(plan,level,item,{rank,cantrip,entryType=PRIMARY}){
   return edit(plan,level,data=>{
     const list=[...(data.spells??[])];
-    const index=list.findIndex(s=>s.uuid===item.uuid&&(cantrip?s.isCantrip:Number(s.rank)===rank));
+    const index=list.findIndex(s=>s.uuid===item.uuid&&entryOf(s)===entryType&&(cantrip?s.isCantrip:Number(s.rank)===rank));
     if(index>=0)list.splice(index,1);
-    else list.push(spellEntry(item,rank,cantrip));
+    else list.push(spellEntry(item,rank,cantrip,entryType));
     data.spells=list;
   });
 }

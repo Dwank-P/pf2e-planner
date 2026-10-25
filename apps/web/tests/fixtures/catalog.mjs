@@ -99,7 +99,14 @@ export const classes=[
     levelerProgression:{provider:'pf2e-leveler',version:'3.12.3',slug:'sorcerer',keyAbility:['cha'],
       levels:levels({spells:true}),subclassTag:'sorcerer-bloodline',creationSteps:[],
       spellcasting:{tradition:'bloodline',type:'spontaneous',slots:spontaneousSlots,spellbook:false,level1Counts:{cantrips:5,rank1:3}}}},
-    {description:'<p>Magic flows from your blood; you cast spontaneously from a repertoire.</p>'})
+    {description:'<p>Magic flows from your blood; you cast spontaneously from a repertoire.</p>'}),
+  item('classes','Alchemist','class','Alchemist',1,{classFeatLevels:[1,2,4,6,8,10,12,14,16,18,20],skillFeatLevels:[2,4,6,8,10,12,14,16,18,20],
+    keyAbility:['int'],grantedFeatures:features([[1,'Alchemy','Alchemy'],[1,'Formula Book','FormulaBook'],[1,'Research Field','ResearchField']]),
+    rules:{hp:8,keyAbility:{value:['int']},trainedSkills:{value:['crafting'],additional:3},perception:1,
+      savingThrows:{fortitude:2,reflex:2,will:1},classDC:1},
+    levelerProgression:{provider:'pf2e-leveler',version:'3.12.5',slug:'alchemist',keyAbility:['int'],
+      levels:levels(),spellcasting:null,subclassTag:'alchemist-research-field',creationSteps:[]}},
+    {description:'<p>You mix reagents into bombs, elixirs and mutagens.</p>'})
 ];
 const classFeature=(id,name,tags,extra={})=>item('classfeatures',id,'feat',name,1,
   {featType:'classfeature',category:'classfeature',otherTags:tags,...extra},{description:`<p>${name}.</p>`});
@@ -132,6 +139,9 @@ export const feats=[
   feat('ReachSpell','Reach Spell',1,'class',['wizard','spellshape','sorcerer']),
   feat('Toughness','Toughness',1,'general',['general']),
   feat('Assurance','Assurance',1,'skill',['general','skill']),
+  item('feats-srd','AlchemicalCrafting','feat','Alchemical Crafting',1,
+    {featType:'skill',category:'skill',actions:null,prerequisites:['trained in Crafting']},
+    {traits:['general','skill'],description:'<p>You can use the Craft activity to create alchemical items. When you select this feat, you immediately add the formulas for four common 1st-level alchemical items of your choice to your formula book.</p>'}),
   feat('BattleMedicine','Battle Medicine',1,'skill',['general','skill','healing'],{prerequisites:['trained in Medicine']}),
   feat('IntimidatingGlare','Intimidating Glare',1,'skill',['general','skill'],{prerequisites:['trained in Intimidation']}),
   feat('QuickJump','Quick Jump',1,'skill',['general','skill'],{prerequisites:['trained in Athletics']}),
@@ -190,10 +200,22 @@ export const equipment=[
   item('equipment-srd','HealersToolkit','equipment',"Healer's Toolkit",0,{rules:{price:{value:{gp:5}}}}),
   item('equipment-srd','MinorHealingPotion','consumable','Minor Healing Potion',1,{rules:{price:{value:{gp:4}},usage:{value:'held-in-one-hand'}}},{traits:['consumable','healing','potion']}),
   item('equipment-srd','Caltrops','consumable','Caltrops',0,{rules:{price:{value:{sp:3}}}},{traits:['consumable']}),
-  item('equipment-srd','BagOfHolding','backpack','Bag of Holding (Type I)',4,{rules:{price:{value:{gp:75}}}},{traits:['extradimensional','magical']})
+  item('equipment-srd','BagOfHolding','backpack','Bag of Holding (Type I)',4,{rules:{price:{value:{gp:75}}}},{traits:['extradimensional','magical']}),
+  // Alchemical formulas for the alchemist's formula book.
+  ...[['AlchemistsFireLesser',"Lesser Alchemist's Fire",1,['alchemical','bomb','consumable','fire']],
+    ['ElixirOfLifeMinor','Minor Elixir of Life',1,['alchemical','consumable','elixir','healing']],
+    ['AcidFlaskLesser','Lesser Acid Flask',1,['acid','alchemical','bomb','consumable']],
+    ['AntidoteLesser','Lesser Antidote',1,['alchemical','consumable','elixir']],
+    ['BottledLightningLesser','Lesser Bottled Lightning',1,['alchemical','bomb','consumable','electricity']],
+    ['CheetahsElixirLesser',"Lesser Cheetah's Elixir",1,['alchemical','consumable','elixir']],
+    ['AlchemistsFireModerate',"Moderate Alchemist's Fire",3,['alchemical','bomb','consumable','fire']]]
+    .map(([id,name,level,traits])=>item('equipment-srd',id,'consumable',name,level,
+      {rules:{price:{value:{gp:level*3}}}},{traits}))
 ];
 export const actions=[];
 export const all=[...ancestries,...heritages,...backgrounds,...classes,...classFeatures,...deities,
   ...feats,...spells,...equipment,...actions];
 export const bundle={sha256:'fixture',snapshotId:'fixture',variants:{freeArchetype:true,dualClass:false},
-  items:all.map(({description,...rest})=>rest)};
+  // Like the catalog-bundle endpoint: feat text is kept for grant detection.
+  items:all.map(({description,...rest})=>rest.type==='feat'
+    ?{...rest,grantText:description.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().toLowerCase()}:rest)};

@@ -129,7 +129,8 @@ export function levelerChoiceSlots(primary,secondary=null,variants={}) {
     ].map(([source,label,count])=>({
       key:(source==='ancestry'?'ancestry-boost':source)+'-1',type:'ability',kind:'abilityBoosts',label,level:1,count,source:'creation'
     })),
-    ...spellSlot(data,1,'Starting spells')
+    ...spellSlot(data,1,'Starting spells'),
+    ...(dual?spellSlot(secondData,1,secondary.name+' starting spells',dualEntry(secondary)):[])
   ];
   if(data?.provider!=='pf2e-leveler'||!data.levels) {
     return {ready:false,source:'creation-only',slots:creation,
@@ -180,10 +181,19 @@ export function levelerChoiceSlots(primary,secondary=null,variants={}) {
           label:'Automatic bonus progression',level,source:'leveler'});
       }
     }
-    slots.push(...spellSlot(data,level,'Spells learned'));
+    const secondCasts=dual&&!!spellAllowance(secondData,level);
+    slots.push(...spellSlot(data,level,secondCasts?primary.name+' spells':'Spells learned'));
     const signature=signatureRanks(primary,level);
     if(signature.length)slots.push({key:'signature-'+level,type:'signature',kind:'signature',
-      label:'Signature spells',level,source:'leveler',ranks:signature});
+      label:(secondCasts?primary.name+' s':'S')+'ignature spells',level,source:'leveler',ranks:signature,entryType:'primary'});
+    if(dual){
+      // Leveler plans a dual class's spells under its own entry, 'class:<slug>'.
+      const entry=dualEntry(secondary);
+      slots.push(...spellSlot(secondData,level,secondary.name+' spells',entry));
+      const second=signatureRanks(secondary,level);
+      if(second.length)slots.push({key:'dual-signature-'+level,type:'signature',kind:'signature',
+        label:secondary.name+' signature spells',level,source:'leveler',ranks:second,...entry});
+    }
   }
   return {ready:true,source:'pf2e-leveler',version:data.version,slots};
 }
@@ -205,10 +215,16 @@ export function signatureRanks(classItem,level){
   const previous=at(level-1)??{};
   return ranks.filter(r=>previous[r]==null&&previous[String(r)]==null);
 }
-function spellSlot(progression,level,label){
+/** Spell entry fields for a dual class's slots: its Leveler entry type and tradition. */
+function dualEntry(classItem){
+  const slug=String(classItem?.metadata?.levelerProgression?.slug??classItem?.metadata?.slug??'').toLowerCase();
+  return {entryType:'class:'+slug,tradition:classItem?.metadata?.levelerProgression?.spellcasting?.tradition??''};
+}
+function spellSlot(progression,level,label,entry=null){
   const allowance=spellAllowance(progression,level);
-  return allowance?[{key:'spells-'+level,type:'spells',kind:'spells',label,level,
-    source:level===1?'creation':'leveler',allowance}]:[];
+  return allowance?[{key:(entry?'dual-spells-':'spells-')+level,type:'spells',kind:'spells',label,level,
+    source:level===1?'creation':'leveler',allowance,entryType:'primary',
+    tradition:progression?.spellcasting?.tradition??'',...(entry??{})}]:[];
 }
 
 export function selectedBoosts(build,key) {

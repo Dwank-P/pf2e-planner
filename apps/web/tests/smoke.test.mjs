@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.11\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.12\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.11.0');
+    assert.equal(health.body.version,'0.12.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.11.0');
+    assert.equal(check.body.version,'0.12.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -202,7 +202,7 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(started.status,201,JSON.stringify(started));
     const entries=[
       {uuid:'Compendium.pf2e.classes.Item.Fighter',type:'class',name:'Fighter',
-        level:1,classFeatLevels:[2,4,6],description:'<p>Fighter</p>',
+        img:'systems/pf2e/icons/classes/fighter.webp',level:1,classFeatLevels:[2,4,6],description:'<p>Fighter</p>',
         levelerProgression:{
           provider:'pf2e-leveler',version:'3.12.3',slug:'fighter',
           levels:{
@@ -271,6 +271,33 @@ test('production API: bootstrap → pair world → create player → sync → re
     },'',gmOrigin,'POST',paired.body.accessToken);
     assert.equal(published.status,201,JSON.stringify(published));
     assert.equal(published.body.accepted,15);
+
+    // Item icons: the Bridge uploads the files the world's catalog references.
+    const iconRoute='/api/v1/bridge/'+integrationId+'/icons';
+    const iconPath='systems/pf2e/icons/classes/fighter.webp';
+    const missingIcons=await send(iconRoute+'/missing',{},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(missingIcons.status,200,JSON.stringify(missingIcons));
+    assert.deepEqual(missingIcons.body.missing,[iconPath]);
+    const webp=Buffer.concat([Buffer.from('RIFF'),Buffer.alloc(4),Buffer.from('WEBPVP8 '),Buffer.alloc(8)]);
+    const iconUpload=await send(iconRoute+'/batch',{icons:[
+      {path:iconPath,data:webp.toString('base64')},
+      {path:'systems/pf2e/icons/not-in-catalog.webp',data:webp.toString('base64')},
+    ]},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(iconUpload.status,201,JSON.stringify(iconUpload));
+    assert.equal(iconUpload.body.stored,1);
+    assert.deepEqual(iconUpload.body.rejected,['systems/pf2e/icons/not-in-catalog.webp'],'Only catalog icons are stored');
+    const fakeIcon=await send(iconRoute+'/batch',{icons:[{path:iconPath,data:Buffer.from('<script>').toString('base64')}]},
+      '',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(fakeIcon.body.stored,0,'Bytes must match the image type');
+    const noneMissing=await send(iconRoute+'/missing',{},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.deepEqual(noneMissing.body.missing,[]);
+    const iconResponse=await fetch(origin+'/api/v1/campaigns/'+campaignId+'/icons/'+iconPath,{headers:{cookie:playerCookie}});
+    assert.equal(iconResponse.status,200);
+    assert.equal(iconResponse.headers.get('content-type'),'image/webp');
+    assert.match(iconResponse.headers.get('cache-control')??'',/private/);
+    assert.equal(Buffer.from(await iconResponse.arrayBuffer()).compare(webp),0);
+    const iconAnonymous=await fetch(origin+'/api/v1/campaigns/'+campaignId+'/icons/'+iconPath);
+    assert.equal(iconAnonymous.status,401,'Icons are for campaign members');
 
     const fullSummary=await send('/api/v1/campaigns/'+campaignId+'/catalog-summary',
       undefined,playerCookie,origin,'GET');

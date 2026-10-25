@@ -31,7 +31,8 @@ sql.prepare('INSERT INTO campaigns VALUES(?,?,?,?,?,?)').run(campaign,'Abominati
 sql.prepare("INSERT INTO memberships VALUES(?,?,'gm')").run(campaign,gm);
 sql.prepare("INSERT INTO memberships VALUES(?,?,'player')").run(campaign,mira);
 sql.prepare('INSERT INTO integrations VALUES(?,?,?,?,?,NULL)').run(integration,campaign,'https://foundry.test','abomination-vaults',now);
-const variants={freeArchetype:true,dualClass:false,ancestralParagon:false,mythic:false};
+// DEV_DUAL_CLASS=1 seeds a world with Leveler's dual-class variant on.
+const variants={freeArchetype:true,dualClass:process.env.DEV_DUAL_CLASS==='1',ancestralParagon:false,mythic:false};
 const sources={worldId:'abomination-vaults',systemId:'pf2e',systemVersion:'8.6.1',levelerVersion:'3.12.3'};
 const packs=[...new Set(all.map(i=>i.pack))];
 sql.prepare(`INSERT INTO catalog_publications VALUES(?,?,?,?,?,?,?,?)`)

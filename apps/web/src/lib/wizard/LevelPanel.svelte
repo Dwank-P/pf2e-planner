@@ -1,5 +1,6 @@
 <script>
   import OptionGrid from './OptionGrid.svelte';
+  import Icon from '../ui/Icon.svelte';
   import RankLadder from '../ui/RankLadder.svelte';
   import * as P from '../builder/plan.js';
   import {buildState,checkFeat,featNameIndex,skillRanks,maxSkillRank} from '../builder/legality.js';
@@ -7,6 +8,8 @@
   import {featOptions,spellOptions} from './options.js';
   import {classFeaturesAt} from '../leveler-progression.js';
   import {wishlist,formatPrice} from '../builder/equipment.js';
+  import GrantsPanel from './GrantsPanel.svelte';
+  import {levelGrantRequirements,toggleGrantSelection,takenFormulas} from '../builder/grants.js';
   /** One planned level (2–20): every slot Leveler's schedule gives, editable inline. */
   let {level,slots,creation,plan,planner={},catalog,variants,updatePlan,info,currentLevel=1,onEquipment=()=>{}}=$props();
   const lookup=$derived(catalog.get);
@@ -35,16 +38,23 @@
   }
   function spellRoom(slot,rank){
     const a=slot.allowance;
-    const picks=P.planSpells(plan,level);
+    const picks=P.planSpells(plan,level,slot.entryType);
     const cantrips=picks.filter(s=>s.isCantrip).length;
     const ranked=picks.filter(s=>!s.isCantrip);
     if(rank===0)return a.cantrips-cantrips;
     if(a.any)return rank<=a.maxRank?a.any-ranked.length:0;
     return (a.ranks[rank]??0)-ranked.filter(s=>Number(s.rank)===rank).length;
   }
-  const repertoire=$derived(P.repertoire(creation,plan,level));
-  const learned=$derived(P.learnedSpellLevels(creation,plan));
   const wishes=$derived(wishlist(planner).filter(w=>w.targetLevel===level));
+  const grants=$derived(levelGrantRequirements(creation,plan,lookup,level));
+  function toggleGrant(requirement,item){
+    updatePlan(p=>{
+      const next=JSON.parse(JSON.stringify(p));
+      next.levels??={};
+      next.levels[level]=toggleGrantSelection(next.levels[level]??{},requirement,item);
+      return next;
+    });
+  }
 </script>
 <div class="level">
   {#if level>currentLevel}<p class="future muted">Planned. This becomes active when the character reaches level {level}.</p>{/if}
@@ -68,7 +78,8 @@
       {@const verdict=chosen?checkFeat(lookup(chosen.uuid)??chosen,state,{kind:slot.kind,featNames:names,currentUuid:chosen.uuid}):null}
       <section class="slot" class:open={open===slot.key} class:done={!!chosen}>
         <button class="head" aria-expanded={open===slot.key} onclick={()=>open=open===slot.key?null:slot.key}>
-          <span class="icon" aria-hidden="true">{slot.kind==='class'?'C':slot.kind==='skill'?'S':slot.kind==='general'?'G':slot.kind==='ancestry'?'A':slot.kind==='archetype'?'Ar':slot.kind==='mythic'?'M':'D'}</span>
+          {#if chosen&&(lookup(chosen.uuid)?.img??chosen.img)}<span class="icon pic" aria-hidden="true"><Icon src={lookup(chosen.uuid)?.img??chosen.img} size={30}/></span>
+          {:else}<span class="icon" aria-hidden="true">{slot.kind==='class'?'C':slot.kind==='skill'?'S':slot.kind==='general'?'G':slot.kind==='ancestry'?'A':slot.kind==='archetype'?'Ar':slot.kind==='mythic'?'M':'D'}</span>{/if}
           <span class="text"><span class="eyebrow">{slot.label}</span>
             <span class="value" class:unset={!chosen}>{chosen?.name??'Choose a feat'}</span>
             {#if verdict?.blocked}<small class="warn">⚠ {verdict.blocked}</small>{/if}</span>
@@ -125,7 +136,9 @@
         {/if}
       </section>
     {:else if slot.type==='spells'}
-      {@const picks=P.planSpells(plan,level)}
+      {@const picks=P.planSpells(plan,level,slot.entryType)}
+      {@const learned=P.learnedSpellLevels(creation,plan,slot.entryType)}
+      {@const entry={entryType:slot.entryType}}
       <section class="slot">
         <div class="head static"><span class="icon" aria-hidden="true">✧</span>
           <span class="text"><span class="eyebrow">{slot.label} · {picks.length}/{slot.allowance.total}</span>
@@ -139,19 +152,19 @@
                 <span aria-hidden="true">{open===rowKey?'▾':'▸'}</span> {label}{allowed!==null?` · ${here.length}/${allowed}`:''}</button>
               <span class="chips-row">
                 {#each here as s}<span class="spell-chip"><button class="link" onclick={()=>info(s.uuid)}>{s.name}</button>
-                  <button class="link x" aria-label={'Remove '+s.name} onclick={()=>updatePlan(p=>P.togglePlanSpell(p,level,s,{rank,cantrip:rank===0}))}>×</button></span>{/each}
+                  <button class="link x" aria-label={'Remove '+s.name} onclick={()=>updatePlan(p=>P.togglePlanSpell(p,level,s,{rank,cantrip:rank===0,...entry}))}>×</button></span>{/each}
                 {#if spellRoom(slot,rank)>0&&open!==rowKey}<button class="btn small" onclick={()=>open=rowKey}>+ Add</button>{/if}
               </span>
             </div>
             {#if open===rowKey}
-              <OptionGrid id={slot.key+'-'+rank} items={spellOptions(catalog,{cantrip:rank===0,tradition,rank})}
+              <OptionGrid id={slot.key+'-'+rank} items={spellOptions(catalog,{cantrip:rank===0,tradition:slot.tradition||tradition,rank})}
                 selected={here.map(s=>s.uuid)} max={99}
                 check={item=>{
                   // A spell already learned at another level can't be learned again.
                   const at=learned.get(item.uuid);
                   return at&&at!==level?{blocked:`Learned at level ${at}`,unknown:[]}:null;
                 }}
-                onToggle={item=>{if(here.some(s=>s.uuid===item.uuid)||spellRoom(slot,rank)>0)updatePlan(p=>P.togglePlanSpell(p,level,item,{rank,cantrip:rank===0}));}}
+                onToggle={item=>{if(here.some(s=>s.uuid===item.uuid)||spellRoom(slot,rank)>0)updatePlan(p=>P.togglePlanSpell(p,level,item,{rank,cantrip:rank===0,...entry}));}}
                 onInfo={item=>info(item.uuid)} placeholder={'Search '+label.toLowerCase()+' spells'}/>
             {/if}
           {/if}
@@ -160,17 +173,17 @@
     {:else if slot.type==='signature'}
       <section class="slot">
         <div class="head static"><span class="icon" aria-hidden="true">★</span>
-          <span class="text"><span class="eyebrow">Signature spells</span>
+          <span class="text"><span class="eyebrow">{slot.label}</span>
             <span class="muted small">One spell per rank from your repertoire; you can cast it at any higher rank you have slots for.</span></span></div>
         {#each slot.ranks as rank}
-          {@const chosen=P.planSignature(plan,level,rank)}
-          {@const options=repertoire.filter(s=>Number(s.rank)===rank)}
+          {@const chosen=P.planSignature(plan,level,rank,slot.entryType)}
+          {@const options=P.repertoire(creation,plan,level,slot.entryType).filter(s=>Number(s.rank)===rank)}
           <div class="spell-row">
             <span class="rank">Rank {rank}</span>
             <span class="chips-row">
               {#each options as s (s.uuid)}
                 <button class="sig" class:on={chosen?.uuid===s.uuid} aria-pressed={chosen?.uuid===s.uuid}
-                  onclick={()=>updatePlan(p=>P.setSignatureSpell(p,level,rank,chosen?.uuid===s.uuid?null:s))}>{s.name}</button>
+                  onclick={()=>updatePlan(p=>P.setSignatureSpell(p,level,rank,chosen?.uuid===s.uuid?null:s,slot.entryType))}>{s.name}</button>
               {:else}<span class="muted small">Learn a rank-{rank} spell first.</span>{/each}
             </span>
           </div>
@@ -181,8 +194,10 @@
         <span class="text"><span class="eyebrow">{slot.label}</span><span class="muted small">Applied automatically.</span></span></div></section>
     {/if}
   {:else}
-    <p class="empty">Nothing to choose at level {level}.</p>
+    {#if !grants.length}<p class="empty">Nothing to choose at level {level}.</p>{/if}
   {/each}
+  <GrantsPanel requirements={grants} store={plan?.levels?.[level]??{}} {catalog} {level}
+    taken={takenFormulas(creation,plan)} onToggle={toggleGrant} {info}/>
 </div>
 <style>
   .level{display:grid;gap:10px}
@@ -197,6 +212,7 @@
     background:none;border:0;padding:12px 14px;color:var(--text)}
   .head.static{grid-template-columns:32px minmax(0,1fr)}
   .icon{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--panel-2);font:700 .75rem var(--mono);color:var(--brass)}
+  .icon.pic{background:none;overflow:hidden}
   .done .icon{background:var(--brass-soft)}
   .text{display:grid;gap:2px;min-width:0}
   .value{font:800 1rem var(--display)}

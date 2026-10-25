@@ -411,3 +411,17 @@ spell defenses.
 
 **After updating the Bridge, run Sync Now once** so the website gets item prices and class
 proficiency features.
+
+### v0.12.0 — Icons, dual-class spells and formulas
+
+- **Icons**: Sync Now uploads the icons your world's compendiums use, and the website shows them on
+  options, level cards and the equipment plan. Icons are stored per world.
+- **Pull from Planner fixes Leveler's icons**: choices pulled into Foundry use this world's
+  compendium icons, so Leveler's wizard no longer shows broken images.
+- **Dual class casters**: a second spellcasting class gets its own level-1 spell step and its own
+  spells (and signature spells) at every level, stored the way Leveler stores them.
+- **Formulas and other granted picks**: alchemists choose their 4 Alchemical Crafting and 2 formula
+  book formulas at level 1 and 2 more each level; feats such as Alchemical Crafting ask for their
+  formulas at the level you take them. The rules follow Leveler's own feat-grant detection.
+
+**After updating the Bridge, run Sync Now once**: it uploads icons and the feat data formulas need.

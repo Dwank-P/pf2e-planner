@@ -6,6 +6,8 @@
   import LanguagesStep from './LanguagesStep.svelte';
   import SpellsStep from './SpellsStep.svelte';
   import ReviewStep from './ReviewStep.svelte';
+  import GrantsPanel from './GrantsPanel.svelte';
+  import {creationGrantRequirements,toggleGrantSelection,takenFormulas} from '../builder/grants.js';
   import * as C from '../builder/creation.js';
   import {taggedItems,heritagesFor,equipmentOptions} from './options.js';
   import {titleCase,ATTRIBUTES,SKILLS} from '../builder/rules.js';
@@ -156,10 +158,15 @@
     <SkillsStep {creation} lookup={catalog.get} {update}/>
   {:else if id==='feats'}
     <FeatsStep {creation} {plan} {catalog} {variants} {update} {info}/>
+  {:else if id==='grants'}
+    <p class="muted">Choices your class and feats grant. Leveler adds them to the character when you apply the wizard in Foundry.</p>
+    <div class="grants"><GrantsPanel requirements={creationGrantRequirements(creation,catalog.get)} store={creation} {catalog} level={1}
+      maxLevelCap={1} taken={takenFormulas(creation,plan)} {info}
+      onToggle={(requirement,item)=>update(c=>toggleGrantSelection(c,requirement,item))}/></div>
   {:else if id==='languages'}
     <LanguagesStep {creation} lookup={catalog.get} {variants} {update}/>
   {:else if id==='spells'}
-    <SpellsStep {creation} {plan} {catalog} {update} {info}/>
+    <SpellsStep {creation} {plan} {catalog} {update} {info} {target}/>
   {:else if id==='equipment'}
     <p class="muted">Optional: note starting gear. Leveler adds it to the actor when you apply the wizard in Foundry.</p>
     <OptionGrid id="equipment" items={equipmentOptions(catalog)} selected={(creation.equipment??[]).map(e=>e.uuid)} max={60}
@@ -177,4 +184,5 @@
   .choices button{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:12px 18px;font-weight:700}
   .choices button.on{border-color:var(--brass);background:var(--brass-soft);color:var(--text)}
   h3{font-size:1rem;margin-top:6px}
+  .grants{display:grid;gap:10px}
 </style>

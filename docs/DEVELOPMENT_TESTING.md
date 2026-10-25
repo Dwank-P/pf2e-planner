@@ -427,3 +427,13 @@ Update Docker and the Bridge to 0.9.0, then run **Sync Now** as GM.
 6. Equipment plan (bottom of the level list): filter by type, consumable/permanent, level range;
    sort by level/price/name; add at a level; the level's page lists what you planned for it.
    Prices need Sync Now with Bridge 0.11.
+
+## W. v0.12.0 — Icons, dual-class spells, formulas
+
+1. Sync Now with Bridge 0.12: the success toast mentions icons; options and level cards show them.
+2. Pull a build into an actor and open Leveler's wizard: ancestry, heritage etc. show their icons.
+3. With Leveler's dual class on, Alchemist + Wizard: level 1 has *Formulas* (4 + 2) and
+   *Spells (Wizard)*; level 2 has *Wizard spells* and *Formula Book · Formulas 0/2*.
+   Locally: `DEV_DUAL_CLASS=1 DB_PATH=./data/dev.sqlite node scripts/seed-dev.mjs`.
+4. Take Alchemical Crafting as a skill feat: that level asks for four formulas.
+5. Pull into Foundry and level up: Leveler adds the chosen formulas to the formula book.

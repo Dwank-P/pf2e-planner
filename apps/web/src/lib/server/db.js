@@ -95,6 +95,11 @@ export function db() {
       item_json TEXT NOT NULL, PRIMARY KEY(integration_id,snapshot_id,uuid)
     );
     CREATE INDEX IF NOT EXISTS idx_catalog_query ON catalog_entries(integration_id,snapshot_id,type,level,rarity,pack,name);
+    CREATE TABLE IF NOT EXISTS catalog_icons (
+      integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
+      path TEXT NOT NULL, sha256 TEXT NOT NULL, content_type TEXT NOT NULL, bytes BLOB NOT NULL,
+      updated_at INTEGER NOT NULL, PRIMARY KEY(integration_id,path)
+    );
     CREATE TABLE IF NOT EXISTS character_builds (
       id TEXT PRIMARY KEY,
       campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,

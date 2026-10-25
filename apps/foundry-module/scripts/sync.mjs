@@ -193,6 +193,7 @@ function exportItem(doc,pack){
   const system=doc.system||{};
   const out={
     uuid:doc.uuid,name:String(doc.name||''),type,
+    img:typeof doc.img==='string'?doc.img.slice(0,300):null,
     slug:system.slug||null,
     level:type==='class'?1:(system.level?.value??null),
     rarity:system.traits?.rarity||'common',
@@ -241,6 +242,10 @@ function exportItem(doc,pack){
     out.actions=system.actions?.value??null;
     out.prerequisites=Array.isArray(system.prerequisites?.value)?
       system.prerequisites.value.map(p=>p.value||'').filter(Boolean):[];
+    // Fixed items this feat grants; Leveler checks them for formula/spell choices too.
+    const grants=(system.rules||[]).filter(r=>r?.key==='GrantItem'&&typeof r.uuid==='string'&&!r.uuid.includes('{'))
+      .slice(0,10).map(r=>({uuid:r.uuid.slice(0,200),...(r.predicate?{predicate:r.predicate}:{})}));
+    if(grants.length&&JSON.stringify(grants).length<4000)out.grantItems=grants;
     if(system.category==='ancestry'){
       // Same ancestry/creature trait classification used by Leveler's
       // feat-filter, including third-party traits registered with the system.
@@ -387,8 +392,9 @@ export async function syncNow({auto=false}={}){
        JSON.stringify(last.sources)===JSON.stringify(sources)&&
        JSON.stringify(last.variants)===JSON.stringify(variants)&&
        JSON.stringify(last.packs)===JSON.stringify(packs)){
-      notify('success','Up to date ('+entries.length.toLocaleString()+' items).');
-      return {skipped:'unchanged',reused:entries.length,uploaded:0};
+      const icons=await syncIcons(base,id);
+      notify('success','Up to date ('+entries.length.toLocaleString()+' items'+iconNote(icons)+').');
+      return {skipped:'unchanged',reused:entries.length,uploaded:0,icons};
     }
     const started=await post(base,'/api/v1/bridge/'+id+'/catalog-import/start',
       {packs,variants,sourceVersions:sources,expectedCount:entries.length,
@@ -404,10 +410,47 @@ export async function syncNow({auto=false}={}){
     }
     const result=await post(base,'/api/v1/bridge/'+id+'/catalog-import/commit',
       {snapshotId:started.snapshotId},auth.accessToken);
+    const icons=await syncIcons(base,id);
     notify('success','Synced '+result.accepted.toLocaleString()+' items ('+
-      changed.length.toLocaleString()+' updated).');
-    return {...result,uploaded:changed.length,reused:started.reused||0,bannedSkipped};
+      changed.length.toLocaleString()+' updated'+iconNote(icons)+').');
+    return {...result,uploaded:changed.length,reused:started.reused||0,bannedSkipped,icons};
   }finally{syncing=false;}
+}
+const iconNote=icons=>icons?.uploaded?', '+icons.uploaded.toLocaleString()+' icons':'';
+const toBase64=bytes=>{
+  let binary='';
+  for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+  return btoa(binary);
+};
+/**
+ * Upload the icons this world's catalog uses that the website doesn't have yet,
+ * read from this Foundry server. Icons are kept per world on the website.
+ */
+async function syncIcons(base,id){
+  let {auth}=await authorized();
+  const {missing=[]}=await post(base,'/api/v1/bridge/'+id+'/icons/missing',{},auth.accessToken);
+  let uploaded=0,failed=0,batch=[],size=0;
+  const flush=async()=>{
+    if(!batch.length)return;
+    if(auth.accessExpiresAt<Math.floor(Date.now()/1000)+120)auth=(await authorized()).auth;
+    const result=await post(base,'/api/v1/bridge/'+id+'/icons/batch',{icons:batch},auth.accessToken);
+    uploaded+=result.stored||0;failed+=(result.rejected||[]).length;
+    batch=[];size=0;
+  };
+  for(const path of missing){
+    try{
+      const response=await fetch(foundry.utils.getRoute(path),{cache:'force-cache'});
+      if(!response.ok){failed++;continue;}
+      const bytes=new Uint8Array(await response.arrayBuffer());
+      if(!bytes.length||bytes.length>262144){failed++;continue;}
+      const data=toBase64(bytes);
+      if(size+data.length>380000)await flush();
+      batch.push({path,data});size+=data.length;
+    }catch{failed++;}
+  }
+  await flush();
+  if(failed)console.warn('[PF2e Planner Bridge]',failed,'icons could not be uploaded');
+  return {uploaded,failed,missing:missing.length};
 }
 export async function openPairingDialog(){
   requireGM();
@@ -557,8 +600,11 @@ const LEVELER='pf2e-leveler';
 const plain=value=>value==null?null:JSON.parse(JSON.stringify(value));
 /** Leveler's own documents: an open window's unsaved data wins over actor flags. */
 function levelerDocuments(actor,plan=null,creation=null){
-  return {plan:plain(plan??actor.getFlag(LEVELER,'plan')),
+  const out={plan:plain(plan??actor.getFlag(LEVELER,'plan')),
     creation:plain(creation??actor.getFlag(LEVELER,'creation'))};
+  // The website keys class formula grants by 'class:<slug>', not the actor's item.
+  bindClassGrants(actor,out.plan,true);
+  return out;
 }
 export async function listPlannerCharacters(){
   requireGM();
@@ -588,6 +634,38 @@ function pullWarnings(actor,{plan,creation}){
   if(!creation?.class&&!creation?.ancestry)warnings.push('The website build has no creation choices.');
   return warnings;
 }
+/** Set img (and a missing name) on every compendium reference from the world's index. */
+function fillIcons(value,depth=0){
+  if(!value||typeof value!=='object'||depth>12)return;
+  if(Array.isArray(value)){for(const entry of value)fillIcons(entry,depth+1);return;}
+  if(typeof value.uuid==='string'&&value.uuid.startsWith('Compendium.')){
+    let found=null;
+    try{found=fromUuidSync(value.uuid,{strict:false});}catch{}
+    if(found?.img)value.img=found.img;
+    if(!value.name&&found?.name)value.name=found.name;
+  }
+  for(const entry of Object.values(value))if(entry&&typeof entry==='object')fillIcons(entry,depth+1);
+}
+/**
+ * The website keys class formula grants as 'class:<slug>' (Leveler's planner does
+ * the same until the class is on the actor); Leveler's planner then uses the
+ * actor's class item uuid, so rewrite them to match once it exists.
+ */
+function bindClassGrants(actor,plan,unbind=false){
+  const slug=String(plan?.classSlug??'').toLowerCase();
+  const classUuid=actor?.class?.uuid;
+  if(!slug||!classUuid||String(actor.class.slug??'').toLowerCase()!==slug)return;
+  let from='class:'+slug,to=classUuid;
+  if(unbind)[from,to]=[to,from];
+  const swap=value=>value===from?to:value;
+  for(const data of Object.values(plan.levels??{})){
+    for(const grant of data?.featGrants??[]){
+      if(typeof grant?.requirementId==='string'&&grant.requirementId.startsWith(from+':'))
+        grant.requirementId=to+grant.requirementId.slice(from.length);
+      if(grant)grant.sourceFeatUuid=swap(grant.sourceFeatUuid);
+    }
+  }
+}
 /**
  * Replace this actor's Leveler plan (and optionally creation) flags with a
  * website build and link them. Leveler applies plan levels on level-up as usual.
@@ -599,6 +677,9 @@ export async function pullCharacterFromPlanner(actor,characterId,{writeCreation=
   const result=await post(base,'/api/v1/bridge/'+id+'/characters/export',
     {characterId,actorId:actor.id,link:true,relink},auth.accessToken);
   const {plan,creation}=result.leveler;
+  // Leveler shows each choice's stored icon; use this world's compendium icons.
+  fillIcons(plan);fillIcons(creation);
+  bindClassGrants(actor,plan);
   // unsetFlag first: setFlag merges objects, which would keep removed levels.
   if(plan){
     await actor.unsetFlag(LEVELER,'plan');

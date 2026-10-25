@@ -19,7 +19,7 @@ function bridgeCors(event) {
   const origin = event.request.headers.get('origin');
   if (!origin || !candidateOrigin(origin)) return null;
   if (path === '/api/v1/bridge/pair' || path === '/api/v1/bridge/status') return origin;
-  const id = /^\/api\/v1\/bridge\/([a-f0-9-]{36})\/(refresh|catalog-preview|authorize|catalog-import\/(?:start|batch|commit|status)|characters\/(?:import|owners|list|export))$/.exec(path)?.[1];
+  const id = /^\/api\/v1\/bridge\/([a-f0-9-]{36})\/(refresh|catalog-preview|authorize|catalog-import\/(?:start|batch|commit|status)|icons\/(?:missing|batch)|characters\/(?:import|owners|list|export))$/.exec(path)?.[1];
   if (!id) return null;
   const row = db().prepare('SELECT foundry_origin, revoked_at FROM integrations WHERE id=?').get(id);
   return row && !row.revoked_at && row.foundry_origin === origin ? origin : null;
@@ -47,7 +47,9 @@ export async function handle({ event, resolve }) {
     return new Response('Origin required', { status: 403 });
   }
   const response = await resolve(event);
-  response.headers.set('cache-control', 'no-store');
+  // Item icons carry their own private cache headers.
+  if (!/^\/api\/v1\/campaigns\/[^/]+\/icons\//.test(path) || !response.ok)
+    response.headers.set('cache-control', 'no-store');
   response.headers.set('x-content-type-options', 'nosniff');
   response.headers.set('referrer-policy', 'no-referrer');
   if (isBridge && cors) {

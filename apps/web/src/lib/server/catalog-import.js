@@ -8,7 +8,7 @@ export function verifyEntry(entry) {
   if (!verifyCatalogItem(entry)) problem(400, 'invalid_catalog_entry');
   const metadata={};
   for(const [key,value] of Object.entries(entry)){
-    if(!['uuid','name','type','description','traits'].includes(key))metadata[key]=value;
+    if(!['uuid','name','type','description','traits','img'].includes(key))metadata[key]=value;
   }
   const plain=JSON.stringify(metadata);
   if(plain.length>50000)problem(413,'oversized_catalog_metadata');
@@ -19,10 +19,17 @@ export function verifyEntry(entry) {
     level:Number.isInteger(entry.level)&&entry.level>=0&&entry.level<=30?entry.level:null,
     rarity:typeof entry.rarity==='string'?entry.rarity.slice(0,32):null,
     traits:Array.isArray(entry.traits)?entry.traits.filter(t=>typeof t==='string').slice(0,60):[],
+    img:iconPath(entry.img),
     description:sanitizeDescription(entry.description),
     pack:entry.uuid.split('.').slice(1,3).join('.'),
     metadata
   };
+}
+
+/** A Foundry-relative image path (icons are uploaded per world), or null. */
+export const ICON_PATH=/^(?!.*\.\.)(?!\/)[\w\-./%() ']{1,300}\.(webp|png|jpe?g|gif|svg|avif)$/i;
+export function iconPath(value){
+  return typeof value==='string'&&ICON_PATH.test(value)&&!/^[a-z]+:/i.test(value)?value:null;
 }
 
 export function readPublished(campaignId) {

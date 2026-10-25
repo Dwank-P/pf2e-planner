@@ -7,6 +7,7 @@
  */
 import {boostSources,skillTraining,languageAllowance,attributeModifiers} from './rules.js';
 import {spellAllowance} from '../leveler-progression.js';
+import {creationGrantRequirements,grantSelections} from './grants.js';
 
 /** Leveler 3.12 handler steps, for catalogs synced before creationSteps was exported. */
 const FALLBACK_CLASS_STEPS={cleric:['deity','sanctification','divineFont'],champion:['deity','sanctification'],
@@ -68,9 +69,9 @@ const FEAT_FIELD={ancestry:'ancestryFeat',paragon:'ancestryParagonFeat',class:'c
   dualClass:'dualClassFeat',skill:'skillFeat',mythic:'mythicCalling'};
 export const featField=slot=>FEAT_FIELD[slot];
 
-/** Level-1 spell picks for the primary class, following Leveler's counts. */
-export function level1Spells(creation,lookup){
-  const allowance=spellAllowance(progressionOf(lookup(creation?.class?.uuid)),1);
+/** Level-1 spell picks for the class (or dual class), following Leveler's counts. */
+export function level1Spells(creation,lookup,target='class'){
+  const allowance=spellAllowance(progressionOf(lookup(creation?.[target]?.uuid)),1);
   if(!allowance)return null;
   return {cantrips:allowance.cantrips,rank1:allowance.ranks[1]??0,granted:allowance.granted??0};
 }
@@ -115,10 +116,18 @@ export function creationSteps(creation,lookup,variants={}){
   add('skills','Skills',c.class&&skills.chosen.length>=skills.choices);
   const feats=level1FeatSlots(c,lookup,variants);
   add('feats','Feats',feats.every(f=>c[featField(f.slot)]));
+  // Leveler's "feat choices": formulas, items and spells feats or the class let you pick.
+  const grants=creationGrantRequirements(c,lookup);
+  if(grants.length)add('grants',grants.every(r=>r.kind==='formula')?'Formulas':'Feat choices',
+    grants.every(r=>r.count==null||grantSelections(c,r).length>=r.count));
   const languages=languageAllowance(c,lookup,mods.int);
   if(c.ancestry)add('languages','Languages',(c.languages?.length??0)>=languages.count||!languages.count);
+  // A dual class casts from its own entry: Leveler's creation.dualSpells.
   const spells=level1Spells(c,lookup);
-  if(spells)add('spells','Spells',(c.spells?.cantrips?.length??0)>=spells.cantrips&&(c.spells?.rank1?.length??0)>=spells.rank1);
+  const dualSpells=variants.dualClass===true&&c.dualClass?level1Spells(c,lookup,'dualClass'):null;
+  const spellsDone=(store,n)=>(store?.cantrips?.length??0)>=n.cantrips&&(store?.rank1?.length??0)>=n.rank1;
+  if(spells)add('spells',dualSpells?'Spells ('+c.class.name+')':'Spells',spellsDone(c.spells,spells),{target:'class',stepId:'spells'});
+  if(dualSpells)add('spells-dual','Spells ('+c.dualClass.name+')',spellsDone(c.dualSpells,dualSpells),{target:'dualClass',stepId:'spells'});
   add('equipment','Equipment',true,{optional:true});
   add('review','Review',steps.every(s=>s.complete));
   return steps;

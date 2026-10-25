@@ -1,5 +1,6 @@
 <script>
   import Traits from '../ui/Traits.svelte';
+  import Icon from '../ui/Icon.svelte';
   import {itemOptions,priceGp,formatPrice,isConsumable,TYPE_LABELS,wishlist,wishesByLevel,addWish,updateWish,removeWish}
     from '../builder/equipment.js';
   /** Equipment plan: browse synced items, then park them on the level you want them at. */
@@ -82,7 +83,7 @@
       <div class="row head" role="row"><span>Item</span><span>Level</span><span>Price</span><span>Type</span><span></span></div>
       {#each shown.slice(0,LIMIT) as item (item.uuid)}
         <div class="row" role="row">
-          <span class="item"><button class="link name" onclick={()=>info(item.uuid)}>{item.name}</button>
+          <span class="item"><Icon src={item.img} size={24}/><button class="link name" onclick={()=>info(item.uuid)}>{item.name}</button>
             <Traits traits={item.traits??[]} rarity={item.rarity} max={3}/></span>
           <span class="num">{item.level??0}</span>
           <span class="num">{formatPrice(priceGp(item))}</span>

@@ -188,12 +188,12 @@ function subclassEntry(item){
   return {...minimalItem(item),tradition:null,spellUuids:[],grantedSkills:[],grantedLores:[],
     choiceSets:[],choices:{},choiceCurricula:{},curriculum:null};
 }
-export function spellEntry(item,rank,isCantrip){
+export function spellEntry(item,rank,isCantrip,entryType='primary'){
   const traits=[...(Array.isArray(item.traits)?item.traits:[]),
     ...(Array.isArray(item.metadata?.spellTraditions)?item.metadata.spellTraditions:[])];
   return {...minimalItem(item),rank:isCantrip?0:rank,
     baseRank:Number(item.metadata?.spellRank??item.level??rank)||rank,
-    isCantrip,entryType:'primary',traits};
+    isCantrip,entryType,traits};
 }
 /** First character level whose spell slots include `rank`; default odd-level casting. */
 function levelForRank(rank,spellSlots){

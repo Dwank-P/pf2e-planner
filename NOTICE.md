@@ -12,6 +12,8 @@ Parts of this project follow, port or call the logic of
   (`scripts/creation/class-handlers/*`, `scripts/constants.js`) used as fallbacks.
 - `apps/web/src/lib/leveler-progression.js`: per-level spell learning counts
   (`scripts/ui/level-planner/spells.js`, class handler `getSpellbookCounts`).
+- `apps/web/src/lib/builder/leveler-feat-grants.js`: a port of `scripts/plan/feat-grants.js`
+  (formula, item and spell choices granted by feats and classes), adapted to the synced catalog.
 - `apps/foundry-module/scripts/leveler-adapter.mjs` imports the installed Leveler's
   own modules at runtime inside Foundry; no Leveler code ships with the Bridge.
 

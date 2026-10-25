@@ -235,3 +235,11 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Level 1 as step cards like levels 2–20; summary at the character's current level with saves and skills.
 - [x] Spells can't be learned twice across levels.
 - [ ] Push bought items to the Foundry actor inventory.
+
+## v0.12.0 icons, dual-class spells, formulas
+- [x] Item icons uploaded per world by the Bridge; served to campaign members.
+- [x] Pull fills Leveler choice icons from the world's compendium index.
+- [x] Dual-class spell entries (creation.dualSpells, plan entryType class:<slug>).
+- [x] Leveler feat grants (formulas/items/spells) at level 1 and planned levels.
+- [ ] Subclass and feat ChoiceSets (Leveler's subclassChoices/featChoices); Foundry prompts for them on apply today.
+- [ ] Grants from background-granted feats (Leveler grantedFeatSections).
