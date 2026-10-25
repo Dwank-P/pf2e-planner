@@ -35,7 +35,7 @@
     gradualAbilityBoosts:'Gradual Ability Boosts',automaticBonusProgression:'Automatic Bonus Progression',
     proficiencyWithoutLevel:'Proficiency Without Level',mythic:'Mythic',stamina:'Stamina',
     ignoreArchetypeDedicationLock:'Ignore dedication lock',enforcePrerequisites:'Enforce prerequisites'};
-  const inviteText=$derived(invite?`You're invited to plan characters for ${ctx?.campaign.title} in PF2e Planner.\n\nGo to ${invite.joinUrl} and enter this code:\n${invite.inviteCode}\n\nThe code expires in 24 hours.`:'');
+  const inviteText=$derived(invite?`You're invited to plan characters for ${ctx?.campaign.title} in PF2e Planner.\n\nOpen this link to create your account:\n${invite.joinUrl}\n\nIt works once and expires in 24 hours.`:'');
 
   async function run(work){busy=true;error='';notice='';try{await work();}catch(e){error=e.message;}finally{busy=false;}}
   const invitePlayer=()=>run(async()=>{invite=await api(base+'/members',{method:'POST',body:{}});members=(await api(base+'/members')).members;});
@@ -168,7 +168,8 @@
         <div class="invite">
           <p class="muted">Send this to the player privately. It is shown once.</p>
           <textarea readonly rows="7" onfocus={e=>e.currentTarget.select()}>{inviteText}</textarea>
-          <div class="row"><button class="btn" onclick={()=>copy(inviteText,'Invitation')}>{copied==='Invitation'?'Copied':'Copy invitation'}</button></div>
+          <div class="row"><button class="btn" onclick={()=>copy(inviteText,'Invitation')}>{copied==='Invitation'?'Copied':'Copy invitation'}</button>
+            <button class="btn ghost" onclick={()=>copy(invite.joinUrl,'Link')}>{copied==='Link'?'Copied':'Copy link only'}</button></div>
         </div>
       {/if}
       <ul class="members">

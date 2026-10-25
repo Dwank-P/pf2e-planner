@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.15\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.15\.1/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.15.0');
+    assert.equal(health.body.version,'0.15.1');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.15.0');
+    assert.equal(check.body.version,'0.15.1');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -95,6 +95,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       {},ownerCookie);
     assert.equal(newPlayer.status,201,JSON.stringify(newPlayer));
     assert.ok(newPlayer.body.inviteCode && newPlayer.body.inviteCode.length>=40);
+    assert.ok(newPlayer.body.joinUrl.endsWith('/join?'+newPlayer.body.inviteCode),'The invitation is a link with the code');
 
     // Validation must not consume an invitation or require username/password.
     const invalidCode=await send('/api/v1/join/validate',{code:'invalid-code'});

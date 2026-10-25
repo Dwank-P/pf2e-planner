@@ -32,5 +32,6 @@ export async function POST(event) {
       .run(inviteId,userId,digest(code),expiresAt,actor.id);
   });
   // Sensitive: one-time display, never log / return from any read endpoint.
-  return respond({userId,inviteCode:code,joinUrl:(process.env.PUBLIC_ORIGIN||'http://localhost:5173')+'/join',expiresAt},201);
+  return respond({userId,inviteCode:code,// The link carries the code: /join?CODE opens straight to account creation.
+    joinUrl:(process.env.PUBLIC_ORIGIN||event.url.origin)+'/join?'+code,expiresAt},201);
 }

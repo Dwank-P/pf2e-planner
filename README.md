@@ -505,3 +505,9 @@ Website only; the Bridge stays at 0.14.1.
 - **Delete characters**: the character page has *Delete* for its owner and GMs.
 - **+ Add a world** at the bottom of the campaign menu pairs a new Foundry world as a new campaign;
   campaign settings' code is for connecting another browser or address to that world.
+
+### v0.15.1 — Player invitations are links
+
+- A one-player invitation is now a link, `https://your-site/join?CODE`. Opening it checks the code
+  and goes straight to creating the account (the code is then removed from the address bar).
+  Pasting a code on `/join` still works.

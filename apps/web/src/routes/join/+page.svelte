@@ -1,4 +1,5 @@
 <script>
+  import {onMount} from 'svelte';
   import ThemePicker from '../../lib/ThemePicker.svelte';
   let step = $state('code');
   let code = $state('');
@@ -25,8 +26,19 @@
     return result;
   }
 
+  // Invitation links are /join?CODE (or ?code=CODE): check the code straight away and
+  // drop it from the address bar so it isn't left in history.
+  onMount(() => {
+    const params = new URLSearchParams(location.search);
+    const fromLink = (params.get('code') ?? location.search.slice(1)).trim();
+    if (!/^[A-Za-z0-9_-]{40,70}$/.test(fromLink)) return;
+    history.replaceState(null, '', location.pathname);
+    code = fromLink;
+    validateCode();
+  });
+
   async function validateCode(event) {
-    event.preventDefault();
+    event?.preventDefault();
     errorText = ''; busy = true;
     try {
       code = code.trim();
