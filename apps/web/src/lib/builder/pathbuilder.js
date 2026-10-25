@@ -9,7 +9,7 @@ import {emptyCreation} from '../leveler-format.js';
 import {levelerChoiceSlots,spellAllowance} from '../leveler-progression.js';
 import * as C from './creation.js';
 import * as P from './plan.js';
-import {skillTraining,attributeModifiers,SKILLS,ATTRIBUTES} from './rules.js';
+import {skillTraining,attributeModifiers,SKILLS,ATTRIBUTES,loreName} from './rules.js';
 import {maxSkillRank} from './legality.js';
 import {addWish,itemOptions} from './equipment.js';
 
@@ -108,9 +108,14 @@ export function importPathbuilder(json,catalog,variants={}){
   const free=[...wanted.keys()].filter(s=>SKILLS.includes(s)&&!training.granted.has(s))
     .sort((a,b)=>wanted.get(b)-wanted.get(a)||a.localeCompare(b));
   c={...c,skills:free.slice(0,training.choices)};
+  // Extra lores share the level-1 skill picks; any beyond them came from feats (Additional Lore).
   const backgroundLores=new Set(training.lores.map(loreSlug));
-  const loreNames=(Array.isArray(build.lores)?build.lores:[]).map(([name])=>String(name).replace(/\s+lore$/i,'')+' Lore');
-  c={...c,selectedLoreSkills:loreNames.filter(n=>!backgroundLores.has(loreSlug(n)))};
+  const loreNames=(Array.isArray(build.lores)?build.lores:[]).map(([name])=>loreName(name))
+    .filter(n=>n&&!backgroundLores.has(loreSlug(n)));
+  const loreRoom=Math.max(0,training.choices-c.skills.length);
+  c={...c,selectedLoreSkills:loreNames.slice(0,loreRoom)};
+  for(const name of loreNames.slice(loreRoom))
+    report.notes.push(`${name} probably comes from a feat such as Additional Lore; Leveler asks for it in Foundry.`);
   c={...c,languages:(Array.isArray(build.languages)?build.languages:[]).map(l=>nameKey(l).replace(/ /g,'-')).filter(Boolean)
     .filter(l=>l!=='none'&&l!=='none selected')};
 

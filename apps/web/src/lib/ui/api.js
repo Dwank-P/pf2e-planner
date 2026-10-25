@@ -27,6 +27,8 @@ const MESSAGES={
   member_not_found:'That person isn’t in this campaign any more.',
   invalid_or_expired_code:'That code is invalid or has expired. Ask for a new one.',
   current_password_incorrect:'Your current password isn’t right.',
+  invalid_invite_duration:'Choose how long the link lasts: up to 8760 hours, 3650 days, 120 months or 10 years, or never expiring.',
+  invite_link_not_found:'That invite link is already turned off.',
   invalid_name:'Display names need 1 to 80 characters.',
   user_not_found:'That account no longer exists.',
   unknown_storage_action:'Unknown maintenance action.',

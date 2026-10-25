@@ -51,10 +51,18 @@
     notice=result.deletedInvitation?'Invitation cancelled.':`${m.displayName} removed from ${ctx.campaign.title}.`;
     confirming=null;members=(await api(base+'/members')).members;
   });
-  const deleteAccount=m=>run(async()=>{
-    await api('/api/v1/users/'+encodeURIComponent(m.id),{method:'DELETE'});
-    notice=`${m.displayName}’s account was deleted. Their characters are now yours.`;
-    confirming=null;members=(await api(base+'/members')).members;
+  // Reusable invite links (default 24 hours; days, months, years or never).
+  let links=$state([]);
+  let linkUnit=$state('hours');
+  let linkAmount=$state(24);
+  $effect(()=>{if(ctx)api(base+'/invite-links').then(r=>links=r.links).catch(()=>{});});
+  const createLink=event=>{event.preventDefault();run(async()=>{
+    const r=await api(base+'/invite-links',{method:'POST',body:{duration:{unit:linkUnit,amount:Number(linkAmount)}}});
+    links=[r.link,...links];await copy(r.link.url,r.link.id);notice='Invite link created and copied. Share it with your group.';
+  });};
+  const revokeLink=l=>run(async()=>{
+    await api(base+'/invite-links/'+encodeURIComponent(l.id),{method:'DELETE'});
+    links=links.filter(x=>x.id!==l.id);notice='Invite link turned off. People who already joined keep access.';
   });
   // Foundry addresses (domains) this world is opened from; pairing from a new one adds it.
   let origins=$state([]);
@@ -129,6 +137,30 @@
     </section>
 
     <section class="panel block">
+      <div class="block-head"><h2>Invite links</h2></div>
+      <p class="muted">One link for the whole group: anyone with it can create an account, or add the one they have, and join as a player.</p>
+      <form class="link-form" onsubmit={createLink}>
+        <label class="field" for="link-length">Works for
+          <span class="row">
+            {#if linkUnit!=='never'}<input id="link-length" type="number" min="1" max="8760" bind:value={linkAmount} aria-label="How long"/>{/if}
+            <select bind:value={linkUnit} aria-label="Unit" onchange={()=>linkAmount=linkUnit==='hours'?24:1}>
+              <option value="hours">hours</option><option value="days">days</option><option value="months">months</option>
+              <option value="years">years</option><option value="never">Never expires</option></select>
+            <button class="btn primary" disabled={busy}>Create link</button></span></label>
+      </form>
+      {#if links.length}
+        <ul class="links">
+          {#each links as l (l.id)}
+            <li><code>{l.url}</code>
+              <small class="muted">{l.expiresAt?'Until '+new Date(l.expiresAt*1000).toLocaleString():'Never expires'} · {l.uses} joined</small>
+              <span class="row"><button class="btn small" onclick={()=>copy(l.url,l.id)}>{copied===l.id?'Copied':'Copy link'}</button>
+                <button class="btn small ghost danger" disabled={busy} onclick={()=>revokeLink(l)}>Turn off</button></span></li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+
+    <section class="panel block">
       <div class="block-head"><h2>Players</h2><button class="btn primary" disabled={busy} onclick={invitePlayer}>Invite a player</button></div>
       {#if invite}
         <div class="invite">
@@ -146,17 +178,13 @@
             {#if m.id!==ctx.me.id}
               {#if confirming?.id===m.id}
                 <span class="confirm">
-                  <span class="small">{confirming.mode==='delete'?'Delete this account everywhere? Their characters move to you.':
-                    m.status==='pending'?'Cancel this invitation?':'Remove from this campaign? Their characters stay.'}</span>
+                  <span class="small">{m.status==='pending'?'Cancel this invitation?':'Remove from this campaign? Their account and characters stay.'}</span>
                   <button class="btn small" onclick={()=>confirming=null}>Keep</button>
-                  <button class="btn small danger" disabled={busy} onclick={()=>confirming.mode==='delete'?deleteAccount(m):removeMember(m)}>
-                    {confirming.mode==='delete'?'Delete account':m.status==='pending'?'Cancel invite':'Remove'}</button>
+                  <button class="btn small danger" disabled={busy} onclick={()=>removeMember(m)}>
+                    {m.status==='pending'?'Cancel invite':'Remove'}</button>
                 </span>
               {:else}
-                <button class="btn small ghost" onclick={()=>confirming={id:m.id,mode:'remove'}}>{m.status==='pending'?'Cancel invite':'Remove'}</button>
-                {#if ctx.me.siteRole==='owner'&&m.status!=='pending'}
-                  <button class="btn small ghost danger" onclick={()=>confirming={id:m.id,mode:'delete'}}>Delete account</button>
-                {/if}
+                <button class="btn small ghost" onclick={()=>confirming={id:m.id}}>{m.status==='pending'?'Cancel invite':'Remove'}</button>
               {/if}
             {/if}</li>
         {/each}
@@ -194,6 +222,12 @@
   dt{color:var(--muted);font-size:.8rem}dd{margin:2px 0 0;font-weight:700}
   .sub{display:grid;gap:8px}
   summary{cursor:pointer;font-weight:700}
+  .link-form .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .link-form input[type=number]{width:6em}
+  .links{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+  .links li{display:grid;gap:4px;border-top:1px solid var(--line);padding-top:10px}
+  .links code{overflow-wrap:anywhere;font-size:.85rem}
+  .links .row{display:flex;gap:8px}
   .origins{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
   .origins li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:.9rem}
   .origins .num{overflow-wrap:anywhere}

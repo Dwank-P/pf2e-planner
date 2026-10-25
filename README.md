@@ -458,3 +458,26 @@ After a large catalog sync the website folds the write-ahead log back into the d
 automatically (once it passes 32 MB) and caps it at 64 MB after checkpoints. *Compact* rebuilds the
 file to return free pages to the disk; it needs about the database's size again in free space and
 pauses saving while it runs, so back up the data folder first and run it when nobody is syncing.
+
+### v0.14.0 — Group invite links, shared icons, skills and lores
+
+- **Group invite links**: Campaign settings → *Invite links* makes one link for the whole group.
+  It lasts 24 hours by default, or the hours, days, months or years you choose, or never expires;
+  turn it off any time. People with it create an account, or sign in with theirs, and join as players.
+- **Icons are stored once**: identical images are shared between worlds (each world still has its
+  own list and only its members can load them). Sync Now reads and hashes icons in Foundry and only
+  uploads images the website doesn't have yet, so a second world's first sync is much faster.
+  Existing icons are merged automatically on upgrade.
+- **Skills step fixed for dual class**: both classes' trained skills count, the larger class pick
+  count applies, a background skill your class already trains gives an extra pick, and earlier picks
+  that became automatic no longer block the last pick. Skills you choose, lores and automatic
+  training are shown separately.
+- **Lores**: add extra lores (they use a skill pick, as in Leveler); lore skill increases appear
+  in level-ups.
+- **Summary** shows your ancestry and class icons and names classes with their specialization
+  ("Enigma Bard"). Level-up feat slots show where they come from: the class, second class or
+  ancestry icon, and "Bard feat" / "Barbarian feat" with two classes.
+- **Server admin** can delete accounts. In campaign settings, *Remove* only takes someone out of
+  that campaign.
+
+**Update the Bridge to 0.14.0** for the faster icon sync (0.12 still works).

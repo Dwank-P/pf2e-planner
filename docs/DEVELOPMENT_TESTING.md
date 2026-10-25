@@ -448,3 +448,12 @@ Update Docker and the Bridge to 0.9.0, then run **Sync Now** as GM.
 4. Server admin → Reset password for a user, open the link in a private window, set a password.
 5. Server admin → storage figures; Checkpoint WAL shrinks the WAL; Clean up lists what it removed.
 6. Party → Import from Pathbuilder with a real JSON ID; open the character and compare.
+
+## Y. v0.14.0 — Invite links, shared icons, skills
+
+1. Campaign settings → Invite links → create (24 hours, 2 months, never); open it in a private
+   window, create an account; sign in as an existing user and join from the same link.
+2. Pair a second world and Sync Now: the toast says most icons were already on the website.
+3. Dual-class Bard + Barbarian with a background that repeats a class skill: all 7 picks selectable.
+4. Add an extra lore in Skills; it shows in the summary and can be raised at a skill increase.
+5. Server admin → Delete an account; Campaign settings → Remove only drops campaign access.

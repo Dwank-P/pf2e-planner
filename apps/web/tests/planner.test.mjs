@@ -7,7 +7,7 @@ import * as P from '../src/lib/builder/plan.js';
 import {buildState,checkFeat,featNameIndex,skillRanks,maxSkillRank,takenFeats} from '../src/lib/builder/legality.js';
 import {featOptions} from '../src/lib/wizard/options.js';
 import {levelerChoiceSlots} from '../src/lib/leveler-progression.js';
-import {proficienciesAt,proficiencyBonus} from '../src/lib/builder/rules.js';
+import {proficienciesAt,proficiencyBonus,skillTraining,loreName} from '../src/lib/builder/rules.js';
 import * as E from '../src/lib/builder/equipment.js';
 import * as G from '../src/lib/builder/grants.js';
 import {creationSteps} from '../src/lib/builder/schema.js';
@@ -202,4 +202,26 @@ test('a dual class casts from its own entry, like Leveler',()=>{
   creation=C.toggleSpell(creation,shield,{cantrip:false,max:2,target:'secondary'});
   assert.equal(creation.dualSpells.rank1[0].uuid,shield.uuid);
   assert.equal(P.learnedSpellLevels(creation,null,'class:wizard').get(shield.uuid),1);
+});
+
+test('skill picks follow Leveler for dual class; stale picks never block the last one',()=>{
+  let creation=fighter();
+  creation=C.setBackground(creation,catalog.ofType('background').find(b=>b.name==='Scholar'));
+  creation=C.setDualClass(creation,catalog.ofType('class').find(c=>c.name==='Wizard'));
+  // Picked before the background/second class made them automatic:
+  creation={...creation,skills:['arcana','athletics','acrobatics']};
+  const training=skillTraining(creation,lookup,0);
+  assert.ok(training.granted.has('arcana'),'the dual class trains its skills too');
+  assert.equal(training.duplicates,1,'Scholar repeats a class skill (Arcana), so one more pick');
+  assert.equal(training.choices,4,'larger additional count (3) + duplicate');
+  assert.deepEqual(training.chosen,['athletics','acrobatics']);
+  for(const skill of ['stealth','society'])creation=C.toggleSkill(creation,skill,skillTraining(creation,lookup,0));
+  assert.deepEqual(creation.skills,['athletics','acrobatics','stealth','society'],'stale Arcana was dropped, all four picks fit');
+  creation=C.toggleSkill(creation,'nature',skillTraining(creation,lookup,0));
+  assert.equal(creation.skills.length,4,'no fifth pick');
+  creation=C.toggleSkill(creation,'society',skillTraining(creation,lookup,0));
+  creation=C.toggleLore(creation,'Warfare Lore',skillTraining(creation,lookup,0));
+  assert.deepEqual(creation.selectedLoreSkills,['Warfare Lore'],'an extra lore uses a skill pick');
+  assert.equal(skillRanks(creation,null,lookup,1).get('warfare lore'),1);
+  assert.equal(loreName('underworld'),'Underworld Lore');
 });

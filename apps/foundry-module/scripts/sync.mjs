@@ -416,7 +416,10 @@ export async function syncNow({auto=false}={}){
     return {...result,uploaded:changed.length,reused:started.reused||0,bannedSkipped,icons};
   }finally{syncing=false;}
 }
-const iconNote=icons=>icons?.uploaded?', '+icons.uploaded.toLocaleString()+' icons':'';
+const iconNote=icons=>{
+  const n=(icons?.uploaded??0)+(icons?.linked??0);
+  return n?', '+n.toLocaleString()+' icons'+(icons.linked?' ('+icons.linked.toLocaleString()+' already on the website)':''):'';
+};
 const toBase64=bytes=>{
   let binary='';
   for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
@@ -426,31 +429,57 @@ const toBase64=bytes=>{
  * Upload the icons this world's catalog uses that the website doesn't have yet,
  * read from this Foundry server. Icons are kept per world on the website.
  */
+async function readIcon(path){
+  try{
+    const response=await fetch(foundry.utils.getRoute(path),{cache:'force-cache'});
+    if(!response.ok)return null;
+    const bytes=new Uint8Array(await response.arrayBuffer());
+    if(!bytes.length||bytes.length>262144)return null;
+    const hash=await crypto.subtle.digest('SHA-256',bytes);
+    return {path,bytes,sha256:Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('')};
+  }catch{return null;}
+}
+/**
+ * Give the website this world's icons. Images are read from this Foundry server
+ * and hashed; the website links any image it already has (from any world) and
+ * only the rest are uploaded.
+ */
 async function syncIcons(base,id){
   let {auth}=await authorized();
-  const {missing=[]}=await post(base,'/api/v1/bridge/'+id+'/icons/missing',{},auth.accessToken);
-  let uploaded=0,failed=0,batch=[],size=0;
-  const flush=async()=>{
-    if(!batch.length)return;
+  const call=async(path,body)=>{
     if(auth.accessExpiresAt<Math.floor(Date.now()/1000)+120)auth=(await authorized()).auth;
-    const result=await post(base,'/api/v1/bridge/'+id+'/icons/batch',{icons:batch},auth.accessToken);
-    uploaded+=result.stored||0;failed+=(result.rejected||[]).length;
-    batch=[];size=0;
+    return post(base,'/api/v1/bridge/'+id+path,body,auth.accessToken);
   };
-  for(const path of missing){
+  const {missing=[]}=await call('/icons/missing',{});
+  let uploaded=0,linked=0,failed=0;
+  for(let start=0;start<missing.length;start+=400){
+    const icons=[];
+    const chunk=missing.slice(start,start+400);
+    for(let i=0;i<chunk.length;i+=8)icons.push(...await Promise.all(chunk.slice(i,i+8).map(readIcon)));
+    const read=icons.filter(Boolean);
+    failed+=icons.length-read.length;
+    let needed=new Set(read.map(i=>i.path));
     try{
-      const response=await fetch(foundry.utils.getRoute(path),{cache:'force-cache'});
-      if(!response.ok){failed++;continue;}
-      const bytes=new Uint8Array(await response.arrayBuffer());
-      if(!bytes.length||bytes.length>262144){failed++;continue;}
-      const data=toBase64(bytes);
+      const result=await call('/icons/link',{icons:read.map(({path,sha256})=>({path,sha256}))});
+      linked+=result.linked||0;needed=new Set(result.needed||[]);
+    }catch{} // Website before 0.14: upload everything.
+    let batch=[],size=0;
+    const flush=async()=>{
+      if(!batch.length)return;
+      const result=await call('/icons/batch',{icons:batch});
+      uploaded+=result.stored||0;failed+=(result.rejected||[]).length;
+      batch=[];size=0;
+    };
+    for(const icon of read){
+      if(!needed.has(icon.path))continue;
+      const data=toBase64(icon.bytes);
       if(size+data.length>380000)await flush();
-      batch.push({path,data});size+=data.length;
-    }catch{failed++;}
+      batch.push({path:icon.path,data});size+=data.length;
+    }
+    await flush();
   }
-  await flush();
   if(failed)console.warn('[PF2e Planner Bridge]',failed,'icons could not be uploaded');
-  return {uploaded,failed,missing:missing.length};
+  return {uploaded,linked,failed,missing:missing.length};
 }
 export async function openPairingDialog(){
   requireGM();

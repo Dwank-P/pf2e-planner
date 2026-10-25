@@ -113,7 +113,7 @@ export function creationSteps(creation,lookup,variants={}){
   const {mods}=attributeModifiers(c,lookup);
   add('boosts','Attribute boosts',boostSources(c,lookup).every(s=>(c.boosts?.[s.source]?.length??0)>=s.count));
   const skills=skillTraining(c,lookup,mods.int);
-  add('skills','Skills',c.class&&skills.chosen.length>=skills.choices);
+  add('skills','Skills',c.class&&skills.chosen.length+skills.chosenLores.length>=skills.choices);
   const feats=level1FeatSlots(c,lookup,variants);
   add('feats','Feats',feats.every(f=>c[featField(f.slot)]));
   // Leveler's "feat choices": formulas, items and spells feats or the class let you pick.

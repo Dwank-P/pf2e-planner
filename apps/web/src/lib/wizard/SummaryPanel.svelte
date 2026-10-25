@@ -4,6 +4,8 @@
   import {ATTRIBUTES,attributeModifiers,formatModifier,hitPoints,proficienciesAt,proficiencyBonus,titleCase,
     keyAttributeOptions,SKILL_ATTRIBUTE} from '../builder/rules.js';
   import {skillRanks} from '../builder/legality.js';
+  import {classTitle} from '../builder/summaries.js';
+  import Icon from '../ui/Icon.svelte';
   /** The character at its current `level`: level-1 creation plus planned boosts, increases and class features. */
   let {name,creation,plan=null,lookup,steps=[],onStep,level=1}=$props();
   const result=$derived(attributeModifiers(creation,lookup,plan?.levels??{},level));
@@ -17,6 +19,13 @@
   const lineage=$derived(creation.heritage?.name&&creation.ancestry?.name&&
     creation.heritage.name.toLowerCase().includes(creation.ancestry.name.toLowerCase())
     ?[creation.heritage.name]:[creation.heritage?.name,creation.ancestry?.name].filter(Boolean));
+  const img=entry=>entry?.uuid?lookup(entry.uuid)?.img??entry.img??null:null;
+  // Ancestry and each class, with the specialization in the class name ("Enigma Bard").
+  const identity=$derived([
+    creation.ancestry?{label:lineage.join(' '),img:img(creation.heritage)??img(creation.ancestry)}:null,
+    creation.class?{label:classTitle(creation.class,creation.subclass),img:img(creation.class)}:null,
+    creation.dualClass?{label:classTitle(creation.dualClass,creation.dualSubclass),img:img(creation.dualClass)}:null
+  ].filter(Boolean));
   const total=(attribute,rank)=>formatModifier((mods[attribute]??0)+proficiencyBonus(rank,level));
   const defenses=$derived([['Perception','wis',prof.perception],['Fortitude','con',prof.fortitude],
     ['Reflex','dex',prof.reflex],['Will','wis',prof.will]]);
@@ -26,8 +35,12 @@
   <div class="who">
     <span class="eyebrow">Level {level}</span>
     <h2>{name}</h2>
-    <p class="muted">{[lineage.join(' '),creation.background?.name,[creation.class?.name,creation.dualClass?.name].filter(Boolean).join(' / ')]
-      .filter(Boolean).join(' · ')||'Choose an ancestry to begin'}</p>
+    {#if identity.length}
+      <ul class="identity">
+        {#each identity as part}<li><Icon src={part.img} size={28}/><span>{part.label}</span></li>{/each}
+      </ul>
+      {#if creation.background}<p class="muted">{creation.background.name}</p>{/if}
+    {:else}<p class="muted">Choose an ancestry to begin</p>{/if}
     <Traits traits={[...(creation.ancestry?.traits??[]),creation.class?.slug].filter(Boolean)} max={5}/>
   </div>
   <div class="attrs">
@@ -65,6 +78,8 @@
   .who{display:grid;gap:6px}
   h2{font-size:1.35rem;font-weight:800;overflow-wrap:anywhere}
   .who p{font-size:.88rem}
+  .identity{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+  .identity li{display:flex;gap:8px;align-items:center;font-weight:700;font-size:.92rem}
   .attrs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
   .attr{background:var(--panel-2);border-radius:8px;padding:7px;text-align:center;border:1px solid transparent}
   .attr.key{border-color:var(--brass)}

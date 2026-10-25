@@ -117,20 +117,38 @@ export function attributeModifiers(creation,lookup,planLevels={},level=1){
 }
 export const formatModifier=n=>(n>=0?'+':'')+n;
 
-/** Skill training at level 1: class and background grants, then chosen skills. */
+/**
+ * Skill training at level 1, following Leveler's Character Wizard: both classes'
+ * trained skills (dual class), background and deity grants; picks = the larger
+ * class "additional" count + Intelligence, plus one for each background skill a
+ * class or deity already trains. Extra lores (selectedLoreSkills) use the same picks.
+ */
 export function skillTraining(creation,lookup,intModifier=0){
-  const classRules=rulesOf(lookup(creation?.class?.uuid));
+  const classes=[creation?.class,creation?.dualClass].filter(Boolean);
   const backgroundRules=rulesOf(lookup(creation?.background?.uuid));
-  const deity=creation?.deity??creation?.classSelections?.class?.deity;
+  const deities=[creation?.deity??creation?.classSelections?.class?.deity,creation?.classSelections?.dualClass?.deity].filter(Boolean);
   const granted=new Map();
   const grant=(skill,source)=>{if(SKILLS.includes(skill)&&!granted.has(skill))granted.set(skill,source);};
-  for(const skill of list(classRules.trainedSkills?.value))grant(skill,creation?.class?.name??'Class');
-  for(const skill of list(backgroundRules.trainedSkills?.value))grant(skill,creation?.background?.name??'Background');
-  if(deity?.skill)for(const skill of list(deity.skill))grant(skill,deity.name??'Deity');
-  const additional=Number(classRules.trainedSkills?.additional)||0;
+  const classSkills=new Set();
+  for(const entry of classes)for(const skill of list(rulesOf(lookup(entry.uuid)).trainedSkills?.value)){
+    classSkills.add(skill);grant(skill,entry.name??'Class');
+  }
+  for(const deity of deities)for(const skill of list(deity.skill)){classSkills.add(skill);grant(skill,deity.name??'Deity');}
+  const backgroundSkills=list(backgroundRules.trainedSkills?.value);
+  for(const skill of backgroundSkills)grant(skill,creation?.background?.name??'Background');
+  const additional=classes.length?Math.max(...classes.map(e=>Number(rulesOf(lookup(e.uuid)).trainedSkills?.additional)||0)):0;
+  const duplicates=backgroundSkills.filter(s=>classSkills.has(s)).length;
   const chosen=(creation?.skills??[]).filter(s=>SKILLS.includes(s)&&!granted.has(s));
-  return {granted,chosen,choices:Math.max(0,additional+Math.max(0,intModifier)),
+  const chosenLores=(creation?.selectedLoreSkills??[]).filter(l=>typeof l==='string'&&l.trim());
+  return {granted,chosen,chosenLores,choices:Math.max(0,additional+intModifier+duplicates),duplicates,
     lores:list(backgroundRules.trainedSkills?.lore)};
+}
+/** Lore display name the way Leveler stores it: "Warfare Lore". */
+export function loreName(value){
+  const trimmed=String(value??'').trim().replace(/\s+/g,' ');
+  if(!trimmed)return '';
+  const withLore=/\blore\b/i.test(trimmed)?trimmed:trimmed+' Lore';
+  return withLore.replace(/\b\p{L}/gu,c=>c.toUpperCase());
 }
 
 /** Languages: ancestry grants plus a pick per additional language and positive INT. */

@@ -4,6 +4,18 @@ import {level1FeatSlots,featField,HANDLER_STEPS} from './schema.js';
 import {planFeat,planBoosts,planSkillIncrease,planSpells,planSignature} from './plan.js';
 
 const names=list=>(list??[]).map(e=>e?.name).filter(Boolean).join(', ');
+// Words that name the kind of specialization rather than the specialization itself.
+const SUBCLASS_WORDS=/\s+(instinct|muse|bloodline|doctrine|order|mystery|patron|racket|cause|methodology|way|research field|field|innovation|implement|conscious mind|subconscious mind|school|style|eidolon|element)$/i;
+/** "Enigma Bard", "Bloodrager Barbarian": the specialization's short name before the class. */
+export function classTitle(classEntry,subclassEntry){
+  const className=classEntry?.name??'';
+  let sub=String(subclassEntry?.name??'').trim();
+  if(!sub)return className;
+  if(sub.toLowerCase().includes(className.toLowerCase()))return sub;
+  sub=sub.replace(/^(?:school|order|way|cause) of (?:the )?/i,'').replace(/^(?:muse|instinct|bloodline|mystery|patron|doctrine):\s*/i,'')
+    .replace(SUBCLASS_WORDS,'').trim();
+  return sub?sub+' '+className:className;
+}
 export function stepSummary(step,creation,lookup,variants={}){
   const c=creation??{};
   const target=step.target??'class';
@@ -23,7 +35,7 @@ export function stepSummary(step,creation,lookup,variants={}){
       const {mods}=attributeModifiers(c,lookup);
       return ATTRIBUTES.filter(a=>mods[a]).map(a=>a.toUpperCase()+' '+formatModifier(mods[a])).join(' · ');
     }
-    case 'skills':return (c.skills??[]).map(titleCase).join(', ');
+    case 'skills':return [...(c.skills??[]).map(titleCase),...(c.selectedLoreSkills??[])].join(', ');
     case 'feats':return level1FeatSlots(c,lookup,variants).map(s=>c[featField(s.slot)]?.name).filter(Boolean).join(' · ');
     case 'languages':return (c.languages??[]).map(titleCase).join(', ');
     case 'spells':{

@@ -96,11 +96,17 @@ export function db() {
       item_json TEXT NOT NULL, PRIMARY KEY(integration_id,snapshot_id,uuid)
     );
     CREATE INDEX IF NOT EXISTS idx_catalog_query ON catalog_entries(integration_id,snapshot_id,type,level,rarity,pack,name);
-    CREATE TABLE IF NOT EXISTS catalog_icons (
+    -- Icon images stored once by content hash, shared by every world that uses them.
+    CREATE TABLE IF NOT EXISTS icon_blobs (
+      sha256 TEXT PRIMARY KEY, content_type TEXT NOT NULL, bytes BLOB NOT NULL, created_at INTEGER NOT NULL
+    );
+    -- Each world's own icon paths, pointing at a shared image.
+    CREATE TABLE IF NOT EXISTS integration_icons (
       integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
-      path TEXT NOT NULL, sha256 TEXT NOT NULL, content_type TEXT NOT NULL, bytes BLOB NOT NULL,
+      path TEXT NOT NULL, sha256 TEXT NOT NULL REFERENCES icon_blobs(sha256),
       updated_at INTEGER NOT NULL, PRIMARY KEY(integration_id,path)
     );
+    CREATE INDEX IF NOT EXISTS idx_integration_icons_sha ON integration_icons(sha256);
     CREATE TABLE IF NOT EXISTS character_builds (
       id TEXT PRIMARY KEY,
       campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
@@ -135,6 +141,12 @@ export function db() {
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       access TEXT NOT NULL CHECK(access IN ('view','edit')), PRIMARY KEY(character_id,user_id)
     );
+    -- Reusable campaign invite links (one link for a whole group); expires_at NULL = never.
+    CREATE TABLE IF NOT EXISTS campaign_invite_links (
+      id TEXT PRIMARY KEY, campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+      code TEXT NOT NULL UNIQUE, created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at INTEGER NOT NULL, expires_at INTEGER, revoked_at INTEGER, uses INTEGER NOT NULL DEFAULT 0
+    );
     -- One-time password reset codes issued by the server owner.
     CREATE TABLE IF NOT EXISTS password_resets (
       code_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -158,6 +170,18 @@ function migrate(sql) {
     "TEXT NOT NULL DEFAULT 'private' CHECK(visibility IN ('private','campaign-view','campaign-edit','custom'))");
   sql.exec(`INSERT OR IGNORE INTO integration_origins(integration_id,origin,created_at)
     SELECT id,foundry_origin,created_at FROM integrations`);
+  // v0.12 kept a copy of every icon per world; v0.14 shares identical images.
+  if (sql.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='catalog_icons'").get()) {
+    sql.exec('BEGIN IMMEDIATE');
+    try {
+      sql.exec(`INSERT OR IGNORE INTO icon_blobs(sha256,content_type,bytes,created_at)
+          SELECT sha256,content_type,bytes,MIN(updated_at) FROM catalog_icons GROUP BY sha256;
+        INSERT OR IGNORE INTO integration_icons(integration_id,path,sha256,updated_at)
+          SELECT integration_id,path,sha256,updated_at FROM catalog_icons;
+        DROP TABLE catalog_icons;`);
+      sql.exec('COMMIT');
+    } catch (error) { sql.exec('ROLLBACK'); throw error; }
+  }
 }
 
 export function unix() { return Math.floor(Date.now() / 1000); }

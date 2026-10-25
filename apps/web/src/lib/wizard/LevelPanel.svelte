@@ -23,6 +23,18 @@
   let open=$state(null);
 
   function featDone(slot){return !!P.planFeat(plan,slot);}
+  /** The slot's source as an icon: class feats show the class, dual-class the second class, ancestry the ancestry. */
+  const entryImg=entry=>entry?.uuid?lookup(entry.uuid)?.img??entry.img??null:null;
+  // With two classes, name them: "Bard feat" and "Barbarian feat" instead of "Class feat".
+  const slotLabel=slot=>creation.dualClass&&slot.kind==='class'?creation.class.name+' feat'
+    :slot.kind==='dual-class'&&creation.dualClass?creation.dualClass.name+' feat':slot.label;
+  function sourceIcon(kind){
+    if(kind==='class')return entryImg(creation.class);
+    if(kind==='dual-class')return entryImg(creation.dualClass);
+    if(kind==='ancestry')return entryImg(creation.ancestry);
+    if(kind==='skill')return entryImg(creation.background);
+    return null;
+  }
   function setFeat(slot,item){
     const current=P.planFeat(plan,slot);
     updatePlan(p=>P.setPlanFeat(p,slot,current?.uuid===item.uuid?null:item));
@@ -75,12 +87,13 @@
   {#each slots as slot (slot.key)}
     {#if slot.type==='feat'}
       {@const chosen=P.planFeat(plan,slot)}
+      {@const src=sourceIcon(slot.kind)??(chosen?lookup(chosen.uuid)?.img??chosen.img:null)}
       {@const verdict=chosen?checkFeat(lookup(chosen.uuid)??chosen,state,{kind:slot.kind,featNames:names,currentUuid:chosen.uuid}):null}
       <section class="slot" class:open={open===slot.key} class:done={!!chosen}>
         <button class="head" aria-expanded={open===slot.key} onclick={()=>open=open===slot.key?null:slot.key}>
-          {#if chosen&&(lookup(chosen.uuid)?.img??chosen.img)}<span class="icon pic" aria-hidden="true"><Icon src={lookup(chosen.uuid)?.img??chosen.img} size={30}/></span>
+          {#if src}<span class="icon pic" aria-hidden="true"><Icon {src} size={30}/></span>
           {:else}<span class="icon" aria-hidden="true">{slot.kind==='class'?'C':slot.kind==='skill'?'S':slot.kind==='general'?'G':slot.kind==='ancestry'?'A':slot.kind==='archetype'?'Ar':slot.kind==='mythic'?'M':'D'}</span>{/if}
-          <span class="text"><span class="eyebrow">{slot.label}</span>
+          <span class="text"><span class="eyebrow">{slotLabel(slot)}</span>
             <span class="value" class:unset={!chosen}>{chosen?.name??'Choose a feat'}</span>
             {#if verdict?.blocked}<small class="warn">⚠ {verdict.blocked}</small>{/if}</span>
           <span class="action">{chosen?'Change':'Choose'}</span>

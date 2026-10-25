@@ -194,6 +194,31 @@ export function toggleListValue(data,field,value,max){
   });
 }
 
+/**
+ * Pick or drop a trained skill. Picks that something else now trains (a class,
+ * background or deity chosen later) are dropped, so they never block a pick.
+ */
+export function toggleSkill(data,skill,training){
+  return edit(data,d=>{
+    const picks=(d.skills??[]).filter(s=>!training.granted.has(s));
+    const index=picks.indexOf(skill);
+    if(index>=0)picks.splice(index,1);
+    else if(picks.length+(d.selectedLoreSkills?.length??0)<training.choices)picks.push(skill);
+    d.skills=picks;
+  });
+}
+/** Add or remove an extra lore (Leveler's selectedLoreSkills); it uses a skill pick. */
+export function toggleLore(data,name,training){
+  return edit(data,d=>{
+    const lores=[...(d.selectedLoreSkills??[])];
+    const key=String(name).toLowerCase();
+    const index=lores.findIndex(l=>String(l).toLowerCase()===key);
+    if(index>=0)lores.splice(index,1);
+    else if(name&&(d.skills??[]).filter(s=>!training.granted.has(s)).length+lores.length<training.choices)lores.push(name);
+    d.selectedLoreSkills=lores;
+  });
+}
+
 /** Level-1 feat fields in the creation document. */
 export const FEAT_FIELDS={ancestry:'ancestryFeat',paragon:'ancestryParagonFeat',class:'classFeat',
   dualClass:'dualClassFeat',skill:'skillFeat',mythic:'mythicCalling'};

@@ -46,6 +46,15 @@
     try{reset={user,...await api('/api/v1/users/'+encodeURIComponent(user.id)+'/password-reset',{method:'POST',body:{}})};await refresh();}
     catch(e){error=e.message;}finally{busy='';}
   }
+  let confirmDelete=$state(null);
+  async function deleteUser(user){
+    busy='delete-'+user.id;error='';notice='';
+    try{
+      await api('/api/v1/users/'+encodeURIComponent(user.id),{method:'DELETE'});
+      notice=`${user.displayName}’s account was deleted. Their characters are now yours.`;
+      confirmDelete=null;await refresh();
+    }catch(e){error=e.message;}finally{busy='';}
+  }
   async function copy(text){
     try{await navigator.clipboard.writeText(text);notice='Reset link copied.';}catch{error='Copy failed. Select the link and copy it yourself.';}
   }
@@ -83,7 +92,7 @@
             <span><b>{w.title}</b>{#if w.revokedAt}<small class="muted"> · disconnected</small>{/if}
               {#if w.snapshots>1}<small class="warn"> · {w.snapshots} snapshots</small>{/if}{#if w.staged}<small class="warn"> · {w.staged} staged</small>{/if}</span>
             <span class="num">{w.items.toLocaleString()} · {fmt(w.itemBytes)}</span>
-            <span class="num">{w.icons.toLocaleString()} · {fmt(w.iconBytes)}</span>
+            <span class="num" title="Images only this world uses: {fmt(w.iconOwnBytes)}">{w.icons.toLocaleString()} · {fmt(w.iconBytes)}{#if w.iconBytes>w.iconOwnBytes}<small class="muted"> ({fmt(w.iconOwnBytes)} own)</small>{/if}</span>
             <span class="num">{w.characters} · {fmt(w.characterBytes)}</span>
             <span>{w.syncedAt?timeAgo(w.syncedAt):'—'}</span>
           </div>
@@ -93,7 +102,8 @@
             <span>—</span><span>—</span><span class="num">{c.characters} · {fmt(c.characterBytes)}</span><span>—</span></div>
         {/each}
       </div>
-      <p class="muted small">Sizes per world are the stored data; the database adds indexes and page overhead on top.</p>
+      <p class="muted small">Sizes per world are the stored data; the database adds indexes and page overhead on top.
+        Icons are shared: {report.sharedIcons.images.toLocaleString()} images ({fmt(report.sharedIcons.bytes)}) serve {report.sharedIcons.paths.toLocaleString()} icon paths across worlds; “own” is what only that world uses.</p>
     </section>
     <section class="panel block">
       <h2>Maintenance</h2>
@@ -132,7 +142,16 @@
             <span><b>{u.displayName}</b><small class="muted"> {u.username?'@'+u.username:'(invited)'}{u.siteRole==='owner'?' · owner':''}</small></span>
             <span>{u.status==='active'?'Active':u.status==='pending'?'Invited':'Disabled'}{#if u.resetPendingUntil>now}<small class="muted"> · reset link sent</small>{/if}</span>
             <span class="num">{u.campaigns}</span><span class="num">{u.characters}</span>
-            <span>{#if u.status==='active'}<button class="link" disabled={!!busy} onclick={()=>issueReset(u)}>Reset password</button>{/if}</span>
+            <span class="row-actions">
+              {#if confirmDelete===u.id}
+                <span class="small">Delete {u.displayName} everywhere? Their characters move to you.</span>
+                <button class="btn small" onclick={()=>confirmDelete=null}>Keep</button>
+                <button class="btn small danger" disabled={!!busy} onclick={()=>deleteUser(u)}>Delete</button>
+              {:else}
+                {#if u.status==='active'}<button class="link" disabled={!!busy} onclick={()=>issueReset(u)}>Reset password</button>{/if}
+                {#if u.siteRole!=='owner'}<button class="link danger" disabled={!!busy} onclick={()=>confirmDelete=u.id}>Delete</button>{/if}
+              {/if}
+            </span>
           </div>
         {/each}
       </div>
@@ -160,6 +179,8 @@
   .warn{color:var(--warn)}
   .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
   .actions p{margin-top:6px}
+  .row-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+  .link.danger{color:var(--bad)}
   .reset{display:grid;gap:8px}
   .reset code{overflow-wrap:anywhere;font-size:.85rem}
   .reset div{display:flex;gap:8px}

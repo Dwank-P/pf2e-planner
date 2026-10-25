@@ -40,7 +40,8 @@ export function storageReport() {
       ...index('sqlite_autoindex_catalog_entries'), 'idx_catalog_query']),
     syncInProgress: sum(bytes, ['catalog_staging', 'catalog_imports', 'catalog_import_digests',
       ...index('sqlite_autoindex_catalog_staging')]),
-    icons: sum(bytes, ['catalog_icons', ...index('sqlite_autoindex_catalog_icons')]),
+    icons: sum(bytes, ['icon_blobs', 'integration_icons', 'idx_integration_icons_sha',
+      ...index('sqlite_autoindex_icon_blobs'), ...index('sqlite_autoindex_integration_icons')]),
     characters: sum(bytes, ['character_builds', 'character_shares', 'foundry_actor_links', 'idx_builds_campaign_owner',
       ...index('sqlite_autoindex_character'), ...index('sqlite_autoindex_foundry_actor_links')])
   };
@@ -51,8 +52,12 @@ export function storageReport() {
       (SELECT COALESCE(SUM(LENGTH(item_json)),0) FROM catalog_entries e WHERE e.integration_id=i.id) AS itemBytes,
       (SELECT COUNT(DISTINCT snapshot_id) FROM catalog_entries e WHERE e.integration_id=i.id) AS snapshots,
       (SELECT COUNT(*) FROM catalog_staging s WHERE s.integration_id=i.id) AS staged,
-      (SELECT COUNT(*) FROM catalog_icons x WHERE x.integration_id=i.id) AS icons,
-      (SELECT COALESCE(SUM(LENGTH(bytes)),0) FROM catalog_icons x WHERE x.integration_id=i.id) AS iconBytes,
+      (SELECT COUNT(*) FROM integration_icons x WHERE x.integration_id=i.id) AS icons,
+      (SELECT COALESCE(SUM(LENGTH(b.bytes)),0) FROM icon_blobs b WHERE b.sha256 IN
+        (SELECT sha256 FROM integration_icons x WHERE x.integration_id=i.id)) AS iconBytes,
+      (SELECT COALESCE(SUM(LENGTH(b.bytes)),0) FROM icon_blobs b WHERE b.sha256 IN
+        (SELECT sha256 FROM integration_icons x WHERE x.integration_id=i.id)
+        AND NOT EXISTS (SELECT 1 FROM integration_icons y WHERE y.sha256=b.sha256 AND y.integration_id<>i.id)) AS iconOwnBytes,
       (SELECT COUNT(*) FROM character_builds b WHERE b.campaign_id=c.id) AS characters,
       (SELECT COALESCE(SUM(LENGTH(build_json)),0) FROM character_builds b WHERE b.campaign_id=c.id) AS characterBytes
     FROM integrations i JOIN campaigns c ON c.id=i.campaign_id
@@ -70,6 +75,8 @@ export function storageReport() {
     groups: { ...groups, other: Math.max(0, pages * pageSize - accounted - free * pageSize) },
     freeSpace: freeSpace(),
     worlds, unpaired,
+    sharedIcons: one(`SELECT COUNT(*) AS images,COALESCE(SUM(LENGTH(bytes)),0) AS bytes,
+      (SELECT COUNT(*) FROM integration_icons) AS paths FROM icon_blobs`),
     cleanup: cleanupCounts()
   };
 }
@@ -84,6 +91,8 @@ function cleanupTargets(now = unix()) {
       (SELECT integration_id FROM catalog_imports WHERE created_at<${now - DAY})`],
     ['Abandoned sync records', `DELETE FROM catalog_imports WHERE created_at<${now - DAY}`,
       `SELECT COUNT(*) AS n FROM catalog_imports WHERE created_at<${now - DAY}`],
+    ['Icons no world uses', `DELETE FROM icon_blobs WHERE NOT EXISTS (SELECT 1 FROM integration_icons i WHERE i.sha256=icon_blobs.sha256)`,
+      `SELECT COUNT(*) AS n FROM icon_blobs WHERE NOT EXISTS (SELECT 1 FROM integration_icons i WHERE i.sha256=icon_blobs.sha256)`],
     ['Old compendium snapshots', `DELETE FROM catalog_entries WHERE NOT EXISTS (SELECT 1 FROM catalog_publications p
       WHERE p.integration_id=catalog_entries.integration_id AND p.snapshot_id=catalog_entries.snapshot_id)`,
       `SELECT COUNT(*) AS n FROM catalog_entries WHERE NOT EXISTS (SELECT 1 FROM catalog_publications p

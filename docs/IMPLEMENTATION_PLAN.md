@@ -252,3 +252,10 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Pathbuilder 2e import (browser fetch by JSON id, server fallback, paste).
 - [ ] Lores as first-class picks: choose extra lores in Skills and from feats like Additional Lore.
 - [ ] Scheduled database backups.
+
+## v0.14.0 invite links, shared icons, skills
+- [x] Reusable invite links with expiry (hours/days/months/years/never), revocable.
+- [x] Content-addressed icon store shared across worlds; Bridge links known images by hash.
+- [x] Leveler-accurate dual-class skill training; stale picks dropped; extra lores.
+- [x] Source icons on level slots; specialization names in the summary.
+- [x] Account deletion in Server admin; campaign removal keeps the account.

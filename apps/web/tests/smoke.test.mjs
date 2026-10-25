@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { randomInt, randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 test('production API: bootstrap → pair world → create player → sync → refresh + revoke', {timeout:45_000}, async () => {
@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.13\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.14\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.13.0');
+    assert.equal(health.body.version,'0.14.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.13.0');
+    assert.equal(check.body.version,'0.14.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -279,6 +279,10 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(missingIcons.status,200,JSON.stringify(missingIcons));
     assert.deepEqual(missingIcons.body.missing,[iconPath]);
     const webp=Buffer.concat([Buffer.from('RIFF'),Buffer.alloc(4),Buffer.from('WEBPVP8 '),Buffer.alloc(8)]);
+    const webpSha=createHash('sha256').update(webp).digest('hex');
+    const unknownImage=await send(iconRoute+'/link',{icons:[{path:iconPath,sha256:webpSha}]},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(unknownImage.status,200,JSON.stringify(unknownImage));
+    assert.deepEqual(unknownImage.body,{linked:0,needed:[iconPath]},'New images must be uploaded');
     const iconUpload=await send(iconRoute+'/batch',{icons:[
       {path:iconPath,data:webp.toString('base64')},
       {path:'systems/pf2e/icons/not-in-catalog.webp',data:webp.toString('base64')},
@@ -291,6 +295,9 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(fakeIcon.body.stored,0,'Bytes must match the image type');
     const noneMissing=await send(iconRoute+'/missing',{},'',gmOrigin,'POST',paired.body.accessToken);
     assert.deepEqual(noneMissing.body.missing,[]);
+    const knownImage=await send(iconRoute+'/link',{icons:[{path:iconPath,sha256:webpSha},
+      {path:'systems/pf2e/icons/not-in-catalog.webp',sha256:webpSha}]},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.deepEqual(knownImage.body,{linked:1,needed:[]},'Images the site holds are linked, not re-uploaded');
     const iconResponse=await fetch(origin+'/api/v1/campaigns/'+campaignId+'/icons/'+iconPath,{headers:{cookie:playerCookie}});
     assert.equal(iconResponse.status,200);
     assert.equal(iconResponse.headers.get('content-type'),'image/webp');
@@ -665,6 +672,35 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(relogin.status,200,JSON.stringify(relogin));
     const adminUsers=await send('/api/v1/admin/users',undefined,ownerCookie,origin,'GET');
     assert.ok(adminUsers.body.users.some(u=>u.username==='second.player'));
+
+    // v0.14: reusable group invite links.
+    const linksRoute='/api/v1/campaigns/'+campaignId+'/invite-links';
+    assert.equal((await send(linksRoute,{},playerCookie)).status,403,'Only GMs make invite links');
+    assert.equal((await send(linksRoute,{duration:{unit:'weeks',amount:1}},ownerCookie)).status,400);
+    const dayLink=await send(linksRoute,{},ownerCookie);
+    assert.equal(dayLink.status,201,JSON.stringify(dayLink));
+    const dayCode=dayLink.body.link.url.split('/invite/')[1];
+    assert.ok(Math.abs(dayLink.body.link.expiresAt-(Date.now()/1000+86400))<120,'defaults to 24 hours');
+    const foreverLink=await send(linksRoute,{duration:{unit:'never'}},ownerCookie);
+    assert.equal(foreverLink.body.link.expiresAt,null);
+    const yearLink=await send(linksRoute,{duration:{unit:'years',amount:2}},ownerCookie);
+    assert.ok(yearLink.body.link.expiresAt>Date.now()/1000+700*86400);
+    const linkInfo=await send('/api/v1/invite-links/'+dayCode,undefined,'',origin,'GET');
+    assert.equal(linkInfo.status,200);
+    assert.equal(linkInfo.body.campaign.title,'Test World');
+    const viaLink=await send('/api/v1/invite-links/'+dayCode+'/register',{username:'group-player',password:'group-player-password'});
+    assert.equal(viaLink.status,201,JSON.stringify(viaLink));
+    assert.equal(viaLink.body.campaignId,campaignId);
+    assert.equal((await send('/api/v1/me',undefined,viaLink.cookie,origin,'GET')).body.campaigns[0].id,campaignId);
+    const viaLinkAgain=await send('/api/v1/invite-links/'+dayCode+'/register',{username:'group-player-2',password:'group-player-password'});
+    assert.equal(viaLinkAgain.status,201,'One link works for many people');
+    const existingJoins=await send('/api/v1/invite-links/'+dayCode+'/accept',{},playerCookie);
+    assert.equal(existingJoins.body.alreadyMember,true);
+    const activeLinks=await send(linksRoute,undefined,ownerCookie,origin,'GET');
+    assert.equal(activeLinks.body.links.find(l=>l.id===dayLink.body.link.id).uses,2);
+    assert.equal((await send(linksRoute+'/'+dayLink.body.link.id,{},ownerCookie,origin,'DELETE')).status,200);
+    assert.equal((await send('/api/v1/invite-links/'+dayCode,undefined,'',origin,'GET')).status,400,'Turned-off links stop working');
+    assert.equal((await send('/api/v1/invite-links/'+dayCode+'/register',{username:'too-late',password:'group-player-password'})).status,400);
 
     // v0.13: storage report and maintenance (server owner only).
     assert.equal((await send('/api/v1/admin/storage',undefined,playerCookie,origin,'GET')).status,403);
