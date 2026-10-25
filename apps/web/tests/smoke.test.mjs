@@ -405,6 +405,29 @@ test('production API: bootstrap → pair world → create player → sync → re
       build:{feats:{'class-2':'Compendium.pf2e.not-synced.Item.NoSuchFeat'}}
     },playerCookie,origin,'PATCH');
     assert.equal(unknownSelection.status,400,'Unimported item selections must be rejected');
+
+    // v1: whole catalog for browser search, and whole-document saves from the wizard.
+    const bundleRoute='/api/v1/campaigns/'+campaignId+'/catalog-bundle';
+    const bundle=await send(bundleRoute,undefined,playerCookie,origin,'GET');
+    assert.equal(bundle.status,200,JSON.stringify(bundle).slice(0,300));
+    assert.ok(bundle.body.items.length>0);
+    assert.equal(bundle.body.items[0].description,undefined,'Rules text is fetched per item, not in the bundle');
+    const unchanged=await send(bundleRoute+'?known='+bundle.body.sha256,undefined,playerCookie,origin,'GET');
+    assert.equal(unchanged.body.unchanged,true);
+    const current=existing.body.character;
+    const docRoute=charDetail+'/document';
+    const docSaved=await send(docRoute,{name:current.name,level:current.level,revision:current.revision,
+      document:{leveler:current.leveler,planner:current.planner}},playerCookie,origin,'PUT');
+    assert.equal(docSaved.status,200,JSON.stringify(docSaved));
+    assert.equal(docSaved.body.character.revision,current.revision+1);
+    assert.equal(docSaved.body.character.leveler.plan.levels[2].classFeats[0].uuid,entries[1].uuid);
+    const docUnknown=await send(docRoute,{name:current.name,level:current.level,revision:current.revision+1,
+      document:{leveler:{creation:{version:1,class:{uuid:'Compendium.pf2e.not-synced.Item.Nope'}},plan:null},planner:{}}},
+      playerCookie,origin,'PUT');
+    assert.equal(docUnknown.status,400,'Documents may not add unsynced items');
+    const docStale=await send(docRoute,{name:current.name,level:current.level,revision:current.revision,
+      document:{leveler:current.leveler,planner:current.planner}},playerCookie,origin,'PUT');
+    assert.equal(docStale.status,409);
     const gmCharacters=await send(charRoute,undefined,ownerCookie,origin,'GET');
     assert.equal(gmCharacters.status,200);
     assert.equal(gmCharacters.body.characters.length,1);
@@ -535,7 +558,13 @@ test('production API: bootstrap → pair world → create player → sync → re
     const revokeSite=await send('/api/v1/integrations/'+integrationId+'/revoke',{},ownerCookie);
     assert.equal(revokeSite.status,200,JSON.stringify(revokeSite));
   } finally {
-    child.kill('SIGTERM');
-    rmSync(temp,{recursive:true,force:true});
+    // Wait for the server to release the database; Windows refuses to delete open files.
+    if(child.exitCode===null){
+      const exited=new Promise(resolve=>child.once('exit',resolve));
+      child.kill('SIGTERM');
+      await Promise.race([exited,sleep(5000)]);
+    }
+    try{rmSync(temp,{recursive:true,force:true,maxRetries:5,retryDelay:200});}
+    catch(error){console.warn('Smoke cleanup left',temp,error.code);}
   }
 });

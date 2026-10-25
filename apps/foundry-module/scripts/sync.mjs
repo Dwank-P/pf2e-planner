@@ -218,10 +218,6 @@ function exportItem(doc,pack){
     out.featType=system.category||system.featType?.value||null;
     out.actionType=system.actionType?.value||null;
     out.actions=system.actions?.value??null;
-    // Subclass options (e.g. wizard-arcane-school) are tagged here.
-    const otherTags=system.traits?.otherTags;
-    if(Array.isArray(otherTags)&&otherTags.length)
-      out.otherTags=otherTags.filter(x=>typeof x==='string').slice(0,20);
     out.prerequisites=Array.isArray(system.prerequisites?.value)?
       system.prerequisites.value.map(p=>p.value||'').filter(Boolean):[];
     if(system.category==='ancestry'){
@@ -242,7 +238,32 @@ function exportItem(doc,pack){
       out[key]=system[key]?.value??[];
     out.keyAbility=system.keyAbility?.value??[];
   }
+  // Leveler finds wizard options by these tags: subclasses (wizard-arcane-school),
+  // theses, implements, ikons, apparitions, and commander tactics on action Items.
+  const otherTags=system.traits?.otherTags;
+  if(Array.isArray(otherTags)&&otherTags.length)
+    out.otherTags=otherTags.filter(x=>typeof x==='string').slice(0,20);
+  const rules=rulesData(type,system);
+  if(rules)out.rules=rules;
   return out;
+}
+/** Rules fields the web Character Wizard computes with, copied as PF2e stores them. */
+const RULE_FIELDS={
+  ancestry:['boosts','flaws','hp','size','speed','languages','additionalLanguages','vision','reach'],
+  background:['boosts','trainedSkills'],
+  class:['hp','keyAbility','trainedSkills','perception','savingThrows','attacks','defenses','classDC','spellcasting'],
+  deity:['font','sanctification','domains','skill','weapons','attribute','category'],
+  feat:['maxTakable','onlyLevel1']
+};
+function rulesData(type,system){
+  const fields=RULE_FIELDS[type];
+  if(!fields)return null;
+  const out={};
+  for(const key of fields)if(system[key]!==undefined)out[key]=system[key];
+  try{
+    const text=JSON.stringify(out);
+    return text.length<=8000?JSON.parse(text):null;
+  }catch{return null;}
 }
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let syncing=false;

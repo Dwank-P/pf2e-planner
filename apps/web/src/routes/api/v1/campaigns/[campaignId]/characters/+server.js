@@ -9,14 +9,16 @@ export function GET(event) {
   const role=db().prepare('SELECT role FROM memberships WHERE campaign_id=? AND user_id=?')
     .get(campaignId,user.id)?.role;
   const all=user.site_role==='owner'||role==='gm';
+  const select=`SELECT b.*,u.display_name AS owner_name,l.actor_id AS linked_actor FROM character_builds b
+    JOIN users u ON u.id=b.owner_user_id
+    LEFT JOIN foundry_actor_links l ON l.character_id=b.id`;
   const rows=all
-    ? db().prepare(`SELECT b.*,u.display_name AS owner_name FROM character_builds b
-        JOIN users u ON u.id=b.owner_user_id WHERE campaign_id=?
+    ? db().prepare(`${select} WHERE b.campaign_id=?
         ORDER BY b.updated_at DESC LIMIT 200`).all(campaignId)
-    : db().prepare(`SELECT b.*,u.display_name AS owner_name FROM character_builds b
-        JOIN users u ON u.id=b.owner_user_id WHERE campaign_id=? AND b.owner_user_id=?
+    : db().prepare(`${select} WHERE b.campaign_id=? AND b.owner_user_id=?
         ORDER BY b.updated_at DESC LIMIT 200`).all(campaignId,user.id);
-  return respond({characters:rows.map(r=>({...toCharacter(r,{includeLeveler:false}),ownerName:r.owner_name}))});
+  return respond({characters:rows.map(r=>({...toCharacter(r,{includeLeveler:false}),
+    ownerName:r.owner_name,linked:!!r.linked_actor}))});
 }
 export async function POST(event) {
   const user=sessionUser(event),campaignId=event.params.campaignId;

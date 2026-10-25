@@ -195,14 +195,74 @@ export function characterAccess(user, row) {
 }
 export function toCharacter(row,{includeLeveler=true}={}) {
   const stored=readDocument(row);
-  // The builder edits Leveler-shaped views (level-keyed spells, subclass slots),
-  // so pre-v2 rows are converted for display; they are stored on next save.
-  const view=includeLeveler&&!stored.doc
-    ? projectView(mergeView(row.campaign_id,null,stored.view)) : stored.view;
-  const doc=stored.doc;
+  // Editors work on Leveler documents, so pre-v2 rows are converted for
+  // display; they are stored in the new shape on their next save.
+  const converted=includeLeveler&&!stored.doc?mergeView(row.campaign_id,null,stored.view):null;
+  const doc=stored.doc??converted;
+  const view=converted?projectView(converted):stored.view;
   return {id:row.id,campaignId:row.campaign_id,ownerUserId:row.owner_user_id,
     name:row.name,level:row.level,build:view,
-    format:doc?'leveler':'legacy',
-    ...(includeLeveler?{leveler:doc?.leveler??null}:{}),
+    format:stored.doc?'leveler':'legacy',
+    summary:characterSummary(stored.doc,stored.view),
+    ...(includeLeveler?{leveler:doc?.leveler??null,planner:doc?.planner??null}:{}),
     revision:row.revision,createdAt:row.created_at,updatedAt:row.updated_at};
+}
+/** Names and progress for roster cards, without loading the catalog. */
+function characterSummary(doc,view){
+  const creation=doc?.leveler?.creation;
+  const name=field=>typeof creation?.[field]?.name==='string'?creation[field].name:null;
+  const levels=Object.entries(doc?.leveler?.plan?.levels||{})
+    .filter(([,data])=>Object.values(data||{}).some(value=>Array.isArray(value)&&value.length))
+    .map(([level])=>Number(level)).filter(Number.isInteger);
+  return {ancestry:name('ancestry'),heritage:name('heritage'),background:name('background'),
+    className:name('class'),dualClassName:name('dualClass'),subclass:name('subclass'),
+    plannedTo:levels.length?Math.max(...levels):null,
+    created:!!(creation?.ancestry&&creation?.background&&creation?.class)||
+      !!(view?.ancestryUuid&&view?.backgroundUuid&&view?.classUuid)};
+}
+
+const COMPENDIUM_UUID=/^Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+$/;
+/** Every compendium uuid a document refers to (Leveler stores them under "uuid" keys). */
+export function documentUuids(value,out=new Set()){
+  if(Array.isArray(value))for(const entry of value)documentUuids(entry,out);
+  else if(value&&typeof value==='object'){
+    for(const [key,entry] of Object.entries(value)){
+      if(key==='uuid'&&typeof entry==='string'&&COMPENDIUM_UUID.test(entry))out.add(entry);
+      else if(entry&&typeof entry==='object')documentUuids(entry,out);
+    }
+  }
+  return out;
+}
+/**
+ * Validate a whole character document from the web editors. Leveler documents
+ * are bounded JSON stored verbatim; uuids new relative to `current` must exist
+ * in the campaign's published catalog.
+ */
+export function validateDocument(campaignId,current,value){
+  if(!value||typeof value!=='object'||Array.isArray(value))problem(400,'invalid_character_document');
+  const leveler=validateLevelerDocuments(value.leveler);
+  const planner=value.planner??{};
+  if(!planner||typeof planner!=='object'||Array.isArray(planner))problem(400,'invalid_planner_data');
+  const notes=planner.notes??'';
+  if(typeof notes!=='string'||notes.length>4000)problem(400,'invalid_notes');
+  const modifiers={};
+  for(const stat of ['str','dex','con','int','wis','cha']){
+    const n=planner.modifiers?.[stat]??0;
+    if(!Number.isInteger(n)||n<-5||n>10)problem(400,'invalid_modifier');
+    modifiers[stat]=n;
+  }
+  const extraFeats=planner.extraFeats??{};
+  if(!extraFeats||typeof extraFeats!=='object'||Array.isArray(extraFeats)||
+     Object.keys(extraFeats).length>40||!Object.values(extraFeats).every(x=>typeof x==='string'&&COMPENDIUM_UUID.test(x)))
+    problem(400,'invalid_extra_feats');
+  const doc={...emptyDocument(),leveler:{creation:leveler.creation,plan:leveler.plan},
+    planner:{modifiers,notes,extraFeats}};
+  const before=documentUuids(current?.leveler??{});
+  const added=[...documentUuids(doc.leveler)].filter(uuid=>!before.has(uuid));
+  if(added.length){
+    const catalog=catalogFor(campaignId);
+    if(!catalog)problem(409,'sync_compendiums_before_selecting_items');
+    for(const uuid of added)if(!catalog.has(uuid))problem(400,'build_contains_item_not_in_synced_catalog');
+  }
+  return doc;
 }

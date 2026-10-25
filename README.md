@@ -4,6 +4,21 @@ Private monorepo for a **Docker-hosted Pathfinder 2e / Starfinder 2e character p
 
 > **Development status: v0.3.0 implementation branch.** Web login/account activation, pairing, GM-client bearer tokens and a **bounded metadata preview** are coded but not yet verified by a complete npm build, container test or real Foundry v14 integration test. This is **not yet ready for public deployment or real character imports**.
 
+## v1 redesign (branch `v1-redesign`, in progress)
+
+The web app is being rebuilt around PF2e Leveler's two tools:
+
+- **Party** (`/campaigns/:id`): one card per character with plan progress and Foundry link; GM tools under **Campaign settings**.
+- **Character Wizard** (`/campaigns/:id/characters/:cid`): level 1, with steps generated from the class
+  (`lib/builder/schema.js`) the way Leveler's wizard does, a live summary, and saving straight into
+  Leveler's creation document.
+- **Level Planner** (`…/plan`): the pre-1.0 planner until phase 4 rebuilds it.
+- The compendium catalog downloads once per sync (`catalog-bundle`) and is searched in the browser.
+
+Local preview without Foundry: `DB_PATH=./data/dev.sqlite node scripts/seed-dev.mjs`, then
+`DB_PATH=./data/dev.sqlite npm run dev` and sign in as `gm` (password in `scripts/seed-dev.mjs`).
+After updating the Bridge, run **Sync Now** once: the export now includes rules data for the wizard.
+
 ## Two applications, one repository
 
 | Component | Location | Responsibilities |
@@ -70,7 +85,7 @@ This initial preview intentionally does **not** sync full compendiums, third-par
 
 - Repository is private; Foundry's installer requires an accessible manifest + ZIP. See [Foundry installation](docs/FOUNDRY_INSTALLATION.md). A v0.2.0 alpha archive is packaged on `foundry-release`, but has not been tested inside a running Foundry v14 client.
 - Never include installed premium rulebooks, actor data, secrets or privately licensed content in public repository releases.
-- No public project license has been selected.
+- Licensed under the [MIT License](LICENSE). Third-party attributions (PF2e Leveler) are in [NOTICE.md](NOTICE.md).
 
 ### Deployment version check
 

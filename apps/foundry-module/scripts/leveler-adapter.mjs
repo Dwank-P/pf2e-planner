@@ -63,6 +63,12 @@ function cleanChoice(choice){
     cleaned.allowedSkills=choice.allowedSkills.filter(x=>typeof x==='string').slice(0,30);
   return cleaned;
 }
+function creationStepIds(getClassHandler,slug){
+  try{
+    const steps=getClassHandler?.(slug)?.getExtraSteps?.()??[];
+    return steps.map(step=>step?.id).filter(id=>typeof id==='string'&&/^[a-zA-Z]{2,40}$/.test(id));
+  }catch{return null;}
+}
 /** Level-one cantrip/rank-1 picks exactly as Leveler's Character Wizard counts them. */
 function level1SpellCounts(getClassHandler,slug,classDef){
   const total=value=>Array.isArray(value)?value.reduce((n,x)=>n+(Number(x)||0),0):Number(value);
@@ -106,6 +112,8 @@ export async function createLevelerProgressions(classDocs,variants){
         : null,
       // Subclass options are class features carrying this tag in otherTags.
       subclassTag:subclassTags[slug]??null,
+      // Class-specific Character Wizard steps (deity, thesis, implement, …) from Leveler's handler.
+      creationSteps:creationStepIds(getClassHandler,slug),
       // Automatic class features per level (also used for Dual Class skill slots).
       classFeatures:(classDef.classFeatures||[])
         .filter(feature=>Number.isInteger(feature.level)&&typeof feature.name==='string')

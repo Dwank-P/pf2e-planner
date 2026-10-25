@@ -3,6 +3,11 @@ import { db, unix, transaction } from '#lib/server/db.js';
 import { constantEquals, passwordHash, setSession } from '#lib/server/security.js';
 import { input, problem, respond, throttle, validatePassword, validateUsername, validateDisplay } from '#lib/server/api.js';
 
+/** Whether the first owner account still needs creating (drives the first-run screen). */
+export function GET() {
+  const needed=!db().prepare('SELECT 1 FROM users LIMIT 1').get();
+  return respond({ needed, configured: !!process.env.BOOTSTRAP_TOKEN && process.env.BOOTSTRAP_TOKEN.length >= 32 });
+}
 export async function POST(event) {
   throttle(event, 'setup', 5, 3600);
   const request = await input(event.request);

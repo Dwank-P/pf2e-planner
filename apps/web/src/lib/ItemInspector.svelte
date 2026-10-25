@@ -1,5 +1,6 @@
 <script>
   import { renderLevelDescription } from './level-formulas.js';
+  import Traits from './ui/Traits.svelte';
 
   let {item=null, level=1, campaignId='', onOpen=()=>{}, onBack=()=>{},
     onClose=()=>{}, canBack=false, compact=false} = $props();
@@ -96,10 +97,7 @@
     <div class="inspector-main">
       <div class="eyebrow">{item.type||'Item'} <span>·</span> Level {item.level??'—'}</div>
       <h2>{item.name}</h2>
-      <div class="inspector-tags">
-        {#if item.rarity}<span class="rarity">{item.rarity}</span>{/if}
-        {#each item.traits||[] as trait}<span>{trait}</span>{/each}
-      </div>
+      <div class="inspector-tags"><Traits traits={item.traits||[]} rarity={item.rarity||'common'} max={20}/></div>
       {#if item.metadata?.prerequisites?.length}
         <p class="prereq"><strong>Prerequisites</strong> {item.metadata.prerequisites.join(', ')}</p>
       {/if}
@@ -143,12 +141,10 @@
     line-height:1.2;margin:.4rem 0 1rem;letter-spacing:-.03em}.eyebrow{text-transform:uppercase;
     font-weight:750;font-size:.7rem;letter-spacing:.12em;color:var(--accent)}
   .eyebrow span{padding:0 .4rem;color:var(--muted)}
-  .inspector-tags{display:flex;gap:.4rem;flex-wrap:wrap;margin:1rem 0}
-  .inspector-tags span{background:var(--surface-hover);color:var(--muted);border:1px solid var(--line);
-    padding:.22rem .55rem;border-radius:6px;font-size:.78rem}.inspector-tags .rarity{color:var(--accent)}
+  .inspector-tags{margin:1rem 0}
   .prereq{font-size:.85rem;color:var(--muted);border-left:2px solid var(--accent);padding-left:.85rem}
   .prereq strong{color:var(--text);display:block}
-  .description{color:var(--text);line-height:1.72;font-size:.9rem;overflow-wrap:anywhere}
+  .description{color:var(--text);line-height:1.65;font:1.02rem/1.65 var(--prose);overflow-wrap:anywhere;max-width:62ch}
   .description :global(a[data-uuid]),.description :global(a[data-pf2e-uuid]),
   .description :global(a[data-pf2e-action]){color:var(--accent);text-decoration:underline;
     text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer}

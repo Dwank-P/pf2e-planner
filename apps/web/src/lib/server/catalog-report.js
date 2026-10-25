@@ -105,7 +105,7 @@ function fullReport({pub,rows}, includeItems) {
   typeCounts.sort((a,b)=>b.count-a.count||a.type.localeCompare(b.type));
   const result={
     synced:true, complete:true, completeness:'Published selected feat/class compendiums',
-    schemaVersion:2, snapshotId:pub.snapshot_id,sha256:pub.sha256,
+    schemaVersion:2, snapshotId:pub.snapshot_id,sha256:pub.sha256,integrationId:pub.integration_id,
     updatedAt:pub.updated_at,
     ruleset:{systemId:versions.systemId,systemVersion:versions.systemVersion,
       levelerVersion:versions.levelerVersion,worldId:versions.worldId},
