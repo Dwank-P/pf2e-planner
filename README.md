@@ -393,3 +393,21 @@ the wizard needs the rules data the new Bridge exports.
 
 **After updating the Bridge, run Sync Now once**: it re-uploads with Leveler's exact pack list and
 spell defenses.
+
+### v0.11.0 — Equipment plan and a steadier summary
+
+- **Equipment plan**: a wishlist of items you want while levelling. Browse every synced item with
+  filters for type, consumable or permanent, and level range; sort by level, price or name; park
+  each item on the level you want it at. Each level's page lists what you planned for it, with a
+  total; tick items off as bought.
+- **Level 1 reads like levels 2–20**: one card per creation step, opened in place.
+- **Summary** always shows HP, Class DC, Perception, saves and skills with modifiers, at the
+  character's current level rather than the level you're editing. Class features such as Reflex
+  Expertise raise proficiencies at the right level.
+- **Spells can't be learned twice**: a spell learned at one level shows *Learned at level N*
+  elsewhere. Spell rank headers open and close like other choices.
+- **Boosts**: fixed ancestry boosts are shown locked; flaws are shown in red and can be boosted
+  back to 0. **Languages** show a big X/N counter. Empty choices show “—”.
+
+**After updating the Bridge, run Sync Now once** so the website gets item prices and class
+proficiency features.

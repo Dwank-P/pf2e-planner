@@ -150,6 +150,35 @@ export function hitPoints(creation,lookup,conModifier,level=1){
   return ancestry+(perLevel+conModifier)*level;
 }
 
+/**
+ * Class features that raise perception or saves, by their PF2e name (remaster and
+ * legacy). Leveler tags some features with `proficiencies`; these names fill the rest.
+ */
+const FEATURE_RANKS=[
+  [/^(reflex expertise|lightning reflexes)$/i,'reflex',2],[/^(fortitude expertise|great fortitude)$/i,'fortitude',2],
+  [/^(will expertise|iron will)$/i,'will',2],[/^(perception expertise|alertness)$/i,'perception',2],
+  [/^(evasion|reflex mastery)$/i,'reflex',3],[/^(juggernaut|fortitude mastery)$/i,'fortitude',3],
+  [/^(resolve|will mastery)$/i,'will',3],[/^(perception mastery|vigilant senses|battlefield surveyor)$/i,'perception',3],
+  [/^(improved evasion|greater evasion|reflex legend)$/i,'reflex',4],[/^(greater juggernaut|fortitude legend)$/i,'fortitude',4],
+  [/^(greater resolve|will legend)$/i,'will',4],[/^(perception legend|incredible senses)$/i,'perception',4]
+];
+/** Perception, save and class DC ranks at `level`, from the class Item and its features. */
+export function proficienciesAt(creation,lookup,level=1){
+  const item=lookup(creation?.class?.uuid);
+  const ranks={...classProficiencies(creation,lookup)};
+  const raise=(key,rank)=>{if(key in ranks)ranks[key]=Math.max(ranks[key],Number(rank)||0);};
+  for(const f of item?.metadata?.levelerProgression?.classFeatures??[]){
+    if(Number(f.level)>level||!f.proficiencies)continue;
+    for(const [key,rank] of Object.entries(f.proficiencies))raise(key==='classdc'?'classDC':key,rank);
+  }
+  for(const f of item?.metadata?.grantedFeatures??[]){
+    if(Number(f.level)>level)continue;
+    for(const [pattern,key,rank] of FEATURE_RANKS)if(pattern.test(String(f.name).trim()))raise(key,rank);
+  }
+  return ranks;
+}
+/** PF2e proficiency bonus: untrained 0, otherwise rank × 2 + level. */
+export const proficiencyBonus=(rank,level)=>rank>0?rank*2+level:0;
 /** Level-1 proficiency ranks from the class Item. */
 export function classProficiencies(creation,lookup){
   const rules=rulesOf(lookup(creation?.class?.uuid));

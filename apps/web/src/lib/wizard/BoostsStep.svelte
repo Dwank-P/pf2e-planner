@@ -31,10 +31,12 @@
           {#each ATTRIBUTES as a}
             {@const on=chosen.includes(a)}
             {@const fixed=source.fixed.includes(a)}
-            <button class="attr" class:on class:fixed aria-pressed={on}
+            {@const flaw=source.flaws.includes(a)&&!on}
+            <button class="attr" class:on class:fixed class:flaw aria-pressed={on||fixed}
               disabled={fixed||!boostAllowed(source,chosen,a)}
+              title={fixed?'Fixed boost from your ancestry':flaw?'Ancestry flaw (−1). A free boost here brings it back to +0.':''}
               onclick={()=>update(c=>toggleBoost(c,source.source,a,source.count))}>
-              <b>{a.toUpperCase()}</b><small>{ATTRIBUTE_NAMES[a]}</small>
+              <b>{a.toUpperCase()}</b><small>{fixed?'Fixed +1':flaw?'Flaw −1':ATTRIBUTE_NAMES[a]}</small>
             </button>
           {/each}
         </div>
@@ -66,8 +68,12 @@
   .attr small{font-size:.66rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .attr.on{background:var(--brass);border-color:var(--brass);color:var(--on-brass)}
   .attr.on small{color:var(--on-brass)}
-  .attr.fixed{border-style:dashed}
-  .attr:disabled:not(.on){opacity:.35}
+  /* Locked-in ancestry boosts: a lighter version of the selected colour. */
+  .attr.fixed{background:var(--brass-soft);border-color:var(--brass);color:var(--text);opacity:1}
+  .attr.fixed small{color:var(--brass)}
+  .attr.flaw{background:var(--bad-soft);border-color:var(--bad)}
+  .attr.flaw small{color:var(--bad)}
+  .attr:disabled:not(.on):not(.fixed){opacity:.35}
   .hint{font-size:.8rem}
   .alt{display:flex;gap:8px;align-items:center;font-size:.88rem;color:var(--text-2)}
   @media(max-width:520px){.row,.totals{grid-template-columns:repeat(3,minmax(0,1fr))}}

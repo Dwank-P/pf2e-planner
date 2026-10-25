@@ -3,7 +3,9 @@
   import {level1Spells} from '../builder/schema.js';
   import {toggleSpell} from '../builder/creation.js';
   import {spellOptions} from './options.js';
-  let {creation,catalog,update,info}=$props();
+  import {learnedSpellLevels} from '../builder/plan.js';
+  let {creation,plan=null,catalog,update,info}=$props();
+  const learned=$derived(learnedSpellLevels(creation,plan));
   const counts=$derived(level1Spells(creation,catalog.get));
   const progression=$derived(catalog.get(creation.class?.uuid)?.metadata?.levelerProgression);
   const tradition=$derived(progression?.spellcasting?.tradition??'');
@@ -27,6 +29,7 @@
     {#key tab}
       <OptionGrid id={'spells-'+tab} items={spellOptions(catalog,{cantrip:tab==='cantrips',tradition})}
         selected={picks.map(p=>p.uuid)} {max}
+        check={item=>{const at=learned.get(item.uuid);return at&&at>1?{blocked:`Planned at level ${at}`,unknown:[]}:null;}}
         onToggle={item=>update(c=>toggleSpell(c,item,{cantrip:tab==='cantrips',max}))} onInfo={item=>info(item.uuid)}
         detail={item=>known?'':(item.metadata?.spellTraditions??[]).join(', ')}
         placeholder={tab==='cantrips'?'Search cantrips':'Search 1st-rank spells'} empty="No spells of this kind are in the synced compendiums."/>

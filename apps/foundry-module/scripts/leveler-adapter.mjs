@@ -118,7 +118,9 @@ export async function createLevelerProgressions(classDocs,variants){
       classFeatures:(classDef.classFeatures||[])
         .filter(feature=>Number.isInteger(feature.level)&&typeof feature.name==='string')
         .map(feature=>({level:feature.level,key:feature.key??null,name:feature.name,
-          ...(feature.additionalSkillIncrease?{additionalSkillIncrease:feature.additionalSkillIncrease}:{})}))
+          ...(feature.additionalSkillIncrease?{additionalSkillIncrease:feature.additionalSkillIncrease}:{}),
+          // Rank increases Leveler knows, e.g. {perception:3} or {classdc:2}.
+          ...(feature.proficiencies&&typeof feature.proficiencies==='object'?{proficiencies:{...feature.proficiencies}}:{})}))
         .slice(0,80),
       skillIncreaseLevels:(classDef.skillIncreaseSchedule||[]).slice(0,20),
       skillFeatLevels:(classDef.featSchedule?.skill||[]).slice(0,20)

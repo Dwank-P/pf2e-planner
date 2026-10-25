@@ -89,6 +89,13 @@ export function setSignatureSpell(plan,level,rank,spell){
     data.signatureSpells=list;
   });
 }
+/** Every learned spell (cantrips included) → the level it is learned at. */
+export function learnedSpellLevels(creation,plan){
+  const out=new Map();
+  for(const s of [...(creation?.spells?.cantrips??[]),...(creation?.spells?.rank1??[])])if(s?.uuid)out.set(s.uuid,1);
+  for(let l=2;l<=20;l++)for(const s of planSpells(plan,l))if(s?.uuid&&!out.has(s.uuid))out.set(s.uuid,l);
+  return out;
+}
 /** Every spell in the repertoire up to `level`: creation picks plus planned levels. */
 export function repertoire(creation,plan,level){
   const out=[...(creation?.spells?.rank1??[]).map(s=>({...s,rank:1}))];

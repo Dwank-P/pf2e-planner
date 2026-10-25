@@ -414,3 +414,16 @@ Update Docker and the Bridge to 0.9.0, then run **Sync Now** as GM.
 6. Acrobatic Performer's text shows "Perform: Acrobatics" as a link, not raw `[[/act …]]`.
 7. On a phone, the builder opens on the content; ☰ shows the steps and levels.
 8. Settings → Players: Remove / Cancel invite; as server owner, Delete account.
+
+## V. v0.11.0 — Equipment plan, one-flow level 1, summary at current level
+
+1. Level 1 shows one card per creation step (like levels 2–20); clicking a card opens it in place.
+2. The summary always shows HP, Class DC, Perception, saves and skills, at the character's current
+   level (the level picker in the top bar), whichever level you are editing.
+3. Boosts: fixed ancestry boosts are brass-tinted and locked; flaws are red and can be boosted to 0.
+4. Languages: the big X/N counter at the top updates as you pick.
+5. Learn Fireball at level 5, then open level 7's spells: Fireball shows as "Learned at level 5".
+   Clicking a spell rank header opens and closes its picker.
+6. Equipment plan (bottom of the level list): filter by type, consumable/permanent, level range;
+   sort by level/price/name; add at a level; the level's page lists what you planned for it.
+   Prices need Sync Now with Bridge 0.11.

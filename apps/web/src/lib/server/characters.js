@@ -233,6 +233,22 @@ export function documentUuids(value,out=new Set()){
   }
   return out;
 }
+/** Equipment wishlist entries (planner only; never applied to the Foundry actor). */
+function validateWishlist(value){
+  if(!Array.isArray(value)||value.length>300)problem(400,'invalid_wishlist');
+  const text=(v,max)=>typeof v==='string'&&v.length<=max;
+  const num=(v,min,max)=>v===null||(typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max);
+  return value.map(w=>{
+    if(!w||typeof w!=='object'||!text(w.id,40)||!/^[a-z0-9]+$/i.test(w.id)||
+       typeof w.uuid!=='string'||!COMPENDIUM_UUID.test(w.uuid)||!text(w.name,120)||!text(w.type??'',40)||
+       !num(w.level??null,0,30)||!num(w.price??null,0,10000000)||
+       !Number.isInteger(w.targetLevel)||w.targetLevel<1||w.targetLevel>20||
+       !Number.isInteger(w.quantity)||w.quantity<1||w.quantity>999||
+       !['wanted','bought'].includes(w.status)||!text(w.notes??'',500))problem(400,'invalid_wishlist_entry');
+    return {id:w.id,uuid:w.uuid,name:w.name,type:w.type??'',level:w.level??null,price:w.price??null,
+      consumable:w.consumable===true,targetLevel:w.targetLevel,quantity:w.quantity,status:w.status,notes:w.notes??''};
+  });
+}
 /**
  * Validate a whole character document from the web editors. Leveler documents
  * are bounded JSON stored verbatim; uuids new relative to `current` must exist
@@ -255,8 +271,9 @@ export function validateDocument(campaignId,current,value){
   if(!extraFeats||typeof extraFeats!=='object'||Array.isArray(extraFeats)||
      Object.keys(extraFeats).length>40||!Object.values(extraFeats).every(x=>typeof x==='string'&&COMPENDIUM_UUID.test(x)))
     problem(400,'invalid_extra_feats');
+  const wishlist=validateWishlist(planner.wishlist??[]);
   const doc={...emptyDocument(),leveler:{creation:leveler.creation,plan:leveler.plan},
-    planner:{modifiers,notes,extraFeats}};
+    planner:{modifiers,notes,extraFeats,wishlist}};
   const before=documentUuids(current?.leveler??{});
   const added=[...documentUuids(doc.leveler)].filter(uuid=>!before.has(uuid));
   if(added.length){

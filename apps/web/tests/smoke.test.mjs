@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.10\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.11\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.10.0');
+    assert.equal(health.body.version,'0.11.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.10.0');
+    assert.equal(check.body.version,'0.11.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -430,6 +430,15 @@ test('production API: bootstrap → pair world → create player → sync → re
     const docStale=await send(docRoute,{name:current.name,level:current.level,revision:current.revision,
       document:{leveler:current.leveler,planner:current.planner}},playerCookie,origin,'PUT');
     assert.equal(docStale.status,409);
+    const wish={id:'w1abc',uuid:entries[1].uuid,name:'Planned item',type:'equipment',level:2,price:4.5,consumable:false,
+      targetLevel:8,quantity:2,status:'wanted',notes:'For the dragon'};
+    const docWish=await send(docRoute,{name:current.name,level:current.level,revision:current.revision+1,
+      document:{leveler:current.leveler,planner:{...current.planner,wishlist:[wish]}}},playerCookie,origin,'PUT');
+    assert.equal(docWish.status,200,JSON.stringify(docWish));
+    assert.deepEqual(docWish.body.character.planner.wishlist,[wish],'The equipment plan round-trips');
+    const badWish=await send(docRoute,{name:current.name,level:current.level,revision:current.revision+2,
+      document:{leveler:current.leveler,planner:{wishlist:[{...wish,targetLevel:40}]}}},playerCookie,origin,'PUT');
+    assert.equal(badWish.status,400,'Wishlist target levels are bounded');
     const gmCharacters=await send(charRoute,undefined,ownerCookie,origin,'GET');
     assert.equal(gmCharacters.status,200);
     assert.equal(gmCharacters.body.characters.length,1);

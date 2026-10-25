@@ -228,4 +228,10 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Legal-by-default feat options with readable prerequisites; show-unavailable toggle.
 - [x] Background filters; language rarity toggles from the world's settings.
 - [ ] Use Leveler's own rules engine for prerequisites it can parse but we can't.
-- [ ] Proficiency increases from class features in the level summary (saves, perception).
+- [x] Proficiency increases from class features in the level summary (saves, perception) — v0.11.0.
+
+## v0.11.0 equipment plan
+- [x] Wishlist of items per target level (planner extras, not sent to Foundry); filters by type, consumable, level; sort by level/price/name.
+- [x] Level 1 as step cards like levels 2–20; summary at the character's current level with saves and skills.
+- [x] Spells can't be learned twice across levels.
+- [ ] Push bought items to the Foundry actor inventory.

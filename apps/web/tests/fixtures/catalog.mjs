@@ -187,7 +187,10 @@ export const equipment=[
   item('equipment-srd','Longsword','weapon','Longsword',0,{rules:{price:{value:{gp:1}}}}),
   item('equipment-srd','SteelShield','shield','Steel Shield',0,{rules:{price:{value:{gp:2}}}}),
   item('equipment-srd','LeatherArmor','armor','Leather Armor',0,{rules:{price:{value:{gp:2}}}}),
-  item('equipment-srd','HealersToolkit','equipment',"Healer's Toolkit",0,{rules:{price:{value:{gp:5}}}})
+  item('equipment-srd','HealersToolkit','equipment',"Healer's Toolkit",0,{rules:{price:{value:{gp:5}}}}),
+  item('equipment-srd','MinorHealingPotion','consumable','Minor Healing Potion',1,{rules:{price:{value:{gp:4}},usage:{value:'held-in-one-hand'}}},{traits:['consumable','healing','potion']}),
+  item('equipment-srd','Caltrops','consumable','Caltrops',0,{rules:{price:{value:{sp:3}}}},{traits:['consumable']}),
+  item('equipment-srd','BagOfHolding','backpack','Bag of Holding (Type I)',4,{rules:{price:{value:{gp:75}}}},{traits:['extradimensional','magical']})
 ];
 export const actions=[];
 export const all=[...ancestries,...heritages,...backgrounds,...classes,...classFeatures,...deities,

@@ -1,9 +1,10 @@
 <script>
   import {page} from '$app/state';
   import AppBar from '../../../../../lib/ui/AppBar.svelte';
-  import StepPanel from '../../../../../lib/wizard/StepPanel.svelte';
+  import Level1Panel from '../../../../../lib/wizard/Level1Panel.svelte';
   import LevelPanel from '../../../../../lib/wizard/LevelPanel.svelte';
   import SummaryPanel from '../../../../../lib/wizard/SummaryPanel.svelte';
+  import WishlistPanel from '../../../../../lib/wizard/WishlistPanel.svelte';
   import ItemDrawer from '../../../../../lib/wizard/ItemDrawer.svelte';
   import {api} from '../../../../../lib/ui/api.js';
   import {loadCampaign} from '../../../../../lib/ui/session.js';
@@ -11,6 +12,7 @@
   import {creationSteps} from '../../../../../lib/builder/schema.js';
   import {ensurePlan,planFeat,planBoosts,planSkillIncrease,planSpells,planSignature} from '../../../../../lib/builder/plan.js';
   import {stepSummary,levelSummary} from '../../../../../lib/builder/summaries.js';
+  import {wishlist} from '../../../../../lib/builder/equipment.js';
   import {levelerChoiceSlots} from '../../../../../lib/leveler-progression.js';
   import {emptyCreation} from '../../../../../lib/leveler-format.js';
 
@@ -21,12 +23,15 @@
   let character=$state(null);
   let creation=$state(null);
   let plan=$state(null);
+  let planner=$state({});
   let name=$state('');
   let currentLevel=$state(1);
   let error=$state('');
   let saveState=$state('saved');
   let conflict=$state(false);
+  // Where the planner is: 'level-N' or 'equipment'; openStep is the open level-1 card.
   let at=$state(null);
+  let openStep=$state(null);
   let detail=$state(null);
   let railOpen=$state(false);
   let timer;
@@ -40,7 +45,11 @@
         ctx=loaded;catalog=cat;character=result.character;name=character.name;currentLevel=character.level;
         creation={...emptyCreation(),...(character.leveler?.creation??{})};
         plan=character.leveler?.plan??null;
-        at=new URLSearchParams(location.search).get('at');
+        planner=character.planner??{};
+        const requested=new URLSearchParams(location.search).get('at');
+        // Older links name a level-1 step directly (e.g. ?at=feats).
+        if(requested&&!/^level-\d+$|^equipment$/.test(requested)){at='level-1';openStep=requested;}
+        else at=requested;
       }catch(e){error=e.message;}
     })();
     return ()=>clearTimeout(timer);
@@ -51,14 +60,14 @@
   const second=$derived(variants.dualClass===true?catalog?.get(creation?.dualClass?.uuid)??null:null);
   const levelSlots=$derived(primary?levelerChoiceSlots(primary,second,variants).slots.filter(s=>s.level>=2):[]);
   const slotsAt=level=>levelSlots.filter(s=>s.level===level);
-  // One sequence: level-1 steps, then levels 2–20.
-  const sequence=$derived([...steps.map(s=>s.id),...(primary?Array.from({length:19},(_,i)=>'level-'+(i+2)):[])]);
+  const sequence=[...Array.from({length:20},(_,i)=>'level-'+(i+1)),'equipment'];
   $effect(()=>{
-    if(!steps.length)return;
-    if(!at||!sequence.includes(at))at=(steps.find(s=>!s.complete&&!s.optional)??steps.at(-1)).id;
+    if(!steps.length||at)return;
+    const incomplete=steps.find(s=>!s.complete&&!s.optional&&s.id!=='review');
+    at=incomplete||!primary?'level-1':'level-'+Math.min(20,currentLevel);
+    if(incomplete)openStep=incomplete.id;
   });
   const atLevel=$derived(at?.startsWith('level-')?Number(at.slice(6)):null);
-  const step=$derived(atLevel?null:steps.find(s=>s.id===at)??null);
   const index=$derived(sequence.indexOf(at));
 
   function slotDone(slot){
@@ -70,13 +79,28 @@
     return true;
   }
   function levelStatus(level){
+    if(level===1){
+      const required=steps.filter(s=>!s.optional&&s.id!=='review');
+      const done=required.filter(s=>s.complete).length;
+      return done===required.length?'done':done?'part':'todo';
+    }
     const slots=slotsAt(level).filter(s=>['feat','ability','skill','spells','signature'].includes(s.type));
     const done=slots.filter(slotDone).length;
     return !slots.length?'none':done===slots.length?'done':done?'part':'todo';
   }
+  function levelLines(level){
+    if(level>1)return levelSummary(level,slotsAt(level),plan);
+    const pick=id=>{const s=steps.find(x=>x.id===id);return s?stepSummary(s,creation,catalog.get,variants):'';};
+    const lineage=creation.heritage?.name&&creation.ancestry?.name&&creation.heritage.name.includes(creation.ancestry.name)
+      ?creation.heritage.name:[creation.heritage?.name,creation.ancestry?.name].filter(Boolean).join(' ');
+    return [[lineage,creation.background?.name].filter(Boolean).join(' · '),
+      [creation.class?.name,pick('subclass')].filter(Boolean).join(' · '),pick('feats')].filter(Boolean);
+  }
+  const wishCount=level=>wishlist(planner).filter(w=>w.targetLevel===level).length;
 
   function update(change){creation=change(creation);schedule();}
   function updatePlan(change){plan=change(ensurePlan(plan,creation));schedule();}
+  function updatePlanner(change){planner=change(planner);schedule();}
   function schedule(){saveState='unsaved';clearTimeout(timer);timer=setTimeout(save,700);}
   async function save(){
     if(saveState==='saving'||conflict){if(!conflict)schedule();return;}
@@ -86,7 +110,7 @@
     try{
       const result=await api('/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/'+encodeURIComponent(characterId)+'/document',
         {method:'PUT',body:{name:name.trim()||character.name,level:currentLevel,revision:character.revision,
-          document:{leveler:{creation,plan:savedPlan},planner:character.planner??{}}}});
+          document:{leveler:{creation,plan:savedPlan},planner}}});
       character={...character,revision:result.character.revision,name:result.character.name,level:result.character.level};
       if(saveState==='saving')saveState='saved';
       error='';
@@ -96,15 +120,17 @@
     }
   }
   function go(target){
-    const next=target==='next'?sequence[Math.min(sequence.length-1,index+1)]
+    let next=target==='next'?sequence[Math.min(sequence.length-1,index+1)]
       :target==='prev'?sequence[Math.max(0,index-1)]:target;
     if(!next)return;
+    // A level-1 step id opens level 1 at that card.
+    if(!sequence.includes(next)){openStep=next;next='level-1';}
     at=next;
     railOpen=false;
     try{history.replaceState(history.state,'','?at='+encodeURIComponent(next));}catch{}
     document.querySelector('.stage')?.scrollTo?.({top:0});
   }
-  const labelOf=id=>id?.startsWith('level-')?'Level '+id.slice(6):steps.find(s=>s.id===id)?.label??'';
+  const labelOf=id=>id==='equipment'?'Equipment plan':id?.startsWith('level-')?'Level '+id.slice(6):'';
   const saveLabel=$derived({saved:'Saved',saving:'Saving…',unsaved:'Unsaved',error:'Not saved'}[saveState]);
 </script>
 <svelte:head><title>{name||'Character'} · PF2e Planner</title></svelte:head>
@@ -120,73 +146,71 @@
 {#if creation&&catalog}
   <div class="mobile-bar">
     <button class="menu-btn" aria-expanded={railOpen} aria-controls="builder-rail" onclick={()=>railOpen=!railOpen}>
-      <span aria-hidden="true">☰</span><span class="sr">Steps and levels</span></button>
+      <span aria-hidden="true">☰</span><span class="sr">Levels</span></button>
     <span class="where"><b>{labelOf(at)}</b><small>{name} · level {currentLevel}</small></span>
   </div>
   {#if railOpen}<div class="scrim" role="presentation" onclick={()=>railOpen=false}></div>{/if}
   <div class="builder">
-    <nav class="rail" class:open={railOpen} id="builder-rail" aria-label="Character steps and levels">
+    <nav class="rail" class:open={railOpen} id="builder-rail" aria-label="Levels">
       <div class="identity">
         <label class="field" for="character-name"><span class="eyebrow">Character</span>
           <input id="character-name" maxlength="80" bind:value={name} oninput={schedule}/></label>
-        <label class="field level-pick" for="current-level"><span class="eyebrow">Current level</span>
+        <label class="field level-pick" for="current-level"><span class="eyebrow">Level</span>
           <select id="current-level" bind:value={currentLevel} onchange={schedule}>
             {#each Array.from({length:20},(_,i)=>i+1) as n}<option value={n}>{n}</option>{/each}
           </select></label>
       </div>
-      <span class="group eyebrow">Level 1</span>
       <ol>
-        {#each steps as s (s.id)}
-          {@const summary=stepSummary(s,creation,catalog.get,variants)}
-          <li><button class="item" class:on={s.id===at} aria-current={s.id===at?'step':undefined} onclick={()=>go(s.id)}>
-            <span class="dot {s.complete?'done':'todo'}" aria-hidden="true">{s.complete&&s.id!=='review'?'✓':''}</span>
-            <span class="label"><span class="name">{s.label}</span>{#if summary}<span class="pick">{summary}</span>{/if}</span>
+        {#each Array.from({length:20},(_,i)=>i+1) as level}
+          {@const lines=primary||level===1?levelLines(level):[]}
+          {@const status=primary||level===1?levelStatus(level):'none'}
+          {@const wishes=wishCount(level)}
+          <li><button class="item" class:on={at==='level-'+level} class:future={level>currentLevel}
+            aria-current={at==='level-'+level?'step':undefined} onclick={()=>go('level-'+level)}>
+            <span class="lvl num">{level}</span>
+            <span class="label">
+              {#if lines.length}{#each lines as line}<span class="pick">{line}</span>{/each}{:else}<span class="pick faint">—</span>{/if}
+              {#if level===currentLevel||wishes}<span class="tags">
+                {#if level===currentLevel}<span class="now">Current</span>{/if}
+                {#if wishes}<span class="wish">{wishes} item{wishes===1?'':'s'}</span>{/if}</span>{/if}
+            </span>
+            <span class="status {status}" aria-label={status}></span>
           </button></li>
         {/each}
+        <li><button class="item" class:on={at==='equipment'} onclick={()=>go('equipment')}>
+          <span class="lvl" aria-hidden="true">⚒</span>
+          <span class="label"><span class="name">Equipment plan</span>
+            <span class="pick">{wishlist(planner).length?wishlist(planner).length+' items wanted':'Items to buy as you level'}</span></span>
+          <span></span>
+        </button></li>
       </ol>
-      <span class="group eyebrow">Levels 2–20</span>
-      {#if primary}
-        <ol>
-          {#each Array.from({length:19},(_,i)=>i+2) as level}
-            {@const lines=levelSummary(level,slotsAt(level),plan)}
-            {@const status=levelStatus(level)}
-            <li><button class="item level" class:on={at==='level-'+level} class:future={level>currentLevel}
-              aria-current={at==='level-'+level?'step':undefined} onclick={()=>go('level-'+level)}>
-              <span class="lvl num">{level}</span>
-              <span class="label">{#if lines.length}{#each lines as line}<span class="pick">{line}</span>{/each}{:else}<span class="pick faint">{status==='none'?'Class features only':'Nothing chosen yet'}</span>{/if}
-                {#if level===currentLevel}<span class="now">Current</span>{/if}</span>
-              <span class="status {status}" aria-label={status}></span>
-            </button></li>
-          {/each}
-        </ol>
-      {:else}
-        <p class="muted small pad">Choose a class to plan levels 2–20.</p>
-      {/if}
     </nav>
     <main class="stage">
       <header class="stage-head">
-        <span class="eyebrow">{atLevel?`Level ${atLevel} of 20`:`Level 1 · step ${index+1} of ${steps.length}`}</span>
-        <h1>{atLevel?'Level '+atLevel:step?.id==='review'?'Review level 1':step?.label}</h1>
+        <span class="eyebrow">{atLevel?`Level ${atLevel} of 20`:'Wishlist'}</span>
+        <h1>{labelOf(at)}</h1>
       </header>
-      {#if atLevel}
+      {#if at==='level-1'}
+        <Level1Panel {steps} open={openStep} {creation} {plan} {catalog} {variants} {update} info={uuid=>detail=uuid}
+          onOpen={id=>openStep=id} onPlan={()=>go('level-2')}/>
+      {:else if atLevel&&!primary}
+        <p class="empty">Choose a class at level 1 to plan levels 2–20.</p>
+      {:else if atLevel}
         {#key atLevel}
-          <LevelPanel level={atLevel} slots={slotsAt(atLevel)} {creation} {plan} {catalog} {variants} {updatePlan}
-            info={uuid=>detail=uuid} {currentLevel}/>
+          <LevelPanel level={atLevel} slots={slotsAt(atLevel)} {creation} {plan} {planner} {catalog} {variants} {updatePlan}
+            info={uuid=>detail=uuid} {currentLevel} onEquipment={()=>go('equipment')}/>
         {/key}
-      {:else if step}
-        {#key step.id}
-          <StepPanel {step} {steps} {creation} {plan} {catalog} {variants} {update} info={uuid=>detail=uuid} {go}
-            onPlan={()=>go('level-2')}/>
-        {/key}
+      {:else if at==='equipment'}
+        <WishlistPanel {planner} {catalog} {updatePlanner} {currentLevel} info={uuid=>detail=uuid}/>
       {/if}
       <footer class="stage-foot">
         <button class="btn" disabled={index<=0} onclick={()=>go('prev')}>← {labelOf(sequence[index-1])||'Back'}</button>
         {#if index<sequence.length-1}<button class="btn primary" onclick={()=>go('next')}>{labelOf(sequence[index+1])} →</button>{/if}
       </footer>
     </main>
-    <div class="side"><SummaryPanel {name} {creation} {plan} lookup={catalog.get} {steps} onStep={go} level={atLevel??1}/></div>
+    <div class="side"><SummaryPanel {name} {creation} {plan} lookup={catalog.get} {steps} onStep={go} level={currentLevel}/></div>
   </div>
-  <ItemDrawer {campaignId} uuid={detail} level={atLevel??1} onClose={()=>detail=null}/>
+  <ItemDrawer {campaignId} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
 {:else if !error}
   <p class="loading muted">Loading the character…</p>
 {/if}
@@ -195,47 +219,44 @@
   .save.unsaved,.save.saving{color:var(--warn)}.save.error{color:var(--bad)}
   .banner{padding:12px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px))}
   .loading{padding:32px}
-  .builder{display:grid;grid-template-columns:270px minmax(0,1fr) 290px;min-height:calc(100vh - 57px)}
+  .builder{display:grid;grid-template-columns:270px minmax(0,1fr) 300px;min-height:calc(100vh - 57px)}
   .rail{border-right:1px solid var(--line);background:var(--panel);padding:14px 10px 24px;display:grid;gap:8px;align-content:start;
     position:sticky;top:57px;max-height:calc(100vh - 57px);overflow-y:auto;overflow-x:hidden;padding-left:max(10px,env(safe-area-inset-left,0px))}
-  .identity{display:grid;grid-template-columns:minmax(0,1fr) 76px;gap:8px;padding:0 6px 6px}
+  .identity{display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:8px;padding:0 6px 6px}
   .identity input{font:800 1rem var(--display);padding:.45rem .6rem;width:100%;min-width:0}
   .identity select{padding:.45rem .4rem}
-  .group{padding:10px 8px 2px}
   ol{list-style:none;margin:0;padding:0;display:grid;gap:1px}
-  .item{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:start;width:100%;background:none;border:0;
+  .item{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;align-items:start;width:100%;background:none;border:0;
     border-radius:8px;padding:7px 8px;color:var(--text-2);text-align:left}
   .item:hover{background:var(--panel-2)}
   .item.on{background:var(--panel-3);color:var(--text)}
-  .dot{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line-strong);display:grid;place-items:center;font-size:.65rem;margin-top:1px}
-  .dot.done{background:var(--good-soft);border-color:var(--good);color:var(--good)}
-  .on .dot{border-color:var(--brass)}
   .label{display:grid;gap:1px;min-width:0}
   .name{font-weight:700;font-size:.9rem;color:var(--text)}
-  .pick{font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .on .pick{color:var(--text-2)}
+  .pick{font-size:.8rem;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .faint{color:var(--faint)}
   .lvl{font:700 .85rem var(--mono);color:var(--muted);text-align:center;padding-top:1px}
   .on .lvl{color:var(--brass)}
-  .level .pick{color:var(--text-2)}
   .future .lvl{color:var(--faint)}
-  .now{justify-self:start;margin-top:2px;font:600 .62rem var(--mono);text-transform:uppercase;background:var(--brass);color:var(--on-brass);border-radius:3px;padding:1px 4px}
+  .tags{display:flex;gap:4px;margin-top:2px}
+  .now,.wish{font:600 .62rem var(--mono);text-transform:uppercase;border-radius:3px;padding:1px 4px}
+  .now{background:var(--brass);color:var(--on-brass)}
+  .wish{background:var(--panel-3);color:var(--text-2)}
   .status{width:9px;height:9px;border-radius:50%;margin-top:5px;background:var(--line-strong)}
   .status.done{background:var(--good)}.status.part{background:transparent;border:2px solid var(--brass)}
   .status.none{background:transparent}
-  .small{font-size:.85rem}.pad{padding:0 8px}
+  .empty{border:1px dashed var(--line-strong);border-radius:var(--radius);padding:1.4rem;color:var(--muted)}
   .stage{padding:24px 28px 40px;display:grid;gap:18px;align-content:start;min-width:0}
   .stage-head{display:grid;gap:4px}
   h1{font-size:clamp(1.5rem,3vw,2rem);font-weight:800}
   .stage-foot{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:16px;flex-wrap:wrap}
   .side{border-left:1px solid var(--line);background:var(--panel);padding:20px 18px;position:sticky;top:57px;
     max-height:calc(100vh - 57px);overflow:auto;padding-right:max(18px,env(safe-area-inset-right,0px))}
+  .mobile-bar,.scrim{display:none}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   @media(max-width:1180px){
     .builder{grid-template-columns:250px minmax(0,1fr)}
     .side{grid-column:1/-1;position:static;max-height:none;border-left:0;border-top:1px solid var(--line)}
   }
-  .mobile-bar,.scrim{display:none}
-  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   @media(max-width:760px){
     .builder{grid-template-columns:minmax(0,1fr)}
     .mobile-bar{display:flex;align-items:center;gap:10px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 49px);z-index:20;

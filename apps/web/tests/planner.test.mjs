@@ -7,6 +7,8 @@ import * as P from '../src/lib/builder/plan.js';
 import {buildState,checkFeat,featNameIndex,skillRanks,maxSkillRank,takenFeats} from '../src/lib/builder/legality.js';
 import {featOptions} from '../src/lib/wizard/options.js';
 import {levelerChoiceSlots} from '../src/lib/leveler-progression.js';
+import {proficienciesAt,proficiencyBonus} from '../src/lib/builder/rules.js';
+import * as E from '../src/lib/builder/equipment.js';
 import {emptyCreation,projectView} from '../src/lib/leveler-format.js';
 
 const catalog=indexCatalog(bundle);
@@ -92,4 +94,50 @@ test('plan edits keep Leveler shapes: feats, boosts, skill increase sources, spe
   assert.equal(projectView({leveler:{creation,plan}}).spells['5:rank-3'][0],fireball.uuid);
   plan=P.togglePlanSpell(plan,5,fireball,{rank:3,cantrip:false});
   assert.equal(P.planSpells(plan,5).length,0);
+});
+
+test('spells learned at one level are known for the rest of the plan',()=>{
+  let plan=P.ensurePlan(null,{class:{slug:'wizard'}});
+  const shield=catalog.ofType('spell').find(s=>s.name==='Shield');
+  const fireball=catalog.ofType('spell').find(s=>s.name==='Fireball');
+  const creation={spells:{cantrips:[{uuid:shield.uuid,name:shield.name}],rank1:[]}};
+  plan=P.togglePlanSpell(plan,3,fireball,{rank:3,cantrip:false});
+  plan=P.togglePlanSpell(plan,5,fireball,{rank:3,cantrip:false});
+  const learned=P.learnedSpellLevels(creation,plan);
+  assert.equal(learned.get(shield.uuid),1);
+  assert.equal(learned.get(fireball.uuid),3,'the earliest level wins');
+});
+
+test('proficiencies rise with class features at the right level',()=>{
+  const wizard=catalog.ofType('class').find(c=>c.name==='Wizard');
+  const creation={class:{uuid:wizard.uuid,slug:'wizard',name:'Wizard'}};
+  assert.equal(proficienciesAt(creation,lookup,1).reflex,1);
+  assert.equal(proficienciesAt(creation,lookup,5).reflex,2);
+  assert.equal(proficienciesAt(creation,lookup,1).will,2);
+  assert.equal(proficiencyBonus(2,5),9);
+  assert.equal(proficiencyBonus(0,5),0);
+});
+
+test('equipment wishlist: prices, consumables, grouping by target level',()=>{
+  const items=E.itemOptions(catalog);
+  const potion=items.find(i=>i.name==='Minor Healing Potion');
+  const caltrops=items.find(i=>i.name==='Caltrops');
+  const bag=items.find(i=>i.name.startsWith('Bag of Holding'));
+  assert.equal(E.priceGp(caltrops),0.3);
+  assert.equal(E.formatPrice(0.3),'3 sp');
+  assert.equal(E.formatPrice(75),'75 gp');
+  assert.ok(E.isConsumable(potion)&&!E.isConsumable(bag));
+  let planner={modifiers:[],notes:''};
+  planner=E.addWish(planner,potion,8);
+  planner=E.addWish(planner,bag,4);
+  planner=E.addWish(planner,potion,8);
+  const potionWish=E.wishlist(planner).find(w=>w.uuid===potion.uuid);
+  planner=E.updateWish(planner,potionWish.id,{quantity:3});
+  const groups=E.wishesByLevel(planner);
+  assert.deepEqual(groups.map(g=>g.level),[4,8]);
+  assert.equal(groups[1].items.length,2);
+  assert.equal(groups[1].total,16,'3 + 1 potions at 4 gp');
+  planner=E.removeWish(planner,potionWish.id);
+  assert.equal(E.wishlist(planner).length,2);
+  assert.equal(planner.notes,'','other planner fields survive');
 });

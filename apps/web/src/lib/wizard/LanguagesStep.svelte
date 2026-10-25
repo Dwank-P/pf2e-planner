@@ -15,8 +15,12 @@
   const visible=g=>g.rarity==='common'||show[g.rarity];
 </script>
 <div class="langs">
-  <p class="muted">You speak {allowance.granted.map(titleCase).join(', ')||'your ancestry’s languages'}.
-    {#if allowance.count}Choose <b class="num">{allowance.count}</b> more{chosen.length?` (${chosen.length} chosen)`:''}.{:else}Your ancestry and Intelligence give no extra languages, but you can still note any you plan to learn.{/if}</p>
+  <div class="counter" class:met={chosen.length===allowance.count&&allowance.count>0} class:over={chosen.length>allowance.count}>
+    <b class="num">{chosen.length}<span>/{allowance.count}</span></b>
+    <span><strong>{!allowance.count?'No extra languages':chosen.length>allowance.count?'Over your allowance':
+      chosen.length===allowance.count?'All chosen':(allowance.count-chosen.length)+' left to choose'}</strong>
+      <small class="muted">You speak {allowance.granted.map(titleCase).join(', ')||'your ancestry’s languages'}. Extra languages come from your ancestry and Intelligence.</small></span>
+  </div>
   <div class="toggles">
     {#each ['uncommon','rare','secret'] as r}
       {#if groups.some(g=>g.rarity===r)}
@@ -44,6 +48,12 @@
 </div>
 <style>
   .langs{display:grid;gap:12px}
+  .counter{display:flex;gap:14px;align-items:center;border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;background:var(--panel)}
+  .counter b{font:800 2rem/1 var(--display)}
+  .counter b span{font-size:1.1rem;color:var(--muted)}
+  .counter>span{display:grid;gap:2px}
+  .counter.met{border-color:var(--good)}.counter.met b{color:var(--good)}
+  .counter.over{border-color:var(--warn)}.counter.over b{color:var(--warn)}
   .toggles{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:.88rem}
   .toggles label{display:flex;gap:6px;align-items:center}
   .group{display:grid;gap:6px}

@@ -159,7 +159,7 @@
   {:else if id==='languages'}
     <LanguagesStep {creation} lookup={catalog.get} {variants} {update}/>
   {:else if id==='spells'}
-    <SpellsStep {creation} {catalog} {update} {info}/>
+    <SpellsStep {creation} {plan} {catalog} {update} {info}/>
   {:else if id==='equipment'}
     <p class="muted">Optional: note starting gear. Leveler adds it to the actor when you apply the wizard in Foundry.</p>
     <OptionGrid id="equipment" items={equipmentOptions(catalog)} selected={(creation.equipment??[]).map(e=>e.uuid)} max={60}

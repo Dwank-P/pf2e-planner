@@ -276,7 +276,16 @@ const RULE_FIELDS={
   deity:['font','sanctification','domains','skill','weapons','attribute','category'],
   feat:['maxTakable','onlyLevel1'],
   // Targeted defense for spell filters: AC, or a Fortitude/Reflex/Will save.
-  spell:['defense']
+  spell:['defense'],
+  // Equipment wishlist: price, bulk and how it's used.
+  weapon:['price','bulk','usage','category','group'],
+  armor:['price','bulk','usage','category','group'],
+  shield:['price','bulk','usage'],
+  equipment:['price','bulk','usage'],
+  consumable:['price','bulk','usage','category'],
+  backpack:['price','bulk','usage'],
+  treasure:['price','bulk'],
+  kit:['price']
 };
 function rulesData(type,system){
   const fields=RULE_FIELDS[type];

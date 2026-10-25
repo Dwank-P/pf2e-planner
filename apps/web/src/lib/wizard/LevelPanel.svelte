@@ -6,8 +6,9 @@
   import {ATTRIBUTES,ATTRIBUTE_NAMES,SKILLS,RANKS,titleCase,attributeModifiers,formatModifier} from '../builder/rules.js';
   import {featOptions,spellOptions} from './options.js';
   import {classFeaturesAt} from '../leveler-progression.js';
+  import {wishlist,formatPrice} from '../builder/equipment.js';
   /** One planned level (2–20): every slot Leveler's schedule gives, editable inline. */
-  let {level,slots,creation,plan,catalog,variants,updatePlan,info,currentLevel=1}=$props();
+  let {level,slots,creation,plan,planner={},catalog,variants,updatePlan,info,currentLevel=1,onEquipment=()=>{}}=$props();
   const lookup=$derived(catalog.get);
   const state=$derived(buildState(creation,plan,lookup,level,variants));
   const names=$derived(featNameIndex(catalog));
@@ -42,9 +43,19 @@
     return (a.ranks[rank]??0)-ranked.filter(s=>Number(s.rank)===rank).length;
   }
   const repertoire=$derived(P.repertoire(creation,plan,level));
+  const learned=$derived(P.learnedSpellLevels(creation,plan));
+  const wishes=$derived(wishlist(planner).filter(w=>w.targetLevel===level));
 </script>
 <div class="level">
   {#if level>currentLevel}<p class="future muted">Planned. This becomes active when the character reaches level {level}.</p>{/if}
+  {#if wishes.length}
+    <div class="gained">
+      <span class="eyebrow">Equipment planned for level {level} · {formatPrice(wishes.reduce((n,w)=>n+(w.price??0)*(w.quantity||1),0))}</span>
+      <ul>{#each wishes as w (w.id)}<li class:bought={w.status==='bought'}><button class="link" onclick={()=>info(w.uuid)}>{w.quantity>1?w.quantity+'× ':''}{w.name}</button>
+        <small class="muted">{formatPrice(w.price)}</small></li>{/each}
+        <li><button class="link" onclick={onEquipment}>Edit plan →</button></li></ul>
+    </div>
+  {/if}
   {#if features.length}
     <div class="gained">
       <span class="eyebrow">Gained automatically</span>
@@ -122,17 +133,24 @@
         {#each spellRows(slot) as [rank,label,allowed]}
           {@const here=picks.filter(s=>rank===0?s.isCantrip:!s.isCantrip&&Number(s.rank)===rank)}
           {#if allowed!==null||here.length||spellRoom(slot,rank)>0}
+            {@const rowKey=slot.key+rank}
             <div class="spell-row">
-              <span class="rank">{label}{allowed!==null?` · ${here.length}/${allowed}`:''}</span>
+              <button class="rank" aria-expanded={open===rowKey} onclick={()=>open=open===rowKey?null:rowKey}>
+                <span aria-hidden="true">{open===rowKey?'▾':'▸'}</span> {label}{allowed!==null?` · ${here.length}/${allowed}`:''}</button>
               <span class="chips-row">
                 {#each here as s}<span class="spell-chip"><button class="link" onclick={()=>info(s.uuid)}>{s.name}</button>
                   <button class="link x" aria-label={'Remove '+s.name} onclick={()=>updatePlan(p=>P.togglePlanSpell(p,level,s,{rank,cantrip:rank===0}))}>×</button></span>{/each}
-                {#if spellRoom(slot,rank)>0}<button class="btn small" onclick={()=>open=open===slot.key+rank?null:slot.key+rank}>+ Add</button>{/if}
+                {#if spellRoom(slot,rank)>0&&open!==rowKey}<button class="btn small" onclick={()=>open=rowKey}>+ Add</button>{/if}
               </span>
             </div>
-            {#if open===slot.key+rank}
+            {#if open===rowKey}
               <OptionGrid id={slot.key+'-'+rank} items={spellOptions(catalog,{cantrip:rank===0,tradition,rank})}
                 selected={here.map(s=>s.uuid)} max={99}
+                check={item=>{
+                  // A spell already learned at another level can't be learned again.
+                  const at=learned.get(item.uuid);
+                  return at&&at!==level?{blocked:`Learned at level ${at}`,unknown:[]}:null;
+                }}
                 onToggle={item=>{if(here.some(s=>s.uuid===item.uuid)||spellRoom(slot,rank)>0)updatePlan(p=>P.togglePlanSpell(p,level,item,{rank,cantrip:rank===0}));}}
                 onInfo={item=>info(item.uuid)} placeholder={'Search '+label.toLowerCase()+' spells'}/>
             {/if}
@@ -201,7 +219,10 @@
   .skill.on{border-color:var(--brass);background:var(--brass-soft)}
   .skill:disabled{opacity:.4}
   .spell-row{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;padding:6px 14px;border-top:1px solid var(--line)}
-  .rank{min-width:7rem;font:600 .78rem var(--mono);color:var(--muted)}
+  .rank{min-width:7rem;font:600 .78rem var(--mono);color:var(--muted);background:none;border:0;padding:4px 0;text-align:left}
+  .rank:hover{color:var(--text)}
+  .gained li.bought{opacity:.55;text-decoration:line-through}
+  .gained li small{margin-left:4px}
   .chips-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1;min-width:0}
   .spell-chip{display:inline-flex;gap:2px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;background:var(--panel-2);font-size:.85rem}
   .x{padding:0 6px;color:var(--muted)}
