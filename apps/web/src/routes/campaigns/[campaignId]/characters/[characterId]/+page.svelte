@@ -7,11 +7,11 @@
   import WishlistPanel from '../../../../../lib/wizard/WishlistPanel.svelte';
   import ItemDrawer from '../../../../../lib/wizard/ItemDrawer.svelte';
   import SharePanel from '../../../../../lib/ui/SharePanel.svelte';
-  import {api} from '../../../../../lib/ui/api.js';
+  import {api,campaignPath} from '../../../../../lib/ui/api.js';
   import {loadCampaign} from '../../../../../lib/ui/session.js';
   import {loadCatalog} from '../../../../../lib/builder/catalog.js';
   import {creationSteps} from '../../../../../lib/builder/schema.js';
-  import {ensurePlan,planFeat,planBoosts,planSkillIncrease,planSpells,planSignature} from '../../../../../lib/builder/plan.js';
+  import {ensurePlan,repairLevelOne,planFeat,planBoosts,planSkillIncrease,planSpells,planSignature} from '../../../../../lib/builder/plan.js';
   import {stepSummary,levelSummary} from '../../../../../lib/builder/summaries.js';
   import {wishlist} from '../../../../../lib/builder/equipment.js';
   import {levelerChoiceSlots} from '../../../../../lib/leveler-progression.js';
@@ -47,6 +47,9 @@
         creation={...emptyCreation(),...(character.leveler?.creation??{})};
         plan=character.leveler?.plan??null;
         planner=character.planner??{};
+        // Older imports could hide level-1 feats in plan.levels[1]; move them where they belong.
+        const repaired=repairLevelOne(creation,plan);
+        if(repaired&&character.access?.edit!==false){creation=repaired.creation;plan=repaired.plan;queueMicrotask(schedule);}
         const requested=new URLSearchParams(location.search).get('at');
         // Older links name a level-1 step directly (e.g. ?at=feats).
         if(requested&&!/^level-\d+$|^equipment$/.test(requested)){at='level-1';openStep=requested;}
@@ -103,6 +106,15 @@
   const canEdit=$derived(character?.access?.edit!==false);
   const canManage=$derived(character?.access?.manage===true);
   let sharing=$state(false);
+  let confirmDelete=$state(false);
+  let deleting=$state(false);
+  async function deleteCharacter(){
+    deleting=true;clearTimeout(timer);
+    try{
+      await api('/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/'+encodeURIComponent(characterId),{method:'DELETE'});
+      location.replace(campaignPath(campaignId));
+    }catch(e){error=e.message;deleting=false;confirmDelete=false;}
+  }
   function update(change){if(!canEdit)return;creation=change(creation);schedule();}
   function updatePlan(change){if(!canEdit)return;plan=change(ensurePlan(plan,creation));schedule();}
   function updatePlanner(change){if(!canEdit)return;planner=change(planner);schedule();}
@@ -143,13 +155,24 @@
   <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name}>
     {#snippet actions()}
       {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">View only</span>{/if}
-      {#if canManage}<button class="btn small ghost" onclick={()=>sharing=true}>Share</button>{/if}
+      {#if canManage}<button class="btn small ghost" onclick={()=>sharing=true}>Share</button>
+        <button class="btn small ghost danger" onclick={()=>confirmDelete=true}>Delete</button>{/if}
     {/snippet}
   </AppBar>
 {/if}
 {#if sharing}
   <SharePanel url={'/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/'+encodeURIComponent(characterId)+'/sharing'}
     onClose={()=>sharing=false} onSaved={s=>character={...character,visibility:s.visibility}}/>
+{/if}
+{#if confirmDelete}
+  <div class="banner" role="alertdialog" aria-labelledby="delete-title">
+    <div class="notice bad delete">
+      <b id="delete-title">Delete {name||'this character'}?</b>
+      <span>This removes the build from the website for everyone{character?.linked?' and unlinks its Foundry actor (the actor itself stays)':''}. It can't be undone.</span>
+      <span class="row"><button class="btn small" onclick={()=>confirmDelete=false}>Keep it</button>
+        <button class="btn small danger" disabled={deleting} onclick={deleteCharacter}>{deleting?'Deleting…':'Delete character'}</button></span>
+    </div>
+  </div>
 {/if}
 {#if character&&!canEdit}
   <div class="banner"><p class="notice">{character.ownerName??'Its owner'} shared this character with you to view. Changes you make here aren’t saved.</p></div>
@@ -233,6 +256,8 @@
   .save{font:500 12px var(--mono);color:var(--muted);min-width:64px}
   .save.unsaved,.save.saving{color:var(--warn)}.save.error{color:var(--bad)}
   .banner{padding:12px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px))}
+  .delete{display:grid;gap:8px}
+  .delete .row{display:flex;gap:8px}
   .loading{padding:32px}
   .builder{display:grid;grid-template-columns:270px minmax(0,1fr) 300px;min-height:calc(100vh - 57px)}
   .rail{border-right:1px solid var(--line);background:var(--panel);padding:14px 10px 24px;display:grid;gap:8px;align-content:start;

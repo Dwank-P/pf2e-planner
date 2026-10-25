@@ -50,7 +50,7 @@ export function skillRanks(creation,plan,lookup,level){
 
 export function buildState(creation,plan,lookup,level,variants={}){
   const feats=takenFeats(creation,plan);
-  return {level,variants,
+  return {level,variants,grants:grantedNames(creation,lookup,level),
     mods:attributeModifiers(creation,lookup,plan?.levels??{},level).mods,
     skills:skillRanks(creation,plan,lookup,level),
     feats,
@@ -58,6 +58,30 @@ export function buildState(creation,plan,lookup,level,variants={}){
     creation};
 }
 
+/**
+ * Names of what the character has without picking it as a feat, by `level`:
+ * class features of both classes (Magnum Opus at 19 counts for a level-20 feat),
+ * specializations, ancestry, heritage and feats a background grants.
+ */
+export function grantedNames(creation,lookup,level){
+  const out=new Set();
+  const add=name=>{const n=norm(name);if(n)out.add(n);};
+  for(const entry of [creation?.class,creation?.dualClass]){
+    const item=lookup(entry?.uuid);
+    if(!item)continue;
+    for(const f of item.metadata?.grantedFeatures??[])if(Number(f.level)<=level)add(f.name);
+    for(const f of item.metadata?.levelerProgression?.classFeatures??[])if(Number(f.level)<=level)add(f.name);
+  }
+  for(const entry of [creation?.subclass,creation?.dualSubclass,creation?.ancestry,creation?.heritage])add(entry?.name);
+  for(const name of lookup(creation?.background?.uuid)?.metadata?.grantedFeats??[])add(name);
+  return out;
+}
+/** "Enigma Muse" is met by the Enigma specialization, "Magnum Opus" by the class feature. */
+function hasGranted(state,p){
+  if(state.grants?.has(p))return true;
+  for(const g of state.grants??[])if(p.startsWith(g+' ')||p.endsWith(' '+g))return true;
+  return false;
+}
 function checkPrerequisite(text,state,featNames){
   const p=norm(text).replace(/\.$/,'');
   const skill=/^(trained|expert|master|legendary) in (.+)$/.exec(p);
@@ -75,6 +99,7 @@ function checkPrerequisite(text,state,featNames){
     const key=ATTRIBUTE_WORDS[attribute[1]];
     return state.mods[key]>=Number(attribute[2])?null:`Needs ${attribute[1][0].toUpperCase()+attribute[1].slice(1)} +${attribute[2]}`;
   }
+  if(hasGranted(state,p))return null;
   if(featNames.has(p)){
     const before=state.feats.some(f=>norm(f.name)===p&&f.level<state.level);
     return before?null:`Needs the feat ${text.trim()} first`;
@@ -92,7 +117,8 @@ export function checkFeat(feat,state,{kind='',featNames=new Set(),currentUuid=nu
   if(Number.isFinite(feat.level)&&feat.level>state.level)return {blocked:`Level ${feat.level} feat`,unknown};
   const maxTakable=Number(feat.metadata?.rules?.maxTakable??1);
   const takenAt=state.feats.find(f=>f.uuid===feat.uuid&&f.uuid!==currentUuid);
-  if(takenAt&&maxTakable<=1)return {blocked:`Already taken at level ${takenAt.level}`,unknown};
+  // Taking a feat twice would add it twice in Foundry, so this one can't be overridden.
+  if(takenAt&&maxTakable<=1)return {blocked:`Already taken at level ${takenAt.level}`,unknown,hard:true};
   if(kind==='ancestry'){
     const reason=ancestryFeatBlock(feat,state.creation);
     if(reason)return {blocked:reason,unknown};

@@ -122,7 +122,9 @@
       {:else}
         <p class="muted">Pair a world from Foundry, then run Sync Now. Players can build characters once the first sync arrives.</p>
       {/if}
-      <div class="sub"><span class="eyebrow">Pair or re-authorize a GM browser</span><PairingCode/></div>
+      <div class="sub"><span class="eyebrow">Connect another GM browser or address to this world</span>
+        <p class="muted small">For a different Foundry world, use <a href="/worlds/new">+ Add a world</a> in the campaign menu instead.</p>
+        <PairingCode/></div>
       {#if sync?.integrationId}
         <div class="danger-zone">
           {#if confirmDisconnect}

@@ -9,7 +9,7 @@ import {emptyCreation} from '../leveler-format.js';
 import {levelerChoiceSlots,spellAllowance} from '../leveler-progression.js';
 import * as C from './creation.js';
 import * as P from './plan.js';
-import {skillTraining,attributeModifiers,SKILLS,ATTRIBUTES,loreName} from './rules.js';
+import {skillTraining,attributeModifiers,SKILLS,ATTRIBUTES,RANKS,titleCase,loreName} from './rules.js';
 import {maxSkillRank} from './legality.js';
 import {addWish,itemOptions} from './equipment.js';
 
@@ -48,6 +48,20 @@ function nameIndex(catalog){
 }
 const FEAT_KIND={'ancestry feat':'ancestry','class feat':'class','skill feat':'skill','general feat':'general',
   'archetype feat':'archetype','dual class feat':'dual-class','mythic feat':'mythic'};
+/** Slot kind from Pathbuilder's slot label ("Bard Feat 2", "Ancestry Paragon 3"), else its feat type. */
+export function featKind(type,slotLabel,{className='',dualName='',ancestryName=''}={}){
+  const t=String(type??'').toLowerCase();
+  if(t==='heritage'||t==='awarded feat'||!t)return null;
+  const label=nameKey(slotLabel);
+  if(label){
+    if(/^ancestry paragon/.test(label))return 'paragon';
+    if(/^free archetype/.test(label))return 'archetype';
+    if(dualName&&label.startsWith(nameKey(dualName)+' feat'))return 'dual-class';
+    if(className&&label.startsWith(nameKey(className)+' feat'))return 'class';
+    if(ancestryName&&label.startsWith(ancestryName+' feat'))return 'ancestry';
+  }
+  return FEAT_KIND[t]??null;
+}
 
 export function importPathbuilder(json,catalog,variants={}){
   const build=json?.build??json;
@@ -119,43 +133,64 @@ export function importPathbuilder(json,catalog,variants={}){
   c={...c,languages:(Array.isArray(build.languages)?build.languages:[]).map(l=>nameKey(l).replace(/ /g,'-')).filter(Boolean)
     .filter(l=>l!=='none'&&l!=='none selected')};
 
-  // Level-1 feats into the creation, later ones into the first open slot of their kind at their level.
+  // Feats go where Pathbuilder's own slot label says ("Bard Feat 2", "Ancestry Paragon 3",
+  // "Free Archetype 4"); level-1 feats into the creation, never into plan.levels[1].
   let plan=P.ensurePlan(null,c);
-  const slots=levelerChoiceSlots(classItem,dualItem,variants).slots;
+  const slots=levelerChoiceSlots(classItem,dualItem,variants).slots.filter(s=>s.level>1);
   const taken=new Set();
+  const ancestryName=nameKey(c.ancestry?.name??build.ancestry);
   for(const entry of Array.isArray(build.feats)?build.feats:[]){
-    const [name,extra,type,featLevel]=Array.isArray(entry)?entry:[entry?.name,null,entry?.type,entry?.level];
-    const kind=FEAT_KIND[String(type??'').toLowerCase()];
+    const [name,extra,type,featLevel,slotLabel,choiceType,parent]=Array.isArray(entry)?entry:[entry?.name,null,entry?.type,entry?.level];
+    const kind=featKind(type,slotLabel,{className:build.class,dualName:build.dualClass,ancestryName});
     if(!kind)continue; // Heritage, Awarded and class features come with other choices.
+    if(choiceType==='childChoice'){
+      report.notes.push(`${name} comes from ${String(slotLabel??parent??'another feat').replace(/Free Archetype \d+$/,'').trim()||'another feat'}; Leveler asks for it in Foundry.`);
+      continue;
+    }
     const item=find('feat',name);
     if(!item){miss('Feat',name+(extra?` (${extra})`:''));continue;}
     const at=Math.max(1,Number(featLevel)||1);
     if(at===1){
-      const field={ancestry:'ancestry',class:'class',skill:'skill','dual-class':'dualClass',mythic:'mythic'}[kind];
-      if(field&&!c[C.FEAT_FIELDS[field]]){c=C.setFeat(c,field,item);report.matched.push('Feat');continue;}
+      const field={ancestry:'ancestry',paragon:'paragon',class:'class',skill:'skill','dual-class':'dualClass',mythic:'mythic'}[kind];
+      if(kind==='paragon'&&variants.ancestralParagon!==true)
+        report.notes.push(`${item.name} is an Ancestral Paragon feat, but that variant is off in this campaign.`);
+      else if(field&&!c[C.FEAT_FIELDS[field]]){c=C.setFeat(c,field,item);report.matched.push('Feat');}
+      else report.notes.push(`${item.name} (level 1) had no free level-1 ${kind} feat; add it yourself.`);
+      continue;
     }
-    const kinds=kind==='archetype'?['archetype','class']:kind==='class'?['class','dual-class']:[kind];
+    const kinds=kind==='paragon'?['ancestry']:kind==='archetype'?['archetype','class']:kind==='class'?['class','dual-class']:[kind];
     const slot=slots.find(s=>s.type==='feat'&&s.level===at&&kinds.includes(s.kind)&&!taken.has(s.key));
     if(slot){plan=P.setPlanFeat(plan,slot,item);taken.add(slot.key);report.matched.push('Feat');}
-    else report.notes.push(`${item.name} (level ${at}) had no matching ${kind} feat slot; add it yourself.`);
+    else report.notes.push(`${item.name} (level ${at}) had no matching ${kind==='paragon'?'ancestry':kind} feat slot; add it yourself.`);
   }
 
-  // Skill increases: each rank above level-1 training, at the earliest legal slot.
+  // Skill increases. Pathbuilder keeps final ranks, not when each was raised, so each
+  // increase goes to the skill with the most ranks still to gain (your main skills first),
+  // within the level's rank limit. Training an untrained skill uses spare increases last.
   const base=new Map([...training.granted.keys(),...c.skills].map(s=>[s,1]));
   for(const lore of [...backgroundLores,...c.selectedLoreSkills.map(loreSlug)])base.set(lore,1);
-  const steps=[];
-  for(const [skill,rank] of wanted)for(let r=(base.get(skill)??0)+1;r<=rank;r++)steps.push({skill,rank:r});
-  steps.sort((a,b)=>a.rank-b.rank||a.skill.localeCompare(b.skill));
+  const current=new Map(base);
   const increaseSlots=slots.filter(s=>s.type==='skill'&&s.level<=level).sort((a,b)=>a.level-b.level);
-  const used=new Set(),reached=new Map();
-  for(const step of steps){
-    const slot=increaseSlots.find(s=>!used.has(s.key)&&maxSkillRank(s.level)>=step.rank&&s.level>(reached.get(step.skill)??1)
-      &&(!s.allowedSkills?.length||s.allowedSkills.includes(step.skill)));
-    if(!slot){report.notes.push(`Couldn't place ${step.skill.replace(/-/g,' ')} rank ${step.rank}; it may come from a feat or class feature.`);continue;}
-    used.add(slot.key);reached.set(step.skill,slot.level);
-    plan=P.setSkillIncrease(plan,slot,step.skill,step.rank);
+  const remaining=skill=>(wanted.get(skill)??0)-(current.get(skill)??0);
+  const allowed=(slot,skill)=>!slot.allowedSkills?.length||slot.allowedSkills.includes(skill);
+  const spare=[];
+  for(const slot of increaseSlots){
+    const pick=[...wanted.keys()].filter(s=>(current.get(s)??0)>=1&&remaining(s)>0&&(current.get(s)+1)<=maxSkillRank(slot.level)&&allowed(slot,s))
+      .sort((a,b)=>remaining(b)-remaining(a)||wanted.get(b)-wanted.get(a)||a.localeCompare(b))[0];
+    if(!pick){spare.push(slot);continue;}
+    current.set(pick,current.get(pick)+1);
+    plan=P.setSkillIncrease(plan,slot,pick,current.get(pick));
   }
-  if(steps.length)report.placed.push('Skill increases at the earliest level each rank was allowed');
+  for(const skill of [...wanted.keys()].filter(s=>!(current.get(s)>=1)).sort()){
+    const slot=spare.find(s=>allowed(s,skill));
+    if(!slot)continue;
+    spare.splice(spare.indexOf(slot),1);
+    current.set(skill,1);
+    plan=P.setSkillIncrease(plan,slot,skill,1);
+  }
+  for(const [skill,rank] of wanted)if((current.get(skill)??0)<rank)
+    report.notes.push(`${titleCase(skill)} ${RANKS[current.get(skill)??0]} → ${RANKS[rank]} didn't fit the skill increases; it may come from a feat or class feature.`);
+  if(increaseSlots.length)report.placed.push('Skill increases guessed from final ranks (Pathbuilder doesn’t record which level each was raised at): check them');
 
   // Level boosts 5/10/15/20.
   for(const [lvl,list] of Object.entries(breakdown?.mapLevelledBoosts??{})){

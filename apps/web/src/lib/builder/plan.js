@@ -25,6 +25,24 @@ function edit(plan,level,change){
   change(data);
   return next;
 }
+/**
+ * Level-1 feats belong in the creation document, not plan.levels[1] (Leveler
+ * plans levels 2–20). Imports from v0.13 could put a second level-1 ancestry
+ * feat (Ancestral Paragon) there, hidden but counted; move such feats into the
+ * empty creation fields and clear them from the plan. Returns null if nothing changed.
+ */
+export function repairLevelOne(creation,plan){
+  const data=plan?.levels?.[1];
+  if(!data||!['ancestryFeats','classFeats','skillFeats','dualClassFeats','generalFeats','archetypeFeats'].some(k=>data[k]?.length))return null;
+  const c=clone(creation),p=clone(plan);
+  const fill=(fields,list)=>{for(const entry of list??[]){const field=fields.find(f=>!c[f]);if(field)c[field]=entry;}};
+  fill(['ancestryFeat','ancestryParagonFeat'],data.ancestryFeats);
+  fill(['classFeat'],data.classFeats);
+  fill(['skillFeat'],data.skillFeats);
+  fill(['dualClassFeat'],data.dualClassFeats);
+  delete p.levels[1];
+  return {creation:c,plan:p};
+}
 /** Index of a repeated slot at one level: "ancestry-3-2" is the second ancestry feat. */
 export const slotIndex=slot=>{const m=/-(\d+)$/.exec(slot.key.replace(/^[a-z-]+-\d+/,''));return m?Number(m[1])-1:0;};
 

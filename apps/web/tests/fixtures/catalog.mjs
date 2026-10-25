@@ -12,7 +12,7 @@ const item=(pack,id,type,name,level,metadata={},{traits=[],rarity='common',descr
   description:description||`<p>${name}.</p>`,metadata:{slug:name.toLowerCase().replace(/[^a-z0-9]+/g,'-'),...metadata}});
 
 // Leveler-style schedules (classes/progression.js) for levels 2–20.
-function levels({classFeat=[2,4,6,8,10,12,14,16,18,20],skillFeat=[2,4,6,8,10,12,14,16,18,20],
+export function levels({classFeat=[2,4,6,8,10,12,14,16,18,20],skillFeat=[2,4,6,8,10,12,14,16,18,20],
   general=[3,7,11,15,19],ancestry=[5,9,13,17],boosts=[5,10,15,20],skill=[3,5,7,9,11,13,15,17,19],
   spells=false}={}){
   const out={};

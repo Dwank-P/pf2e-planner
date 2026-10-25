@@ -175,7 +175,7 @@
                 check={item=>{
                   // A spell already learned at another level can't be learned again.
                   const at=learned.get(item.uuid);
-                  return at&&at!==level?{blocked:`Learned at level ${at}`,unknown:[]}:null;
+                  return at&&at!==level?{blocked:`Learned at level ${at}`,unknown:[],hard:true}:null;
                 }}
                 onToggle={item=>{if(here.some(s=>s.uuid===item.uuid)||spellRoom(slot,rank)>0)updatePlan(p=>P.togglePlanSpell(p,level,item,{rank,cantrip:rank===0,...entry}));}}
                 onInfo={item=>info(item.uuid)} placeholder={'Search '+label.toLowerCase()+' spells'}/>

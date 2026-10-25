@@ -27,9 +27,9 @@
         <OptionGrid id={'grant-'+requirement.id} items={grantCandidates(catalog,requirement,{maxLevelCap:requirement.kind==='formula'?maxLevelCap:null})}
           selected={picks.map(p=>p.uuid)} max={count??99}
           check={item=>{
-            if(fixed.has(item.uuid))return {blocked:'Granted automatically',unknown:[]};
+            if(fixed.has(item.uuid))return {blocked:'Granted automatically',unknown:[],hard:true};
             const at=requirement.kind==='formula'?taken.get(item.uuid):null;
-            return at&&!picks.some(p=>p.uuid===item.uuid)?{blocked:`Formula already chosen${at===level?'':' at level '+at}`,unknown:[]}:null;
+            return at&&!picks.some(p=>p.uuid===item.uuid)?{blocked:`Formula already chosen${at===level?'':' at level '+at}`,unknown:[],hard:true}:null;
           }}
           detail={item=>[item.level!=null?'Level '+item.level:'',(item.traits??[]).includes('consumable')?'Consumable':''].filter(Boolean).join(' · ')}
           onToggle={item=>onToggle(requirement,item)} onInfo={item=>info(item.uuid)}

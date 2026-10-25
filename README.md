@@ -485,3 +485,23 @@ pauses saving while it runs, so back up the data folder first and run it when no
 ### v0.14.1 — Generic examples
 
 - Examples and placeholders use a generic address (`level-plan.mydomain.com`) instead of a real site.
+
+### v0.15.0 — Import accuracy, free choice, deleting characters
+
+Website only; the Bridge stays at 0.14.1.
+
+- **Prerequisites see class features**: Perfect Encore (needs Magnum Opus, gained at 19) is legal at
+  20. Specializations, heritage and background feats count too.
+- **Pick anything, with a warning**: options the planner thinks don't fit are still hidden by
+  default, but once shown they can be picked; the reason stays as a warning on the choice. Taking the
+  same feat twice, learning a spell twice and repeating a formula stay blocked.
+- **Pathbuilder import**:
+  - Feats go into the slot Pathbuilder names (Ancestry Paragon, Free Archetype, class feat); the
+    level-1 Paragon feat goes into the Paragon field instead of a hidden place.
+  - Feats a dedication grants (Captain's skill feat) are noted, not put in a slot.
+  - Pathbuilder doesn't record which level each skill was raised at, so increases now go to your
+    highest skills first (Diplomacy and Performance before training extra skills). Check them.
+  - Characters imported by 0.13–0.14 are repaired when opened.
+- **Delete characters**: the character page has *Delete* for its owner and GMs.
+- **+ Add a world** at the bottom of the campaign menu pairs a new Foundry world as a new campaign;
+  campaign settings' code is for connecting another browser or address to that world.

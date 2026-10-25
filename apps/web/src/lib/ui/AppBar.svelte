@@ -35,6 +35,9 @@
             <a role="menuitem" href={campaignPath(c.id)} class:current={c.id===campaign.id}>{c.title}
               <small>{c.role==='gm'?'GM':c.role==='player'?'Player':'Owner'}</small></a>
           {/each}
+          {#if me?.siteRole==='owner'||campaigns.some(c=>c.role==='gm')}
+            <a role="menuitem" class="add" href="/worlds/new"><span>+ Add a world</span><small>New campaign</small></a>
+          {/if}
         </div>
       {/if}
       {#if crumb}<span class="sep" aria-hidden="true">/</span><span class="here">{crumb}</span>{/if}
@@ -93,6 +96,7 @@
     text-decoration:none;background:none;border:0;text-align:left;font-weight:700}
   .menu a:hover,.menu .item:hover{background:var(--panel-2)}
   .menu a.current{color:var(--brass)}
+  .menu a.add{border-top:1px solid var(--line);margin-top:4px;padding-top:10px;border-radius:0 0 7px 7px;color:var(--brass)}
   .menu small{color:var(--muted);font-weight:400}
   .who{display:grid;padding:6px 8px 8px;border-bottom:1px solid var(--line);margin-bottom:4px}
   .who small{color:var(--muted)}

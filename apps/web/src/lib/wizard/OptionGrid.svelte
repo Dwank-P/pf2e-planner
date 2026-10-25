@@ -6,8 +6,9 @@
   /**
    * Searchable option cards.
    * selected: uuids; max: picks allowed (1 = replace).
-   * check(item) → {blocked, unknown}: blocked options are hidden until
-   *   "Show unavailable" is ticked, then shown disabled with the reason.
+   * check(item) → {blocked, unknown, hard}: blocked options are hidden until
+   *   "Show unavailable" is ticked, then shown with the reason as a warning. They can
+   *   still be picked (this is a planner; the GM decides) unless `hard` is set.
    * test(item) → bool: extra filter from the step's own filter controls (filters snippet).
    * detail(item) → one-line subtitle.
    */
@@ -52,13 +53,13 @@
     <div class="grid">
       {#each ordered.slice(0,limit) as {item,result} (item.uuid)}
         {@const isOn=selected.includes(item.uuid)}
-        {@const reason=isOn?null:result.blocked}
-        <div class="opt" class:on={isOn} class:blocked={!!reason}>
-          <button class="pick" disabled={!isOn&&(!!reason||(full&&max>1))} aria-pressed={isOn} onclick={()=>onToggle(item)}>
+        {@const reason=result.blocked}
+        <div class="opt" class:on={isOn} class:blocked={!!reason&&!isOn} class:warned={!!reason&&isOn}>
+          <button class="pick" disabled={!isOn&&((!!reason&&result.hard)||(full&&max>1))} aria-pressed={isOn} onclick={()=>onToggle(item)}>
             <span class="top"><span class="name"><Icon src={item.img} size={28}/><b>{item.name}</b></span>{#if Number.isFinite(item.level)&&item.type!=='class'&&item.metadata?.category!=='classfeature'&&!(item.traits??[]).includes('cantrip')}<span class="lvl num">{item.level}</span>{/if}</span>
             {#if detail(item)}<span class="detail">{detail(item)}</span>{/if}
             <Traits traits={item.traits??[]} rarity={item.rarity} max={4}/>
-            {#if reason}<span class="reason">{reason}</span>
+            {#if reason}<span class="reason">⚠ {reason}{#if !isOn&&!result.hard} · you can still pick it{/if}</span>
             {:else if result.unknown?.length}<span class="unknown" title="This planner can't verify these; your GM or Leveler will.">Check: {result.unknown.join('; ')}</span>{/if}
             <span class="tick" aria-hidden="true">{isOn?'✓':''}</span>
           </button>
@@ -89,7 +90,8 @@
   .opt{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);transition:border-color .12s}
   .opt:hover{border-color:var(--line-strong)}
   .opt.on{border-color:var(--brass);box-shadow:inset 0 0 0 1px var(--brass)}
-  .opt.blocked{opacity:.62}
+  .opt.blocked{opacity:.72}
+  .opt.warned{border-color:var(--warn);box-shadow:inset 0 0 0 1px var(--warn)}
   .pick{display:grid;gap:7px;width:100%;text-align:left;background:none;border:0;padding:12px 12px 30px;color:var(--text);border-radius:inherit}
   .pick:disabled{opacity:1;cursor:not-allowed}
   .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding-right:18px}
