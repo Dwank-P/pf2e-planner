@@ -77,6 +77,24 @@ export function setSkillIncrease(plan,slot,skill,toRank){
   });
 }
 
+/** Signature spell chosen for a rank at a level (Leveler's levelData.signatureSpells). */
+export function planSignature(plan,level,rank){
+  return (plan?.levels?.[level]?.signatureSpells??[])
+    .find(s=>(s.entryType??'primary')==='primary'&&Number(s.rank)===rank)??null;
+}
+export function setSignatureSpell(plan,level,rank,spell){
+  return edit(plan,level,data=>{
+    const list=(data.signatureSpells??[]).filter(s=>(s.entryType??'primary')!=='primary'||Number(s.rank)!==rank);
+    if(spell)list.push({...(spell.entryType?spell:spellEntry(spell,rank,false)),entryType:'primary',rank});
+    data.signatureSpells=list;
+  });
+}
+/** Every spell in the repertoire up to `level`: creation picks plus planned levels. */
+export function repertoire(creation,plan,level){
+  const out=[...(creation?.spells?.rank1??[]).map(s=>({...s,rank:1}))];
+  for(let l=2;l<=level;l++)out.push(...planSpells(plan,l).filter(s=>!s.isCantrip));
+  return out;
+}
 /** Spells learned at a level (primary class list). */
 export function planSpells(plan,level){
   return (plan?.levels?.[level]?.spells??[]).filter(s=>(s.entryType??'primary')==='primary');

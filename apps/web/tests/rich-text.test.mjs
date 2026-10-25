@@ -43,3 +43,11 @@ test('accepts authorized Item document types beyond feats and classes', () => {
   }
   assert.equal(verifyCatalogItem({uuid:'Actor.bad',name:'Bad',type:'feat'}),false);
 });
+
+test('Foundry inline commands render as action links and display-only rolls', () => {
+  const html = sanitizeDescription('<p>[[/act perform skill=acrobatics variant=dance]]{Acrobatics}, [[/act tumble-through]] and [[/r 1d6 #healing]]{1d6 healing}</p>');
+  assert.match(html, /data-pf2e-action="perform"[^>]*>Perform: Acrobatics<\/a>/);
+  assert.match(html, /data-pf2e-action="tumble-through"[^>]*>Tumble Through<\/a>/);
+  assert.match(html, /pf2e-roll[\s\S]*1d6 healing/);
+  assert.doesNotMatch(html, /\[\[/);
+});

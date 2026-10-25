@@ -100,12 +100,44 @@ function renderToken(name,contents,label) {
   return safeText('@'+name+'['+contents+']'+(label?'{'+label+'}':''));
 }
 
-/** A balanced parser for nested square brackets, e.g. @Damage[2d4[slashing]]. */
+/**
+ * Foundry inline commands: [[/act perform skill=acrobatics variant=dance]]{Acrobatics}
+ * links to the synced action; [[/r 1d6]] and [[/br …]] show their formula (never rolled).
+ */
+function renderInline(command,body,label){
+  // Inline commands are "slug key=value key=value", unlike @Enricher[a|b:c].
+  const [first='',...rest]=body.trim().split(/\s+/);
+  const flags=Object.fromEntries(rest.map(p=>p.split('=')).filter(([k,v])=>k&&v).map(([k,v])=>[k.toLowerCase(),v]));
+  if(command==='act'){
+    const slug=first.trim().toLowerCase();
+    if(!/^[a-z0-9-]{1,100}$/.test(slug))return safeText(label||body);
+    const detail=label||[flags.variant,flags.skill||flags.statistic].filter(Boolean).map(words).join(', ');
+    return '<a class="pf2e-reference pf2e-action" data-pf2e-action="'+safeText(slug)+
+      '" title="Open synchronized action if available">'+safeText(words(slug)+(detail?': '+detail:''))+'</a>';
+  }
+  const formula=body.replace(/#.*$/,'').trim();
+  return '<span class="pf2e-inline pf2e-roll" data-pf2e-kind="roll" title="'+safeText('Roll (not rolled here): '+formula)+'">'+
+    '<span class="pf2e-inline-icon">⚄</span> '+safeText(label||formula)+'</span>';
+}
+/** A balanced parser for nested square brackets, e.g. @Damage[2d4[slashing]], and [[/…]] commands. */
 function tokensToHtml(text) {
   let result='',cursor=0;
-  const token=/@([A-Za-z]+)\[/g;
+  const token=/@([A-Za-z]+)\[|\[\[\/(act|r|br|gmr|pr|sr)\s/g;
   let match;
   while((match=token.exec(text))){
+    if(match[2]){
+      const close=text.indexOf(']]',match.index);
+      if(close<0||close-match.index>400)continue;
+      const body=text.slice(match.index+match[0].length,close);
+      let after=close+2,label='';
+      if(text[after]==='{'){
+        const end=text.indexOf('}',after+1);
+        if(end!==-1&&end-after<240){label=text.slice(after+1,end);after=end+1;}
+      }
+      result+=safeText(text.slice(cursor,match.index))+renderInline(match[2],body,label);
+      cursor=after;token.lastIndex=after;
+      continue;
+    }
     const [whole,name]=match;
     if(!['UUID','Compendium','Template','Damage','Check','Action'].includes(name))continue;
     const start=match.index, contentStart=start+whole.length;
@@ -141,7 +173,7 @@ export function sanitizeDescription(value) {
     const code=insideCode||['code','pre','a'].includes(node.name);
     const children=[];
     for(const child of node.children){
-      if(child.type==='text' && !code && child.data.includes('@')){
+      if(child.type==='text' && !code && (child.data.includes('@')||child.data.includes('[[/'))){
         const markup=tokensToHtml(child.data);
         const fragment=parseDocument(markup,{decodeEntities:true}).children;
         for(const item of fragment){item.parent=node;children.push(item);}

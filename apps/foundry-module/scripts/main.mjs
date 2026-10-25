@@ -1,8 +1,8 @@
 import { getWorldMetadata, previewItemPack } from './snapshot.mjs';
 import { openPairingDialog, pairWebsite, testWebsite, syncNow, status } from './sync.mjs';
-import { PlannerConnectionMenu, PlannerSyncMenu, PlannerPackMenu } from './menu.mjs';
+import { PlannerConnectionMenu, PlannerSyncMenu } from './menu.mjs';
 import {registerLevelerButtons} from './actor-menu.mjs';
-import {refreshLevelerPacks} from './sync.mjs';
+import {refreshLevelerPacks,notify} from './sync.mjs';
 
 const MODULE_ID = 'pf2e-planner-bridge';
 
@@ -36,11 +36,7 @@ Hooks.once('init', () => {
     icon:'fa-solid fa-arrows-rotate',
     type:PlannerSyncMenu, restricted:true
   });
-  game.settings.registerMenu(MODULE_ID, 'packs', {
-    name:'Select Compendiums',label:'Select Compendium Collections',
-    hint:'Search and select whole Foundry content collections. Official PF2e is included.',
-    icon:'fa-solid fa-book-open',type:PlannerPackMenu,restricted:true
-  });
+  // Packs are chosen in PF2e Leveler's Compendium Manager; the Bridge syncs exactly those.
 });
 
 Hooks.once('ready', () => {
@@ -54,13 +50,13 @@ Hooks.once('ready', () => {
     console.warn('[PF2e Planner Bridge] Leveler catalog selection:',error.message));
   console.info('[PF2e Planner Bridge] v' +
     game.modules.get(MODULE_ID)?.version +
-    ' — Open Configure Settings → PF2e Planner Bridge → Pair World / Select Compendiums / Sync Now.');
+    ' — packs follow PF2e Leveler\'s Compendium Manager. Settings → PF2e Planner Bridge → Pair World / Sync Now.');
 
   if (game.users.activeGM?.id === game.user.id) {
     setTimeout(() => syncNow({auto:true}).catch(error => {
       if (!/not authorized|Pair this Foundry world/.test(error.message)) {
         console.warn('[PF2e Planner Bridge] Automatic catalog sync not completed:', error.message);
-        ui.notifications.warn('PF2e Planner: Automatic sync failed — ' + error.message);
+        notify('error','Sync failed — ' + error.message);
       }
     }), 1200);
   }

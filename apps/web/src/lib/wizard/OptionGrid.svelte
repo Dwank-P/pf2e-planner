@@ -1,6 +1,7 @@
 <script>
   import Traits from '../ui/Traits.svelte';
   import {searchItems} from '../builder/catalog.js';
+  import {spellDefense} from './options.js';
   /**
    * Searchable option cards.
    * selected: uuids; max: picks allowed (1 = replace).
@@ -14,10 +15,15 @@
   let query=$state('');
   let rarity=$state([]);
   let showBlocked=$state(false);
+  // Spell lists can be narrowed by the defense they target.
+  const DEFENSES=[['ac','AC'],['fortitude','Fort'],['reflex','Reflex'],['will','Will'],['none','None']];
+  let defense=$state([]);
+  const isSpells=$derived(items.some(i=>i.type==='spell')&&items.some(i=>spellDefense(i)!==null));
+  const combinedTest=$derived(defense.length||test?item=>(!test||test(item))&&(!defense.length||defense.includes(spellDefense(item))):null);
   let limit=$state(60);
   const RARITIES=['common','uncommon','rare','unique'];
   const present=$derived(RARITIES.filter(r=>items.some(i=>(i.rarity??'common')===r)));
-  const checked=$derived(searchItems(items,query,{rarity,test}).map(item=>({item,result:check(item)??{blocked:null,unknown:[]}})));
+  const checked=$derived(searchItems(items,query,{rarity,test:combinedTest}).map(item=>({item,result:check(item)??{blocked:null,unknown:[]}})));
   const blockedCount=$derived(checked.filter(c=>c.result.blocked&&!selected.includes(c.item.uuid)).length);
   const visible=$derived(checked.filter(c=>showBlocked||!c.result.blocked||selected.includes(c.item.uuid)));
   // Picked options first so they stay visible while searching.
@@ -38,7 +44,9 @@
     {/if}
     <span class="count num">{visible.length}</span>
   </div>
-  {#if filters}<div class="filters">{@render filters()}</div>{/if}
+  {#if filters||isSpells}<div class="filters">{#if isSpells}<div class="defenses" role="group" aria-label="Targets"><span class="eyebrow">Targets</span>
+    {#each DEFENSES as [key,label]}<button class:on={defense.includes(key)} aria-pressed={defense.includes(key)}
+      onclick={()=>defense=defense.includes(key)?defense.filter(d=>d!==key):[...defense,key]}>{label}</button>{/each}</div>{/if}{#if filters}{@render filters()}{/if}</div>{/if}
   {#if ordered.length}
     <div class="grid">
       {#each ordered.slice(0,limit) as {item,result} (item.uuid)}
@@ -72,6 +80,10 @@
   .toggle{display:flex;gap:6px;align-items:center;font-size:.82rem;color:var(--text-2);white-space:nowrap}
   .count{color:var(--muted);font-size:.8rem}
   .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .defenses{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+  .defenses .eyebrow{margin-right:4px}
+  .defenses button{border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:4px 10px;font-size:.78rem}
+  .defenses button.on{border-color:var(--brass);color:var(--brass)}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
   .opt{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);transition:border-color .12s}
   .opt:hover{border-color:var(--line-strong)}

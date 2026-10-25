@@ -9,7 +9,7 @@
   import {loadCampaign} from '../../../../../lib/ui/session.js';
   import {loadCatalog} from '../../../../../lib/builder/catalog.js';
   import {creationSteps} from '../../../../../lib/builder/schema.js';
-  import {ensurePlan,planFeat,planBoosts,planSkillIncrease,planSpells} from '../../../../../lib/builder/plan.js';
+  import {ensurePlan,planFeat,planBoosts,planSkillIncrease,planSpells,planSignature} from '../../../../../lib/builder/plan.js';
   import {stepSummary,levelSummary} from '../../../../../lib/builder/summaries.js';
   import {levelerChoiceSlots} from '../../../../../lib/leveler-progression.js';
   import {emptyCreation} from '../../../../../lib/leveler-format.js';
@@ -28,6 +28,7 @@
   let conflict=$state(false);
   let at=$state(null);
   let detail=$state(null);
+  let railOpen=$state(false);
   let timer;
 
   $effect(()=>{
@@ -65,10 +66,11 @@
     if(slot.type==='ability')return planBoosts(plan,slot.level).length>=slot.count;
     if(slot.type==='skill')return !!planSkillIncrease(plan,slot);
     if(slot.type==='spells')return planSpells(plan,slot.level).length>=(slot.allowance?.total??0);
+    if(slot.type==='signature')return slot.ranks.every(r=>planSignature(plan,slot.level,r));
     return true;
   }
   function levelStatus(level){
-    const slots=slotsAt(level).filter(s=>['feat','ability','skill','spells'].includes(s.type));
+    const slots=slotsAt(level).filter(s=>['feat','ability','skill','spells','signature'].includes(s.type));
     const done=slots.filter(slotDone).length;
     return !slots.length?'none':done===slots.length?'done':done?'part':'todo';
   }
@@ -98,6 +100,7 @@
       :target==='prev'?sequence[Math.max(0,index-1)]:target;
     if(!next)return;
     at=next;
+    railOpen=false;
     try{history.replaceState(history.state,'','?at='+encodeURIComponent(next));}catch{}
     document.querySelector('.stage')?.scrollTo?.({top:0});
   }
@@ -115,8 +118,14 @@
     {#if conflict}<button class="link" onclick={()=>location.reload()}>Reload</button>{/if}</p></div>
 {/if}
 {#if creation&&catalog}
+  <div class="mobile-bar">
+    <button class="menu-btn" aria-expanded={railOpen} aria-controls="builder-rail" onclick={()=>railOpen=!railOpen}>
+      <span aria-hidden="true">☰</span><span class="sr">Steps and levels</span></button>
+    <span class="where"><b>{labelOf(at)}</b><small>{name} · level {currentLevel}</small></span>
+  </div>
+  {#if railOpen}<div class="scrim" role="presentation" onclick={()=>railOpen=false}></div>{/if}
   <div class="builder">
-    <nav class="rail" aria-label="Character steps and levels">
+    <nav class="rail" class:open={railOpen} id="builder-rail" aria-label="Character steps and levels">
       <div class="identity">
         <label class="field" for="character-name"><span class="eyebrow">Character</span>
           <input id="character-name" maxlength="80" bind:value={name} oninput={schedule}/></label>
@@ -225,9 +234,22 @@
     .builder{grid-template-columns:250px minmax(0,1fr)}
     .side{grid-column:1/-1;position:static;max-height:none;border-left:0;border-top:1px solid var(--line)}
   }
+  .mobile-bar,.scrim{display:none}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   @media(max-width:760px){
     .builder{grid-template-columns:minmax(0,1fr)}
-    .rail{position:static;max-height:46vh;border-right:0;border-bottom:1px solid var(--line)}
+    .mobile-bar{display:flex;align-items:center;gap:10px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 49px);z-index:20;
+      background:var(--panel);border-bottom:1px solid var(--line);
+      padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
+    .menu-btn{width:38px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);font-size:1.1rem}
+    .where{display:grid;min-width:0}
+    .where b{font:800 .95rem var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .where small{color:var(--muted);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .scrim{display:block;position:fixed;inset:0;background:var(--overlay);z-index:49}
+    .rail{position:fixed;top:0;bottom:0;left:0;width:min(330px,88vw);max-height:none;z-index:50;border-right:1px solid var(--line);
+      transform:translateX(-102%);transition:transform .18s ease-out;box-shadow:var(--shadow);
+      padding-top:max(14px,env(safe-area-inset-top,0px));padding-bottom:max(24px,env(safe-area-inset-bottom,0px))}
+    .rail.open{transform:none}
     .stage{padding:18px max(16px,env(safe-area-inset-right,0px)) 32px max(16px,env(safe-area-inset-left,0px))}
   }
   @media(max-width:640px){.save{display:none}}

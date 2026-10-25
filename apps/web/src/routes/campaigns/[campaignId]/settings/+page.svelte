@@ -45,6 +45,17 @@
     notice=result.alreadyMember?`${user.displayName} is already in this campaign.`:`${user.displayName} added. They sign in with their existing account.`;
     matches=[];search='';members=(await api(base+'/members')).members;
   });
+  let confirming=$state(null);
+  const removeMember=m=>run(async()=>{
+    const result=await api(base+'/members/'+encodeURIComponent(m.id),{method:'DELETE'});
+    notice=result.deletedInvitation?'Invitation cancelled.':`${m.displayName} removed from ${ctx.campaign.title}.`;
+    confirming=null;members=(await api(base+'/members')).members;
+  });
+  const deleteAccount=m=>run(async()=>{
+    await api('/api/v1/users/'+encodeURIComponent(m.id),{method:'DELETE'});
+    notice=`${m.displayName}’s account was deleted. Their characters are now yours.`;
+    confirming=null;members=(await api(base+'/members')).members;
+  });
   const disconnect=()=>run(async()=>{
     await api('/api/v1/integrations/'+encodeURIComponent(sync.integrationId)+'/revoke',{method:'POST',body:{}});
     location.reload();
@@ -114,7 +125,23 @@
           <li><span class="avatar">{(m.displayName??'?').slice(0,1)}</span>
             <span class="who"><b>{m.status==='pending'?'Invited player':m.displayName}</b>
               <small>{m.status==='pending'?'Invitation not used yet':'@'+m.username}</small></span>
-            <span class="chip plain">{m.role==='gm'?'GM':'Player'}</span></li>
+            <span class="chip plain">{m.role==='gm'?'GM':'Player'}</span>
+            {#if m.id!==ctx.me.id}
+              {#if confirming?.id===m.id}
+                <span class="confirm">
+                  <span class="small">{confirming.mode==='delete'?'Delete this account everywhere? Their characters move to you.':
+                    m.status==='pending'?'Cancel this invitation?':'Remove from this campaign? Their characters stay.'}</span>
+                  <button class="btn small" onclick={()=>confirming=null}>Keep</button>
+                  <button class="btn small danger" disabled={busy} onclick={()=>confirming.mode==='delete'?deleteAccount(m):removeMember(m)}>
+                    {confirming.mode==='delete'?'Delete account':m.status==='pending'?'Cancel invite':'Remove'}</button>
+                </span>
+              {:else}
+                <button class="btn small ghost" onclick={()=>confirming={id:m.id,mode:'remove'}}>{m.status==='pending'?'Cancel invite':'Remove'}</button>
+                {#if ctx.me.siteRole==='owner'&&m.status!=='pending'}
+                  <button class="btn small ghost danger" onclick={()=>confirming={id:m.id,mode:'delete'}}>Delete account</button>
+                {/if}
+              {/if}
+            {/if}</li>
         {/each}
       </ul>
       <form class="add" onsubmit={e=>{e.preventDefault();find();}}>
@@ -158,7 +185,8 @@
   .invite{display:grid;gap:8px}
   textarea{width:100%;resize:vertical;font:500 .85rem var(--mono)}
   .members{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-  .members li{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:8px;background:var(--panel-2)}
+  .members li{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:8px 10px;border-radius:8px;background:var(--panel-2)}
+  .confirm{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex-basis:100%;justify-content:flex-end}
   .avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--panel-3);font:700 12px var(--display)}
   .who{display:grid;flex:1;min-width:0}
   .who small,.small{color:var(--muted);font-size:.85rem}

@@ -41,7 +41,7 @@
     if(a.any)return rank<=a.maxRank?a.any-ranked.length:0;
     return (a.ranks[rank]??0)-ranked.filter(s=>Number(s.rank)===rank).length;
   }
-  const boostSlot=$derived(slots.find(s=>s.type==='ability'));
+  const repertoire=$derived(P.repertoire(creation,plan,level));
 </script>
 <div class="level">
   {#if level>currentLevel}<p class="future muted">Planned. This becomes active when the character reaches level {level}.</p>{/if}
@@ -131,12 +131,31 @@
               </span>
             </div>
             {#if open===slot.key+rank}
-              <OptionGrid id={slot.key+'-'+rank} items={spellOptions(catalog,{cantrip:rank===0,tradition}).filter(s=>rank===0||Number(s.metadata?.spellRank??s.level)===rank)}
+              <OptionGrid id={slot.key+'-'+rank} items={spellOptions(catalog,{cantrip:rank===0,tradition,rank})}
                 selected={here.map(s=>s.uuid)} max={99}
                 onToggle={item=>{if(here.some(s=>s.uuid===item.uuid)||spellRoom(slot,rank)>0)updatePlan(p=>P.togglePlanSpell(p,level,item,{rank,cantrip:rank===0}));}}
                 onInfo={item=>info(item.uuid)} placeholder={'Search '+label.toLowerCase()+' spells'}/>
             {/if}
           {/if}
+        {/each}
+      </section>
+    {:else if slot.type==='signature'}
+      <section class="slot">
+        <div class="head static"><span class="icon" aria-hidden="true">★</span>
+          <span class="text"><span class="eyebrow">Signature spells</span>
+            <span class="muted small">One spell per rank from your repertoire; you can cast it at any higher rank you have slots for.</span></span></div>
+        {#each slot.ranks as rank}
+          {@const chosen=P.planSignature(plan,level,rank)}
+          {@const options=repertoire.filter(s=>Number(s.rank)===rank)}
+          <div class="spell-row">
+            <span class="rank">Rank {rank}</span>
+            <span class="chips-row">
+              {#each options as s (s.uuid)}
+                <button class="sig" class:on={chosen?.uuid===s.uuid} aria-pressed={chosen?.uuid===s.uuid}
+                  onclick={()=>updatePlan(p=>P.setSignatureSpell(p,level,rank,chosen?.uuid===s.uuid?null:s))}>{s.name}</button>
+              {:else}<span class="muted small">Learn a rank-{rank} spell first.</span>{/each}
+            </span>
+          </div>
         {/each}
       </section>
     {:else}
@@ -186,5 +205,7 @@
   .chips-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1;min-width:0}
   .spell-chip{display:inline-flex;gap:2px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;background:var(--panel-2);font-size:.85rem}
   .x{padding:0 6px;color:var(--muted)}
+  .sig{border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:4px 12px;font-size:.85rem}
+  .sig.on{background:var(--brass);border-color:var(--brass);color:var(--on-brass)}
   @media(max-width:520px){.boosts{grid-template-columns:repeat(3,minmax(0,1fr))}}
 </style>

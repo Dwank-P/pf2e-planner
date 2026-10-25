@@ -72,7 +72,7 @@ export const featField=slot=>FEAT_FIELD[slot];
 export function level1Spells(creation,lookup){
   const allowance=spellAllowance(progressionOf(lookup(creation?.class?.uuid)),1);
   if(!allowance)return null;
-  return {cantrips:allowance.cantrips,rank1:allowance.ranks[1]??0};
+  return {cantrips:allowance.cantrips,rank1:allowance.ranks[1]??0,granted:allowance.granted??0};
 }
 
 /**

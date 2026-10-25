@@ -402,3 +402,15 @@ Update Docker and the Bridge to 0.9.0, then run **Sync Now** as GM.
 6. Languages: tick *Show uncommon*/*Show rare*; nothing is blocked by rarity.
 7. Go back to Class or Ancestry after planning later levels: choices stay editable, and later feats
    that no longer fit show a ⚠ reason instead of disappearing.
+
+## U. v0.10.0 — Spells, sync scope, players
+
+1. Log in to Foundry as GM: at most two Planner notifications (Syncing…, then success or error).
+2. Campaign settings → Synced compendiums lists only Leveler-assigned packs plus
+   `pf2e.conditionitems` and `pf2e.actionspf2e`. Clicking *Frightened* in a description opens it.
+3. Bard level 1: 5 cantrips and 2 rank-1 picks, with a note about the muse's spell.
+4. Bard/sorcerer level 3: rank-2 spells are pickable, and a Signature spells card asks for one rank-1 and one rank-2 signature.
+5. Spell pickers: Targets chips (AC/Fort/Reflex/Will/None) filter the list after a sync with Bridge 0.10.
+6. Acrobatic Performer's text shows "Perform: Acrobatics" as a link, not raw `[[/act …]]`.
+7. On a phone, the builder opens on the content; ☰ shows the steps and levels.
+8. Settings → Players: Remove / Cancel invite; as server owner, Delete account.

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {levelerChoiceSlots,setBoost,selectedBoosts,choiceComplete,spellAllowance,spellsAtLevel,
- classFeaturesAt} from '../src/lib/leveler-progression.js';
+ classFeaturesAt,signatureRanks} from '../src/lib/leveler-progression.js';
 
 const fighter={
  metadata:{levelerProgression:{
@@ -68,13 +68,13 @@ test('level-1 class/skill feats and specializations come from the class Item',()
 test('spells learned per level follow Leveler: repertoire growth, spellbook +2, prepared none',()=>{
  const sorcerer={slug:'sorcerer',spellcasting:{type:'spontaneous',slots:{
   1:{cantrips:5,1:3},2:{cantrips:5,1:4},3:{cantrips:5,1:4,2:3}}}};
- assert.deepEqual(spellAllowance(sorcerer,1),{cantrips:5,ranks:{1:3},any:0,maxRank:1,total:8});
+ assert.deepEqual(spellAllowance(sorcerer,1),{cantrips:5,ranks:{1:3},any:0,maxRank:1,granted:0,total:8});
  assert.deepEqual(spellAllowance(sorcerer,2),{cantrips:0,ranks:{1:1},any:0,maxRank:1,total:1});
  assert.deepEqual(spellAllowance(sorcerer,3).ranks,{2:3});
  const bard={...sorcerer,slug:'bard',spellcasting:{...sorcerer.spellcasting,level1Counts:{cantrips:5,rank1:3}}};
  assert.equal(spellAllowance(bard,1).ranks[1],3,'Leveler handler counts win at level 1');
  const wizard={slug:'wizard',spellcasting:{type:'prepared',slots:{1:{cantrips:5,1:2},2:{cantrips:5,1:3},3:{cantrips:5,1:3,2:2}}}};
- assert.deepEqual(spellAllowance(wizard,1),{cantrips:10,ranks:{1:5},any:0,maxRank:1,total:15});
+ assert.deepEqual(spellAllowance(wizard,1),{cantrips:10,ranks:{1:5},any:0,maxRank:1,granted:0,total:15});
  assert.deepEqual(spellAllowance(wizard,3),{cantrips:0,ranks:{},any:2,maxRank:2,total:2});
  const cleric={slug:'cleric',spellcasting:{type:'prepared',slots:{1:{cantrips:5,1:2}}}};
  assert.equal(spellAllowance(cleric,1),null);
@@ -91,4 +91,23 @@ test('automatic class features per level prefer the class Item list',()=>{
  assert.deepEqual(classFeaturesAt([item],3),[{name:'Bravery',uuid:'U1',className:'Fighter'}]);
  const legacy={name:'Fighter',metadata:{levelerProgression:{classFeatures:[{name:'Bravery',level:3}]}}};
  assert.deepEqual(classFeaturesAt([legacy,null],3),[{name:'Bravery',uuid:null,className:'Fighter'}]);
+});
+test('bard-style counts that include a granted muse spell pick only the repertoire slots',()=>{
+ const bard={slug:'bard',spellcasting:{type:'spontaneous',slots:{1:{cantrips:5,1:2}},level1Counts:{cantrips:5,rank1:3}}};
+ const a=spellAllowance(bard,1);
+ assert.equal(a.ranks[1],2);
+ assert.equal(a.granted,1);
+});
+test('signature spell ranks follow Leveler: all ranks at the feature level, then new ranks',()=>{
+ const slots={1:{cantrips:5,1:3},2:{cantrips:5,1:4},3:{cantrips:5,1:4,2:3},4:{cantrips:5,1:4,2:4},5:{cantrips:5,1:4,2:4,3:3}};
+ const sorcerer={metadata:{levelerProgression:{provider:'pf2e-leveler',slug:'sorcerer',levels:{},
+  spellcasting:{type:'spontaneous',slots},classFeatures:[{level:3,name:'Signature Spells',key:'signature-spells'}]}}};
+ assert.deepEqual([2,3,4,5].map(l=>signatureRanks(sorcerer,l)),[[],[1,2],[],[3]]);
+ const fromItem={metadata:{grantedFeatures:[{level:3,name:'Signature Spells'}],
+  levelerProgression:{spellcasting:{type:'spontaneous',slots}}}};
+ assert.deepEqual(signatureRanks(fromItem,3),[1,2]);
+ const wizard={metadata:{levelerProgression:{spellcasting:{type:'prepared',slots},classFeatures:[{level:3,key:'signature-spells'}]}}};
+ assert.deepEqual(signatureRanks(wizard,3),[]);
+ const slotsAt3=levelerChoiceSlots(sorcerer).slots.filter(s=>s.level===3).map(s=>s.type);
+ assert.ok(slotsAt3.includes('signature'));
 });

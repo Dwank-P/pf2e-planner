@@ -1,5 +1,6 @@
 import {db} from '#lib/server/db.js';
 import {readPublished} from '#lib/server/catalog-import.js';
+import {sanitizeDescription} from '#lib/server/rich-text.js';
 import {respond,sessionUser,requireMembership,problem} from '#lib/server/api.js';
 export function GET(event){
   const user=sessionUser(event);requireMembership(user,event.params.campaignId);
@@ -24,5 +25,8 @@ export function GET(event){
       .get(pub.integration_id,pub.snapshot_id,slug);
   } else problem(400,'uuid_or_slug_required');
   if(!row)problem(404,'item_not_synchronized');
-  return respond({item:JSON.parse(row.item_json)});
+  const item=JSON.parse(row.item_json);
+  // Re-enrich on read so items synced before newer enrichers (e.g. [[/act …]]) render too.
+  item.description=sanitizeDescription(item.description);
+  return respond({item});
 }

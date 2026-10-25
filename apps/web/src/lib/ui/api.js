@@ -19,12 +19,20 @@ const MESSAGES={
   password_12_to_256_characters:'Passwords need 12 to 256 characters.',
   invalid_username:'Usernames use 3–32 letters, numbers, dots, dashes or underscores.',
   username_unavailable:'That username is taken.',
+  cannot_remove_site_owner:'The server owner can’t be removed from a campaign.',
+  campaign_needs_a_gm:'This is the campaign’s only GM. Make someone else GM first.',
+  cannot_delete_yourself:'You can’t delete your own account here.',
+  cannot_delete_site_owner:'The server owner account can’t be deleted.',
+  owner_required:'Only the server owner can do that.',
+  member_not_found:'That person isn’t in this campaign any more.',
   invalid_or_expired_code:'That invitation code is invalid or has expired. Ask your GM for a new one.'
 };
 export class ApiError extends Error{
   constructor(code,status){super(MESSAGES[code]??code??'Request failed (HTTP '+status+')');this.code=code;this.status=status;}
 }
 export async function api(path,{method='GET',body}={}){
+  // Changes always send JSON: SvelteKit treats a body-less DELETE as a form post and may block it.
+  if(method!=='GET'&&body===undefined)body={};
   const response=await fetch(path,{method,credentials:'same-origin',cache:'no-store',
     headers:body===undefined?undefined:{'content-type':'application/json'},
     body:body===undefined?undefined:JSON.stringify(body)});

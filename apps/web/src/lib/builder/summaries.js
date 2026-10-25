@@ -1,7 +1,7 @@
 /** One-line descriptions of what was picked, for the builder rail (Pathbuilder-style). */
 import {attributeModifiers,formatModifier,ATTRIBUTES,titleCase,RANKS} from './rules.js';
 import {level1FeatSlots,featField,HANDLER_STEPS} from './schema.js';
-import {planFeat,planBoosts,planSkillIncrease,planSpells} from './plan.js';
+import {planFeat,planBoosts,planSkillIncrease,planSpells,planSignature} from './plan.js';
 
 const names=list=>(list??[]).map(e=>e?.name).filter(Boolean).join(', ');
 export function stepSummary(step,creation,lookup,variants={}){
@@ -48,6 +48,7 @@ export function levelSummary(level,slots,plan){
     else if(slot.type==='ability'){const b=planBoosts(plan,level);if(b.length)lines.push('Boosts '+b.map(a=>a.toUpperCase()).join(' '));}
     else if(slot.type==='skill'){const s=planSkillIncrease(plan,slot);if(s?.skill)lines.push(titleCase(s.skill)+' → '+(RANKS[s.toRank]??'+1'));}
     else if(slot.type==='spells'){const n=planSpells(plan,level).length;if(n)lines.push(n+' spell'+(n===1?'':'s'));}
+    else if(slot.type==='signature'){const s=slot.ranks.map(r=>planSignature(plan,level,r)?.name).filter(Boolean);if(s.length)lines.push('★ '+s.join(', '));}
   }
   return [...new Set(lines)];
 }

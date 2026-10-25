@@ -374,3 +374,22 @@ the wizard needs the rules data the new Bridge exports.
 - The summary column follows the selected level: attributes, HP and skill ranks at that level.
 
 **After updating the Bridge, run Sync Now once** so the website gets your world's language rarities.
+
+### v0.10.0 — Spells, sync scope and player management
+
+- **Bridge sync follows PF2e Leveler exactly**: only packs assigned in Leveler's Compendium Manager are
+  uploaded (third-party content only when Leveler has it assigned), plus the PF2e condition and
+  action reference packs so links like *Frightened* open. The Bridge's own pack picker is gone.
+- **Quieter Foundry**: a sync shows at most two notifications, a blue "Syncing…" and then a green
+  success or red error.
+- **Spells**: bard/oracle level-1 picks no longer count the spell their muse or mystery grants;
+  every rank is pickable on later levels; **signature spells** from level 3 (one per rank, from your
+  repertoire); filter spells by the defense they target (AC, Fortitude, Reflex, Will, none).
+- **Rules text**: Foundry inline actions such as `[[/act perform skill=acrobatics]]{Acrobatics}` show
+  as action links, and inline rolls as formula pills.
+- **Phones**: the builder's steps and levels open from a ☰ button instead of filling the screen.
+- **Players**: GMs can remove players or cancel unused invitations; the server owner can delete
+  accounts (their characters move to the owner).
+
+**After updating the Bridge, run Sync Now once**: it re-uploads with Leveler's exact pack list and
+spell defenses.

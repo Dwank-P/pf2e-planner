@@ -102,7 +102,7 @@ test('setClass resets class-dependent choices like Leveler',()=>{
 
 test('level-1 spells use Leveler counts and cap picks',()=>{
   const wizard=C.setClass(fighter(),byName('class','Wizard'));
-  assert.deepEqual(level1Spells(wizard,lookup),{cantrips:10,rank1:5});
+  assert.deepEqual(level1Spells(wizard,lookup),{cantrips:10,rank1:5,granted:0});
   assert.equal(level1Spells(fighter(),lookup),null);
   assert.equal(level1Spells(C.setClass(fighter(),byName('class','Cleric')),lookup),null,
     'prepared list casters learn no spells');

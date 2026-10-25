@@ -54,7 +54,14 @@ export function spellAllowance(progression,level){
   if(level===1){
     const counts=sc.level1Counts??SPELLBOOK_FALLBACK[slug]??
       {cantrips:slotTotal(current.cantrips),rank1:slotTotal(current[1])};
-    result={cantrips:counts.cantrips||0,ranks:counts.rank1?{1:counts.rank1}:{},any:0,maxRank:1};
+    // Leveler's bard/oracle counts include the spell their muse or mystery grants
+    // (its wizard subtracts granted spells). A spontaneous caster picks only its slots.
+    let rank1=counts.rank1||0,granted=0;
+    if(sc.type==='spontaneous'&&!spellbook){
+      const base=slotTotal(current[1]);
+      if(base&&rank1>base){granted=rank1-base;rank1=base;}
+    }
+    result={cantrips:counts.cantrips||0,ranks:rank1?{1:rank1}:{},any:0,maxRank:1,granted};
   }else if(spellbook){
     result={cantrips:0,ranks:{},any:2,maxRank};
   }else{
@@ -174,8 +181,29 @@ export function levelerChoiceSlots(primary,secondary=null,variants={}) {
       }
     }
     slots.push(...spellSlot(data,level,'Spells learned'));
+    const signature=signatureRanks(primary,level);
+    if(signature.length)slots.push({key:'signature-'+level,type:'signature',kind:'signature',
+      label:'Signature spells',level,source:'leveler',ranks:signature});
   }
   return {ready:true,source:'pf2e-leveler',version:data.version,slots};
+}
+/**
+ * Spell ranks that need a signature spell at `level` (Leveler's
+ * getRequiredSignatureSpellRanks): every rank when Signature Spells is gained,
+ * then each newly gained rank. Spontaneous casters only.
+ */
+export function signatureRanks(classItem,level){
+  const progression=classItem?.metadata?.levelerProgression;
+  const sc=progression?.spellcasting;
+  if(sc?.type!=='spontaneous')return [];
+  const feature=(progression.classFeatures??[]).find(f=>['signature-spells','unlimited-signature-spells'].includes(f.key))
+    ??(classItem.metadata?.grantedFeatures??[]).find(f=>/^signature spells$/i.test(f.name));
+  if(!feature||feature.key==='unlimited-signature-spells'||level<Number(feature.level))return [];
+  const at=l=>sc.slots?.[l]??sc.slots?.[String(l)]??null;
+  const ranks=Object.keys(at(level)??{}).map(Number).filter(r=>Number.isInteger(r)&&r>0).sort((a,b)=>a-b);
+  if(level===Number(feature.level))return ranks;
+  const previous=at(level-1)??{};
+  return ranks.filter(r=>previous[r]==null&&previous[String(r)]==null);
 }
 function spellSlot(progression,level,label){
   const allowance=spellAllowance(progression,level);

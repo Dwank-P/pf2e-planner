@@ -155,6 +155,7 @@
   .description :global(.pf2e-damage){color:var(--danger);border-color:var(--danger-border)}
   .description :global(.pf2e-template){color:var(--good)}
   .description :global(.pf2e-check){color:var(--accent)}
+  .description :global(.pf2e-roll){color:var(--text-2)}
   .inspector-footer{display:grid;gap:.3rem;margin-top:2rem;padding-top:1rem;
     border-top:1px solid var(--line);font-size:.75rem;color:var(--muted)}
   .hover-preview{position:fixed;width:min(320px,80vw);max-height:200px;overflow:hidden;z-index:2000;

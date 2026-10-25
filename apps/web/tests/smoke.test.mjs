@@ -29,7 +29,9 @@ test('production API: bootstrap → pair world → create player → sync → re
     const response=await fetch(origin+path,{
       method,headers,...(body===undefined?{}:{body:JSON.stringify(body)})
     });
-    const payload=await response.json().catch(()=>({}));
+    const raw=await response.text();
+    let payload={};
+    try{payload=JSON.parse(raw);}catch{if(raw)payload={text:raw.slice(0,200)};}
     return {status:response.status,body:payload,cookie:response.headers.get('set-cookie')?.split(';')[0]??''};
   }
 
@@ -42,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.9\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.10\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.9.0');
+    assert.equal(health.body.version,'0.10.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -56,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.9.0');
+    assert.equal(check.body.version,'0.10.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -557,6 +559,24 @@ test('production API: bootstrap → pair world → create player → sync → re
 
     const revokeSite=await send('/api/v1/integrations/'+integrationId+'/revoke',{},ownerCookie);
     assert.equal(revokeSite.status,200,JSON.stringify(revokeSite));
+
+    // Player management: cancel an unused invitation, remove a player, delete an account.
+    const membersRoute='/api/v1/campaigns/'+campaignId+'/members';
+    const pendingInvite=await send(membersRoute,{},ownerCookie);
+    const cancel=await send(membersRoute+'/'+pendingInvite.body.userId,{},ownerCookie,origin,'DELETE');
+    assert.equal(cancel.status,200,JSON.stringify(cancel));
+    assert.equal(cancel.body.deletedInvitation,true);
+    const playerId=newPlayer.body.userId;
+    const playerCannotRemove=await send(membersRoute+'/'+playerId,{},playerCookie,origin,'DELETE');
+    assert.equal(playerCannotRemove.status,403,'Players cannot remove members');
+    const removed=await send(membersRoute+'/'+playerId,{},ownerCookie,origin,'DELETE');
+    assert.equal(removed.status,200);
+    const afterRemoval=await send(membersRoute,undefined,ownerCookie,origin,'GET');
+    assert.ok(!afterRemoval.body.members.some(m=>m.id===playerId));
+    const accountDeleted=await send('/api/v1/users/'+playerId,{},ownerCookie,origin,'DELETE');
+    assert.equal(accountDeleted.status,200,JSON.stringify(accountDeleted));
+    const goneSession=await send('/api/v1/me',undefined,playerCookie,origin,'GET');
+    assert.equal(goneSession.status,401,'A deleted account is signed out everywhere');
   } finally {
     // Wait for the server to release the database; Windows refuses to delete open files.
     if(child.exitCode===null){

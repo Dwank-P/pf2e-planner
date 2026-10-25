@@ -16,7 +16,7 @@
 {#if counts}
   <div class="spells">
     <p class="muted">{spellbook?'Your spellbook starts with':'Your repertoire starts with'}
-      <b class="num">{counts.cantrips}</b> cantrips and <b class="num">{counts.rank1}</b> 1st-rank spells.
+      <b class="num">{counts.cantrips}</b> cantrips and <b class="num">{counts.rank1}</b> 1st-rank spells{counts.granted?', plus '+(counts.granted===1?'the spell':counts.granted+' spells')+' your '+(creation.subclass?.name??'specialization')+' grants':''}.
       {#if known}Showing the {tradition} list.{:else if tradition}Your {creation.subclass?.name??'specialization'} sets your tradition, so all lists are shown. Pick from the right one.{/if}</p>
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected={tab==='cantrips'} class:on={tab==='cantrips'} onclick={()=>tab='cantrips'}>

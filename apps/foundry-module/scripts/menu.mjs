@@ -109,7 +109,7 @@ export class PlannerSyncMenu extends foundry.applications.api.DialogV2 {
       status.textContent=result.skipped
         ? 'Already synchronizing, or no changes detected: '+result.skipped
         : 'Synchronized '+result.accepted+' items successfully. Refresh the website to view them.';
-      ui.notifications.info('PF2e Planner: '+status.textContent);
+      // syncNow already showed its own syncing and success toasts.
     }catch(e){status.textContent='Sync failed: '+e.message;notifyError(e);}
   }
 }

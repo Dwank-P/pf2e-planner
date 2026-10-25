@@ -62,15 +62,25 @@ export function featOptions(catalog,kind,creation){
   }
 }
 /** Spell options for level-1 picks; a non-standard tradition (e.g. "bloodline") lists all. */
-export function spellOptions(catalog,{cantrip,tradition}){
+export function spellOptions(catalog,{cantrip,tradition,rank=1}){
   const known=['arcane','divine','occult','primal'].includes(tradition);
   return catalog.ofType('spell').filter(s=>{
     const isCantrip=(s.traits??[]).includes('cantrip');
     if(isCantrip!==cantrip)return false;
-    if(!cantrip&&Number(meta(s).spellRank??s.level)!==1)return false;
+    if(!cantrip&&Number(meta(s).spellRank??s.level)!==rank)return false;
     if((s.traits??[]).includes('focus'))return false;
     return !known||(meta(s).spellTraditions??[]).includes(tradition);
   });
+}
+/**
+ * A spell's targeted defense from PF2e's system.defense: 'ac', 'fortitude',
+ * 'reflex', 'will', 'none' (no defense), or null when not synced (Bridge < 0.10).
+ */
+export function spellDefense(spell){
+  const rules=meta(spell).rules;
+  if(!rules||!('defense' in rules))return null;
+  const d=rules.defense;
+  return d?.passive?.statistic==='ac'?'ac':d?.save?.statistic??(d?.passive?.statistic||'none');
 }
 const GEAR_TYPES=['weapon','armor','shield','equipment','consumable','backpack','kit','treasure'];
 export function equipmentOptions(catalog){
