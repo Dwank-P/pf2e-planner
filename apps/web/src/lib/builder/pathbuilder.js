@@ -16,7 +16,9 @@ import {addWish,itemOptions} from './equipment.js';
 export const PATHBUILDER_ID=/^\d{3,9}$/;
 export const pathbuilderUrl=id=>'https://pathbuilder2e.com/json.php?id='+encodeURIComponent(id);
 
-export const nameKey=s=>String(s??'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'')
+/** A name, or an exact {uuid,name} reference (Foundry exports send these). */
+export const label=v=>v&&typeof v==='object'?v.name:v;
+export const nameKey=s=>String(label(s)??'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'')
   .replace(/\((?:legacy|remastered|premaster)\)/g,'').replace(/[’‘]/g,"'").replace(/[^a-z0-9']+/g,' ').trim();
 const attr=s=>{const a=String(s??'').toLowerCase().slice(0,3);return ATTRIBUTES.includes(a)?a:null;};
 const attrs=list=>(Array.isArray(list)?list:[]).map(attr).filter(Boolean);
@@ -29,6 +31,11 @@ const loreSlug=name=>{
 function nameIndex(catalog){
   const cache=new Map();
   return (types,name)=>{
+    // An exact reference wins when the catalog has that item.
+    if(name&&typeof name==='object'&&name.uuid){
+      const exact=catalog.get(name.uuid);
+      if(exact&&[].concat(types).some(t=>t==='physical'?itemOptions(catalog).includes(exact):exact.type===t))return exact;
+    }
     const key=nameKey(name);
     if(!key)return null;
     for(const type of [].concat(types)){
@@ -65,10 +72,10 @@ export function featKind(type,slotLabel,{className='',dualName='',ancestryName='
 
 export function importPathbuilder(json,catalog,variants={}){
   const build=json?.build??json;
-  if(!build||typeof build!=='object'||typeof build.class!=='string')throw Error('pathbuilder_invalid_json');
+  if(!build||typeof build!=='object'||typeof label(build.class)!=='string')throw Error('pathbuilder_invalid_json');
   const find=nameIndex(catalog);
   const report={matched:[],missing:[],placed:[],notes:[]};
-  const miss=(what,name)=>{if(name)report.missing.push({what,name:String(name).slice(0,120)});};
+  const miss=(what,name)=>{if(name)report.missing.push({what,name:String(label(name)).slice(0,120)});};
   const level=Math.max(1,Math.min(20,Number(build.level)||1));
   let c=emptyCreation();
 
@@ -85,7 +92,7 @@ export function importPathbuilder(json,catalog,variants={}){
   const classItem=pick('Class','class',build.class,C.setClass);
   const dualItem=variants.dualClass===true&&build.dualClass?pick('Second class','class',build.dualClass,C.setDualClass):null;
   if(build.dualClass&&variants.dualClass!==true)report.notes.push('Pathbuilder has a dual class, but Dual Class is off in this campaign.');
-  if(build.deity&&!/^(none|not set)$/i.test(build.deity)){
+  if(build.deity&&!/^(none|not set)$/i.test(label(build.deity))){
     const deity=find('deity',build.deity);
     if(deity){c=C.setDeity(c,deity,'class');report.matched.push('Deity');}else miss('Deity',build.deity);
   }
@@ -97,12 +104,19 @@ export function importPathbuilder(json,catalog,variants={}){
     const subclass=catalog.ofType('feat').find(f=>(f.metadata?.otherTags??[]).includes(tag)&&
       [...specials].some(s=>s===nameKey(f.name)||s.includes(nameKey(f.name))||nameKey(f.name).includes(s)));
     if(subclass){c=C.setSubclass(c,subclass,target);report.matched.push('Specialization');}
-    else report.notes.push(`Choose the ${item.name} specialization yourself; Pathbuilder doesn't name it in a way the planner can match.`);
+    else report.notes.push(`Choose the ${item.name} specialization yourself; the export doesn't name it in a way the planner can match.`);
   }
 
   // Attribute boosts (Pathbuilder's breakdown, when the export has it).
   const breakdown=build.abilities?.breakdown;
   if(breakdown){
+    // Alternate ancestry boosts: two free boosts instead of the ancestry's fixed boosts and flaw.
+    // Foundry exports say so; Pathbuilder shows two free boosts and no fixed ones.
+    const fixedOnAncestry=Object.values(catalog.get(c.ancestry?.uuid)?.metadata?.rules?.boosts??{})
+      .some(b=>Array.isArray(b?.value)&&b.value.length===1);
+    const alternate=breakdown.alternate===true||(attrs(breakdown.ancestryFree).length===2&&
+      !attrs(breakdown.ancestryBoosts).length&&!attrs(breakdown.ancestryFlaws).length&&fixedOnAncestry);
+    if(alternate)c={...C.setAlternateAncestryBoosts(c,true)};
     c={...c,boosts:{...c.boosts,
       ancestry:attrs(breakdown.ancestryFree),background:attrs(breakdown.backgroundBoosts),
       class:attrs(breakdown.classBoosts).slice(0,1),free:attrs(breakdown.mapLevelledBoosts?.['1']??breakdown.mapLevelledBoosts?.[1])}};
@@ -141,14 +155,14 @@ export function importPathbuilder(json,catalog,variants={}){
   const ancestryName=nameKey(c.ancestry?.name??build.ancestry);
   for(const entry of Array.isArray(build.feats)?build.feats:[]){
     const [name,extra,type,featLevel,slotLabel,choiceType,parent]=Array.isArray(entry)?entry:[entry?.name,null,entry?.type,entry?.level];
-    const kind=featKind(type,slotLabel,{className:build.class,dualName:build.dualClass,ancestryName});
+    const kind=featKind(type,slotLabel,{className:label(build.class),dualName:label(build.dualClass),ancestryName});
     if(!kind)continue; // Heritage, Awarded and class features come with other choices.
     if(choiceType==='childChoice'){
-      report.notes.push(`${name} comes from ${String(slotLabel??parent??'another feat').replace(/Free Archetype \d+$/,'').trim()||'another feat'}; Leveler asks for it in Foundry.`);
+      report.notes.push(`${label(name)} comes from ${String(slotLabel??parent??'another feat').replace(/Free Archetype \d+$/,'').trim()||'another feat'}; Leveler asks for it in Foundry.`);
       continue;
     }
     const item=find('feat',name);
-    if(!item){miss('Feat',name+(extra?` (${extra})`:''));continue;}
+    if(!item){miss('Feat',label(name)+(extra?` (${extra})`:''));continue;}
     const at=Math.max(1,Number(featLevel)||1);
     if(at===1){
       const field={ancestry:'ancestry',paragon:'paragon',class:'class',skill:'skill','dual-class':'dualClass',mythic:'mythic'}[kind];

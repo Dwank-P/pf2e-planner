@@ -14,11 +14,12 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
       escape(actor.name)+' (level '+(actor.system?.details?.level?.value||1)+')</option>'
     ).join('');
     super({...options,
-      window:{...options.window,title:'Sync character to PF2e Planner'},
+      window:{...options.window,title:'Export character to PF2e Planner'},
       content:`<div class="pf2e-planner-actor-picker">
-        <p>Choose a character in this Foundry world to load into the website's
-          character builder. Only supported character choices are exported;
-          biography, private notes and other actor secrets are not sent.</p>
+        <p>Choose a character in this Foundry world to export to the website's
+          character builder. Its ancestry, boosts, skills, feats, spells and gear are read from
+          the character itself, plus your PF2e Leveler plan; biography, private notes and other
+          actor secrets are not sent.</p>
         <div class="form-group">
           <label>Find a character</label>
           <input type="search" class="planner-find" placeholder="Search character names…" style="width:100%"/>
@@ -32,14 +33,14 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
           </select>
           <p class="hint">Choose whose website account can open and edit the imported character.</p>
         </div>
-        <label><input type="checkbox" class="planner-overwrite"/> Replace an existing imported
-          website build with current Foundry choices</label>
+        <label><input type="checkbox" class="planner-overwrite"/> Replace an existing exported
+          website build with this character as it is now</label>
         <p class="hint">Otherwise a previously imported build opens without overwriting website changes.
           Site ownership follows the authorized GM account.</p>
         <button type="button" class="planner-import"><i class="fa-solid fa-cloud-arrow-up"></i>
-          Import & Open Character Builder</button>
+          Export to Character Builder</button>
         <p><a class="planner-open-link" href="#" target="_blank" rel="noopener noreferrer"
-          hidden>Open imported character in PF2e Planner ↗</a></p>
+          hidden>Open exported character in PF2e Planner ↗</a></p>
         <p class="planner-status" role="status" aria-live="polite">
           ${actors.length} characters available in this world.</p>
       </div>`,
@@ -87,7 +88,7 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
         if(!this.actorIds.has(id))throw Error('Select an available character.');
         const actor=game.actors.get(id);
         if(!actor?.testUserPermission(game.user,'OWNER'))throw Error('Character access denied.');
-        status.textContent='Uploading selected character choices…';
+        status.textContent='Exporting character…';
         const relevant=this.context?.actor?.id===id?this.context:null;
         const result=await importActorToPlanner(actor,{
           plan:relevant?.plan??null,
@@ -96,16 +97,18 @@ export class PlannerCharacterImportMenu extends foundry.applications.api.DialogV
           ownerUserId:membersSelect.value
         });
         const reason=result.existing&&!result.updated
-          ? 'Existing website build preserved.': 'Character synchronized.';
+          ? 'Existing website build kept (tick Replace to overwrite it).': 'Character exported.';
+        const missing=(result.report?.missing??[]).map(m=>m.name);
         status.textContent=reason+(result.skipped?
-          ' '+result.skipped+' choices could not be matched to synced compendiums.':'');
+          ' '+result.skipped+' choices could not be matched to synced compendiums'+
+          (missing.length?': '+missing.slice(0,6).join(', ')+(missing.length>6?'…':''):'')+'.':'');
         ui.notifications.info('PF2e Planner: '+status.textContent);
         // Open in a separate browser tab so the Foundry Leveler window stays intact.
         const link=form.querySelector('.planner-open-link');
         link.href=result.url;link.hidden=false;
         window.open(result.url,'_blank','noopener,noreferrer');
       }catch(error){
-        status.textContent='Import failed: '+(error?.message||String(error));
+        status.textContent='Export failed: '+(error?.message||String(error));
         ui.notifications.error('PF2e Planner: '+status.textContent);
       }finally{button.disabled=false;}
     });
@@ -283,7 +286,7 @@ export function registerLevelerButtons(){
       return button;
     };
     const buttons=[
-      make('Send to Planner','fa-cloud-arrow-up','Send a Foundry character into the PF2e Planner website',
+      make('Export to Planner','fa-cloud-arrow-up','Export this character to the PF2e Planner character builder',
         ()=>new PlannerCharacterImportMenu(app)),
       make('Pull from Planner','fa-cloud-arrow-down','Load a PF2e Planner website build into this Leveler plan',
         ()=>new PlannerPullMenu(app))];

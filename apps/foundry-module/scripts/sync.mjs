@@ -621,9 +621,70 @@ export async function importActorToPlanner(actor,{plan=null,creation=null,overwr
   requireGM();
   const {base,id,auth}=await authorized();
   const body={...exportCharacterActor(actor,plan,creation),overwrite,ownerUserId,
-    leveler:levelerDocuments(actor,plan,creation)};
+    leveler:levelerDocuments(actor,plan,creation),actor:actorSnapshot(actor)};
   const result=await post(base,'/api/v1/bridge/'+id+'/characters/import',body,auth.accessToken);
   return {...result,url:base+result.editorPath};
+}
+const ATTRS=['str','dex','con','int','wis','cha'];
+const attrList=value=>(Array.isArray(value)?value:[]).map(a=>String(a).toLowerCase()).filter(a=>ATTRS.includes(a));
+/** Boosts the player chose on an item (fixed boosts are part of the item itself). */
+const chosenBoosts=boosts=>Object.values(boosts??{})
+  .filter(b=>Array.isArray(b?.value)&&b.value.length>1).map(b=>String(b.selected??'').toLowerCase()).filter(a=>ATTRS.includes(a));
+const FEAT_SLOT={ancestry:'Ancestry Feat',class:'Class Feat',skill:'Skill Feat',general:'General Feat',archetype:'Free Archetype'};
+/**
+ * The character as it is on the actor (not Leveler's wizard data, which can be
+ * stale): items as {uuid,name} references, the boosts chosen on its ancestry,
+ * background, class and build, skill ranks, feats by the slot they fill, spells
+ * per class entry and gear. Same shape as a Pathbuilder export, which the
+ * website already turns into Leveler documents. Null until the actor has a class.
+ */
+export function actorSnapshot(actor){
+  const ref=item=>{const uuid=item?sourceUuid(item):null;return uuid?{uuid,name:String(item.name)}:null;};
+  if(!actor?.class)return null;
+  const system=actor.system??{},source=actor._source?.system??{};
+  const ancestry=actor.ancestry,background=actor.background,cls=actor.class;
+  const alternate=attrList(ancestry?.system?.alternateAncestryBoosts??ancestry?._source?.system?.alternateAncestryBoosts);
+  const levelBoosts=source.build?.attributes?.boosts??system.build?.attributes?.boosts??{};
+  const mapLevelledBoosts={};
+  for(const [level,list] of Object.entries(levelBoosts))if(/^\d+$/.test(level))mapLevelledBoosts[level]=attrList(list);
+  const key=cls.system?.keyAbility;
+  const items=[...actor.items.values()];
+  const feats=items.filter(i=>i.type==='feat').map(feat=>{
+    const location=String(feat.system?.location??'');
+    const match=/^(ancestry|class|skill|general|archetype)(?:-(paragon|bonus))?-(\d+)$/.exec(location);
+    const level=Number(feat.system?.level?.taken??match?.[3]??feat.system?.level?.value??1);
+    if(!match)return [ref(feat),null,'Awarded Feat',level];
+    const label=match[2]==='paragon'?'Ancestry Paragon':FEAT_SLOT[match[1]];
+    return [ref(feat),null,FEAT_SLOT[match[1]]==='Free Archetype'?'Archetype Feat':FEAT_SLOT[match[1]],level,label+' '+level];
+  }).filter(f=>f[0]);
+  const entries=items.filter(i=>i.type==='spellcastingEntry'&&!['innate','focus','items','ritual'].includes(i.system?.prepared?.value));
+  const spellCasters=entries.map((entry,index)=>{
+    const byRank=new Map();
+    for(const spell of items.filter(i=>i.type==='spell'&&i.system?.location?.value===entry.id)){
+      const rank=spell.system?.traits?.value?.includes('cantrip')?0:Number(spell.system?.level?.value??1);
+      const r=ref(spell);if(!r)continue;
+      if(!byRank.has(rank))byRank.set(rank,[]);
+      byRank.get(rank).push(r);
+    }
+    return {name:index===0?cls.name:String(entry.name),innate:false,
+      spells:[...byRank].map(([spellLevel,list])=>({spellLevel,list}))};
+  });
+  const physical=['weapon','armor','shield','equipment','consumable','backpack','treasure'];
+  return {name:String(actor.name).slice(0,80),level:Number(system.details?.level?.value)||1,
+    class:ref(cls),dualClass:null,ancestry:ref(ancestry),heritage:ref(actor.heritage),background:ref(background),
+    deity:ref(actor.deity),
+    languages:Array.isArray(system.details?.languages?.value)?system.details.languages.value:[],
+    abilities:{breakdown:{alternate:alternate.length>0,
+      ancestryFree:alternate.length?alternate:chosenBoosts(ancestry?.system?.boosts),
+      backgroundBoosts:chosenBoosts(background?.system?.boosts),
+      classBoosts:Array.isArray(key?.value)&&key.value.length>1&&key.selected?[String(key.selected)]:[],
+      mapLevelledBoosts}},
+    proficiencies:Object.fromEntries(Object.entries(system.skills??{})
+      .filter(([,s])=>!s?.lore).map(([slug,s])=>[slug,(Number(s?.rank)||0)*2])),
+    lores:items.filter(i=>i.type==='lore').map(i=>[String(i.name).replace(/\s+lore$/i,''),(Number(i.system?.proficient?.value)||0)*2]),
+    feats,specials:items.filter(i=>i.type==='feat'&&i.system?.category==='classfeature').map(i=>String(i.name)),
+    spellCasters,
+    equipment:items.filter(i=>physical.includes(i.type)).map(i=>[ref(i),Number(i.system?.quantity)||1]).filter(e=>e[0]).slice(0,200)};
 }
 const LEVELER='pf2e-leveler';
 const plain=value=>value==null?null:JSON.parse(JSON.stringify(value));

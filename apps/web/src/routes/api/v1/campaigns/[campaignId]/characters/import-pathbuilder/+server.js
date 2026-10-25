@@ -2,11 +2,9 @@ import {randomUUID} from 'node:crypto';
 import {db,unix} from '#lib/server/db.js';
 import {sessionUser,requireMembership,input,problem,respond,throttle} from '#lib/server/api.js';
 import {validateDocument,toCharacter} from '#lib/server/characters.js';
-import {indexCatalog} from '#lib/builder/catalog.js';
+import {campaignImportCatalog} from '#lib/server/import-catalog.js';
 import {importPathbuilder,PATHBUILDER_ID,pathbuilderUrl} from '#lib/builder/pathbuilder.js';
 
-const TYPES=['ancestry','heritage','background','class','deity','feat','spell',
-  'weapon','armor','shield','equipment','consumable','backpack','treasure','kit'];
 const MAX_BYTES=2000000;
 
 /** Fetch a Pathbuilder export by its JSON id (Pathbuilder → Export → Export JSON). */
@@ -51,16 +49,10 @@ export async function POST(event){
   const count=db().prepare('SELECT COUNT(*) AS n FROM character_builds WHERE campaign_id=? AND owner_user_id=?')
     .get(campaignId,user.id).n;
   if(count>=50)problem(409,'maximum_50_characters_per_player');
-  const pub=db().prepare(`SELECT p.integration_id,p.snapshot_id,p.variants_json FROM catalog_publications p
-    JOIN integrations i ON i.id=p.integration_id WHERE i.campaign_id=? AND i.revoked_at IS NULL`).get(campaignId);
-  if(!pub)problem(409,'sync_compendiums_before_selecting_items');
-  const items=db().prepare(`SELECT item_json FROM catalog_entries WHERE integration_id=? AND snapshot_id=?
-    AND type IN (${TYPES.map(()=>'?').join(',')})`).all(pub.integration_id,pub.snapshot_id,...TYPES)
-    .map(r=>{const {description,...item}=JSON.parse(r.item_json);return item;});
-  let variants={};
-  try{variants=JSON.parse(pub.variants_json||'{}');}catch{}
+  const loaded=campaignImportCatalog(campaignId);
+  if(!loaded)problem(409,'sync_compendiums_before_selecting_items');
   let result;
-  try{result=importPathbuilder(json,indexCatalog({items}),variants);}
+  try{result=importPathbuilder(json,loaded.catalog,loaded.variants);}
   catch(error){if(error?.message==='pathbuilder_invalid_json')problem(400,'pathbuilder_invalid_json');throw error;}
   const doc=validateDocument(campaignId,null,{leveler:{creation:result.creation,plan:result.plan},planner:result.planner});
   const id=randomUUID(),now=unix();

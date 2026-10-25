@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.15\.1/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.16\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.15.1');
+    assert.equal(health.body.version,'0.16.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.15.1');
+    assert.equal(check.body.version,'0.16.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -533,6 +533,24 @@ test('production API: bootstrap → pair world → create player → sync → re
     const playerOwnedRead=await send('/api/v1/campaigns/'+campaignId+
       '/characters/'+playerOwned.body.characterId,undefined,playerCookie,origin,'GET');
     assert.equal(playerOwnedRead.status,200);
+    // Bridge 0.15 sends the actor itself; its boosts win over stale Leveler wizard data.
+    const fromActor=await send(actorRoute,{actorId:'ActorGamma012345',name:'Sheet-built Anadi',level:3,
+      build:{modifiers:{str:0,dex:0,con:0,int:0,wis:0,cha:0}},
+      leveler:{creation:{version:1,boosts:{free:['str','dex','con','wis']}},plan:null},
+      actor:{name:'Sheet-built Anadi',level:3,class:{uuid:entries[0].uuid,name:'Fighter'},
+        ancestry:{uuid:'Compendium.pf2e.ancestries.Item.Anadi',name:'Anadi'},
+        heritage:{uuid:'Compendium.pf2e.heritages.Item.Adaptive',name:'Adaptive Anadi'},
+        abilities:{breakdown:{ancestryFree:[],backgroundBoosts:[],classBoosts:['str'],
+          mapLevelledBoosts:{1:['str','con','int','cha']}}},
+        proficiencies:{athletics:2},
+        feats:[[{uuid:entries[1].uuid,name:'Demonstration Feat'},null,'Class Feat',2,'Class Feat 2']],
+        spellCasters:[],equipment:[]}},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(fromActor.status,201,JSON.stringify(fromActor));
+    const fromActorRead=await send('/api/v1/campaigns/'+campaignId+'/characters/'+fromActor.body.characterId,
+      undefined,ownerCookie,origin,'GET');
+    assert.deepEqual(fromActorRead.body.character.leveler.creation.boosts.free,['str','con','int','cha']);
+    assert.equal(fromActorRead.body.character.leveler.creation.ancestry.name,'Anadi');
+    assert.equal(fromActorRead.body.character.leveler.plan.levels[2].classFeats[0].uuid,entries[1].uuid);
     assert.equal(playerOwnedRead.body.character.name,'PC assigned to player');
     const secondImport=await send(actorRoute,{...actorPayload,name:'Overwrite prohibited'},
       '',gmOrigin,'POST',paired.body.accessToken);

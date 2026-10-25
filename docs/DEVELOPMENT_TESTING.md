@@ -321,7 +321,7 @@ actual installed PF2e Leveler modules.
    verify its label and position. No unrelated packs should re-upload.
 5. Open PF2e Leveler's Character Wizard and Level Planner as **GM**. Look
    for **PF2e Planner** in the application header. Select a world Actor,
-   then its website player, and Import & Open Character Builder.
+   then its website player, and Export to Character Builder.
 6. Confirm repeat imports return the existing linked character. Only
    selecting the overwrite checkbox should replace its website choices.
    Confirm an imported player-owned character is visible in that player's
@@ -350,7 +350,7 @@ shown as read-only imported metadata until the website supports editing.
 
 Update Docker/Portainer and the Foundry module; both must report v0.7.0.
 1. As GM, open Leveler's **Level Planner** on a test PC and click
-   **Send to Planner**. Open the website build: feats, boosts, skill increases
+   **Export to Planner**. Open the website build: feats, boosts, skill increases
    and spells should match the planner, and **Leveler ▾** should offer both
    downloads.
 2. On the website, change a level-2+ feat and a skill increase, then wait for

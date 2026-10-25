@@ -511,3 +511,18 @@ Website only; the Bridge stays at 0.14.1.
 - A one-player invitation is now a link, `https://your-site/join?CODE`. Opening it checks the code
   and goes straight to creating the account (the code is then removed from the address bar).
   Pasting a code on `/join` still works.
+
+### v0.16.0 — Foundry export reads the character itself
+
+- **Export to Planner** (renamed from *Send to Planner*; the dialog button is now *Export to
+  Character Builder*) reads the character as it is on its sheet: ancestry, heritage, background and
+  class items, the boosts chosen on them including **alternate ancestry boosts**, level-1 and later
+  free boosts, skill ranks, lores, feats by the slot they fill, spells and gear.
+  Before, boosts and level-1 choices came only from Leveler's saved wizard data, which can be out of
+  date after editing the sheet.
+- PF2e Leveler's documents still add what the sheet doesn't record: wizard choices, formula grants,
+  the plan for levels you haven't reached, and the skill increase you took at each level (used when
+  it adds up to the sheet's skill ranks; otherwise increases are worked out from the ranks).
+- The export dialog lists anything that didn't match your synced compendiums.
+
+**Update the Bridge to 0.16.0** for the new export (0.15 and earlier still use the old export).
