@@ -2,7 +2,7 @@
   "id": "planner-bridge-5e",
   "title": "Planner Bridge (D&D 5e)",
   "description": "Sends a dnd5e world's installed Item compendiums and rules settings to the planner website, so players can plan 2014 or 2024 characters with multiclassing and third-party content.",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "authors": [
     {
       "name": "Dwank-P"

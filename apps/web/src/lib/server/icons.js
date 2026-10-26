@@ -22,7 +22,9 @@ export function referencedIcons(integrationId){
 }
 /** Delete shared images no world uses any more. */
 export function dropUnusedBlobs(){
-  return db().prepare('DELETE FROM icon_blobs WHERE NOT EXISTS (SELECT 1 FROM integration_icons i WHERE i.sha256=icon_blobs.sha256)').run().changes;
+  // Images kept for personal characters (from removed sources) stay too.
+  return db().prepare(`DELETE FROM icon_blobs WHERE NOT EXISTS (SELECT 1 FROM integration_icons i WHERE i.sha256=icon_blobs.sha256)
+    AND NOT EXISTS (SELECT 1 FROM personal_kept_items k WHERE k.icon_sha256=icon_blobs.sha256)`).run().changes;
 }
 /** Drop this world's paths its catalog no longer uses; return the referenced ones it has no image for. */
 export function pruneAndListMissing(integrationId){

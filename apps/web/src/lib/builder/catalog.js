@@ -83,19 +83,27 @@ async function store(campaignId,bundle){
 const loaded=new Map();
 /** Load the catalog for a campaign, reusing the cached copy when the sync hasn't changed. */
 export function loadCatalog(campaignId){
-  if(!loaded.has(campaignId)){
-    loaded.set(campaignId,(async()=>{
-      const previous=await cached(campaignId);
-      const url='/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/catalog-bundle'+
-        (previous?.sha256?'?known='+encodeURIComponent(previous.sha256):'');
+  return loadCatalogAt('campaign:'+campaignId,'/api/v1/campaigns/'+encodeURIComponent(campaignId));
+}
+/**
+ * Load a catalog bundle from `base`/catalog-bundle (a campaign, a personal character or a
+ * public link), cached in the browser under `key`.
+ */
+export function loadCatalogAt(key,base){
+  if(!loaded.has(key)){
+    loaded.set(key,(async()=>{
+      const previous=await cached(key);
+      const url=base+'/catalog-bundle'+(previous?.sha256?'?known='+encodeURIComponent(previous.sha256):'');
       const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
       if(response.status===404)return indexCatalog({items:[]});
       const body=await response.json().catch(()=>({}));
       if(!response.ok)throw Error(body.message||'Catalog unavailable (HTTP '+response.status+')');
       if(body.unchanged&&previous)return indexCatalog(previous);
-      await store(campaignId,body);
+      await store(key,body);
       return indexCatalog(body);
-    })().catch(error=>{loaded.delete(campaignId);throw error;}));
+    })().catch(error=>{loaded.delete(key);throw error;}));
   }
-  return loaded.get(campaignId);
+  return loaded.get(key);
 }
+/** Forget a loaded catalog (a personal character's sources changed). */
+export function forgetCatalog(key){loaded.delete(key);}

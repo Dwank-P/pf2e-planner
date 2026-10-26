@@ -27,7 +27,7 @@ sql.prepare(`INSERT INTO users(id,display_name,username,password_hash,status,sit
   VALUES(?,?,?,?,'active','owner',?)`).run(gm,'Morgan (GM)','gm',hash,now);
 sql.prepare(`INSERT INTO users(id,display_name,username,password_hash,status,site_role,created_at)
   VALUES(?,?,?,?,'active','user',?)`).run(mira,'Mira','mira',hash,now);
-sql.prepare('INSERT INTO campaigns VALUES(?,?,?,?,?,?)').run(campaign,'Abomination Vaults',gm,'abomination-vaults','pf2e',now);
+sql.prepare('INSERT INTO campaigns(id,title,owner_id,world_id,system_id,created_at,share_compendiums) VALUES(?,?,?,?,?,?,1)').run(campaign,'Abomination Vaults',gm,'abomination-vaults','pf2e',now);
 sql.prepare("INSERT INTO memberships VALUES(?,?,'gm')").run(campaign,gm);
 sql.prepare("INSERT INTO memberships VALUES(?,?,'player')").run(campaign,mira);
 sql.prepare('INSERT INTO integrations VALUES(?,?,?,?,?,NULL)').run(integration,campaign,'https://foundry.test','abomination-vaults',now);
@@ -70,7 +70,7 @@ character(gm,'Kyra',1,doc0());
 const {dnd5eCatalog,dnd5eVariants,uuid:dndUuid}=await import('../tests/fixtures/dnd5e-catalog.mjs');
 const {emptyDnd5eDocument}=await import('../src/lib/server/characters.js');
 const dndCampaign=randomUUID(),dndIntegration=randomUUID(),dndSnapshot=randomUUID();
-sql.prepare('INSERT INTO campaigns VALUES(?,?,?,?,?,?)').run(dndCampaign,'Dragon Heist',gm,'dragon-heist','dnd5e',now);
+sql.prepare('INSERT INTO campaigns(id,title,owner_id,world_id,system_id,created_at,share_compendiums) VALUES(?,?,?,?,?,?,1)').run(dndCampaign,'Dragon Heist',gm,'dragon-heist','dnd5e',now);
 sql.prepare("INSERT INTO memberships VALUES(?,?,'gm')").run(dndCampaign,gm);
 sql.prepare("INSERT INTO memberships VALUES(?,?,'player')").run(dndCampaign,mira);
 sql.prepare('INSERT INTO integrations VALUES(?,?,?,?,?,NULL)').run(dndIntegration,dndCampaign,'https://foundry-dnd.test','dragon-heist',now);
@@ -85,6 +85,30 @@ Object.assign(vex.build,{speciesUuid:dndUuid('race','half-elf'),backgroundUuid:d
   levels:[dndUuid('class','fighter'),dndUuid('class','fighter'),dndUuid('class','fighter')]});
 vex.summary={species:'Half-Elf',background:'Sage',classes:'Fighter 3'};
 sql.prepare(`INSERT INTO character_builds(id,campaign_id,owner_user_id,name,level,build_json,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,1,?,?)`).run(randomUUID(),dndCampaign,mira,'Vex',3,JSON.stringify(vex),now,now);
+// A second PF2e world with a third-party package, so personal characters can mix sources.
+const sunday=randomUUID(),sundayIntegration=randomUUID(),sundaySnapshot=randomUUID();
+sql.prepare('INSERT INTO campaigns(id,title,owner_id,world_id,system_id,created_at,share_compendiums) VALUES(?,?,?,?,?,?,1)')
+  .run(sunday,'Sunday Game',gm,'sunday-game','pf2e',now);
+sql.prepare("INSERT INTO memberships VALUES(?,?,'gm')").run(sunday,gm);
+sql.prepare("INSERT INTO memberships VALUES(?,?,'player')").run(sunday,mira);
+sql.prepare('INSERT INTO integrations VALUES(?,?,?,?,?,NULL)').run(sundayIntegration,sunday,'https://foundry-sunday.test','sunday-game',now);
+const bz=(type,id,name,extra={})=>({uuid:'Compendium.pf2e-battlezoo-ancestries.'+type+'s.Item.'+id.padEnd(16,'0'),name,type,
+  level:extra.level??(type==='feat'?1:null),rarity:'uncommon',traits:extra.traits??[],img:null,
+  description:'<p>'+name+' (development sample, third-party).</p>',pack:'pf2e-battlezoo-ancestries.'+type+'s',metadata:extra.metadata??{}});
+const sundayItems=[bz('ancestry','dragonblood','Dragonblood',{metadata:{slug:'dragonblood',hp:8,size:'med',speed:25,boosts:[['str'],['cha'],['str','dex','con','int','wis','cha']]}}),
+  bz('heritage','gold-dragonblood','Gold Dragonblood',{metadata:{ancestrySlug:'dragonblood'}}),
+  bz('feat','draconic-roar','Draconic Roar',{traits:['dragonblood'],metadata:{featType:'ancestry'}})];
+sql.prepare(`INSERT INTO catalog_publications VALUES(?,?,?,?,?,?,?,?)`).run(sundayIntegration,sundaySnapshot,'dev-'+sundaySnapshot,sundayItems.length,
+  JSON.stringify({freeArchetype:true}),JSON.stringify([...new Set(sundayItems.map(i=>i.pack))]),
+  JSON.stringify({worldId:'sunday-game',systemId:'pf2e',systemVersion:'8.6.1',levelerVersion:'3.12.3'}),now);
+for(const item of sundayItems)insert.run(sundayIntegration,sundaySnapshot,item.uuid,item.type,item.pack,item.level,item.rarity,
+  item.name,JSON.stringify(item.traits),JSON.stringify(item));
+// Mira's personal character mixes the PF2e system from Abomination Vaults with Battlezoo from Sunday Game.
+const personal=randomUUID();
+sql.prepare(`INSERT INTO personal_characters(id,owner_user_id,name,level,system,variants_json,build_json,revision,created_at,updated_at)
+  VALUES(?,?,?,1,'pf2e',?,?,1,?,?)`).run(personal,mira,'Sorrel',JSON.stringify({freeArchetype:true,dualClass:false}),JSON.stringify(emptyDocument()),now,now);
+sql.prepare('INSERT INTO personal_sources VALUES(?,?,?)').run(personal,'pf2e',integration);
+sql.prepare('INSERT INTO personal_sources VALUES(?,?,?)').run(personal,'pf2e-battlezoo-ancestries',sundayIntegration);
 console.log(`Seeded ${process.env.DB_PATH}: campaign ${campaign}, ${all.length} catalog items; D&D 5e campaign ${dndCampaign}. Sign in as gm or mira.`);
 
 function doc0(){return emptyDocument().leveler.creation;}

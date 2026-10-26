@@ -1,14 +1,18 @@
 <script>
   import {page} from '$app/state';
+  import {getContext} from 'svelte';
   /**
-   * An item's icon from this campaign's world (uploaded by the Bridge on sync).
+   * An item's icon from this campaign's world (uploaded by the Bridge on sync), or from a
+   * personal character's sources.
    * Renders nothing until the GM syncs icons, or when the file is missing.
    */
   let {src=null,size=32,alt=''}=$props();
   let failed=$state(false);
-  const campaignId=$derived(page.params.campaignId);
-  const url=$derived(src&&campaignId&&!/^[a-z]+:|^\//i.test(src)
-    ?`/api/v1/campaigns/${campaignId}/icons/${src.split('/').map(encodeURIComponent).join('/')}`:null);
+  // Builders for personal characters and public links set their own catalog address.
+  const contextBase=getContext('catalogBase');
+  const base=$derived(contextBase??(page.params.campaignId?'/api/v1/campaigns/'+page.params.campaignId:null));
+  const url=$derived(src&&base&&!/^[a-z]+:|^\//i.test(src)
+    ?`${base}/icons/${src.split('/').map(encodeURIComponent).join('/')}`:null);
   $effect(()=>{url;failed=false;});
 </script>
 {#if url&&!failed}

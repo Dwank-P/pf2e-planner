@@ -29,7 +29,7 @@
     return (i?v.toFixed(v<10?1:0):v)+' '+units[i];
   };
   const total=$derived(report?report.files.database+report.files.wal+report.files.shm:0);
-  const GROUPS=[['compendiums','Compendiums'],['icons','Icons'],['characters','Characters'],['syncInProgress','Sync in progress'],['other','Accounts and other']];
+  const GROUPS=[['compendiums','Compendiums'],['icons','Icons'],['characters','Characters'],['personal','Personal characters'],['syncInProgress','Sync in progress'],['other','Accounts and other']];
   const groupMax=$derived(report?Math.max(1,...GROUPS.map(([k])=>report.groups[k]??0)):1);
   async function maintain(action,label){
     busy=action;error='';notice='';
@@ -109,6 +109,11 @@
           <div class="row" role="row"><span><b>{c.title}</b><small class="muted"> · no world paired</small></span>
             <span>—</span><span>—</span><span class="num">{c.characters} · {fmt(c.characterBytes)}</span><span>—</span></div>
         {/each}
+        {#if report.personal}
+          <div class="row" role="row"><span><b>Personal characters</b><small class="muted"> · read worlds’ compendiums, nothing copied</small></span>
+            <span class="num" title="Items kept from sources that went away">{report.personal.kept.toLocaleString()} kept · {fmt(report.personal.keptBytes)}</span>
+            <span>—</span><span class="num">{report.personal.characters} · {fmt(report.personal.characterBytes)}</span><span>—</span></div>
+        {/if}
       </div>
       <p class="muted small">Sizes per world are the stored data; the database adds indexes and page overhead on top.
         Icons are shared: {report.sharedIcons.images.toLocaleString()} images ({fmt(report.sharedIcons.bytes)}) serve {report.sharedIcons.paths.toLocaleString()} icon paths across worlds; “own” is what only that world uses.</p>

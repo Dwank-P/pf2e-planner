@@ -2,8 +2,10 @@
   import { renderLevelDescription } from './level-formulas.js';
   import Traits from './ui/Traits.svelte';
 
-  let {item=null, level=1, campaignId='', onOpen=()=>{}, onBack=()=>{},
-    onClose=()=>{}, canBack=false, compact=false} = $props();
+  // catalogBase: where catalog-item lives (a campaign, personal character or public link);
+  // popout: open items in the campaign's item window; linksDisabled: public links can't follow references.
+  let {item=null, level=1, campaignId='', catalogBase=null, popout=true, linksDisabled=false,
+    onOpen=()=>{}, onBack=()=>{}, onClose=()=>{}, canBack=false, compact=false} = $props();
 
   let hoverItem=$state(null);
   let hoverState=$state('');
@@ -12,7 +14,8 @@
   let request=0;
   const cache=new Map();
   const html=$derived(renderLevelDescription(item?.description||'',level));
-  const base=$derived('/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/catalog-item');
+  const base=$derived((catalogBase??'/api/v1/campaigns/'+encodeURIComponent(campaignId))+'/catalog-item');
+  const canPop=$derived(popout&&!!campaignId&&!catalogBase);
   function getRef(target) {
     const element=target?.closest?.('[data-pf2e-uuid], [data-uuid], [data-pf2e-action]');
     if(!element)return null;
@@ -40,6 +43,7 @@
     return result.item;
   }
   function hoverLink(event) {
+    if(linksDisabled)return;
     const ref=getRef(event.target);
     if(!ref)return;
     clearTimeout(timer);
@@ -69,6 +73,7 @@
     const ref=getRef(event.target);
     if(!ref)return;
     event.preventDefault();event.stopPropagation();
+    if(linksDisabled)return;
     clearHover();
     if(event.ctrlKey||event.metaKey){
       window.open(popupUrl(ref),'_blank','popup=yes,width=760,height=880,noopener');
@@ -86,11 +91,11 @@
 </script>
 
 {#if item}
-  <div class:compact class="inspector">
+  <div class:compact class:links-off={linksDisabled} class="inspector">
     <div class="inspector-bar">
       <div class="inspector-nav">
         <button type="button" class="ghost" disabled={!canBack} onclick={onBack}>← Back</button>
-        <button type="button" class="ghost" onclick={popThis} title="Open separate item window">↗ Pop out</button>
+        {#if canPop}<button type="button" class="ghost" onclick={popThis} title="Open separate item window">↗ Pop out</button>{/if}
       </div>
       <button type="button" class="ghost" onclick={onClose} aria-label="Close details">✕</button>
     </div>
@@ -166,4 +171,6 @@
   .hover-preview small{color:var(--muted)}
   .inspector-empty{text-align:center;margin:auto;padding:3rem 1.6rem;color:var(--muted)}
   .inspector-empty h3{color:var(--text)}.spark{font-size:3.1rem;color:var(--accent)}
+  /* Public links show references as plain text. */
+  .links-off :global([data-pf2e-uuid]),.links-off :global([data-uuid]),.links-off :global([data-pf2e-action]){pointer-events:none;cursor:text;text-decoration:none;color:inherit}
 </style>

@@ -294,7 +294,8 @@ function validateWishlist(value){
  * are bounded JSON stored verbatim; uuids new relative to `current` must exist
  * in the campaign's published catalog.
  */
-export function validateDocument(campaignId,current,value){
+/** `catalog` overrides the campaign's (personal characters resolve against their own sources). */
+export function validateDocument(campaignId,current,value,{catalog:given=null}={}){
   if(!value||typeof value!=='object'||Array.isArray(value))problem(400,'invalid_character_document');
   const leveler=validateLevelerDocuments(value.leveler);
   const planner=value.planner??{};
@@ -317,7 +318,7 @@ export function validateDocument(campaignId,current,value){
   const before=documentUuids(current?.leveler??{});
   const added=[...documentUuids(doc.leveler)].filter(uuid=>!before.has(uuid));
   if(added.length){
-    const catalog=catalogFor(campaignId);
+    const catalog=given??catalogFor(campaignId);
     if(!catalog)problem(409,'sync_compendiums_before_selecting_items');
     for(const uuid of added)if(!catalog.has(uuid))problem(400,'build_contains_item_not_in_synced_catalog');
   }
@@ -344,14 +345,14 @@ const ABILITY=/^[a-z]{3}$/;
 const nullableUuid=value=>value===null||value===undefined?null
   :typeof value==='string'&&COMPENDIUM_UUID.test(value)?value:problem(400,'invalid_build_reference');
 /** Every compendium uuid anywhere in a 5e build (keys and values). */
-function dnd5eUuids(value,out=new Set()){
+export function dnd5eUuids(value,out=new Set()){
   if(typeof value==='string'){for(const m of value.matchAll(/Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+/g))out.add(m[0]);}
   else if(Array.isArray(value))for(const entry of value)dnd5eUuids(entry,out);
   else if(value&&typeof value==='object')for(const [key,entry] of Object.entries(value)){dnd5eUuids(key,out);dnd5eUuids(entry,out);}
   return out;
 }
 /** Validate a whole 5e plan document; uuids new relative to `current` must be in the synced catalog. */
-export function validateDnd5eDocument(campaignId,current,value){
+export function validateDnd5eDocument(campaignId,current,value,{catalog:given=null}={}){
   if(!isDnd5eDocument(value))problem(400,'invalid_character_document');
   const b=value.build;
   if(!b||typeof b!=='object'||Array.isArray(b)||JSON.stringify(b).length>200000||!depthOk(b))problem(400,'invalid_character_build');
@@ -409,7 +410,7 @@ export function validateDnd5eDocument(campaignId,current,value){
   for(const w of current?.planner?.wishlist??[])before.add(w.uuid);
   const added=[...dnd5eUuids(doc.build),...doc.planner.wishlist.map(w=>w.uuid)].filter(uuid=>!before.has(uuid));
   if(added.length){
-    const catalog=catalogFor(campaignId);
+    const catalog=given??catalogFor(campaignId);
     if(!catalog)problem(409,'sync_compendiums_before_selecting_items');
     for(const uuid of new Set(added))if(!catalog.has(uuid))problem(400,'build_contains_item_not_in_synced_catalog');
   }

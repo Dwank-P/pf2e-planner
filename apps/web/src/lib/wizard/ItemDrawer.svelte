@@ -2,13 +2,15 @@
   import ItemInspector from '../ItemInspector.svelte';
   import {api} from '../ui/api.js';
   /** Side drawer with an item's full rules text; follows inline links with a back history. */
-  let {campaignId,uuid=null,level=1,onClose}=$props();
+  // catalogBase overrides the campaign's catalog (personal characters, public links).
+  let {campaignId=null,catalogBase=null,linksDisabled=false,uuid=null,level=1,onClose}=$props();
+  const itemBase=$derived(catalogBase??'/api/v1/campaigns/'+encodeURIComponent(campaignId));
   let stack=$state([]);
   let error=$state('');
   const current=$derived(stack.at(-1)??null);
   const cache=new Map();
   async function fetchItem(id){
-    if(!cache.has(id))cache.set(id,api('/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/catalog-item?uuid='+encodeURIComponent(id)).then(r=>r.item));
+    if(!cache.has(id))cache.set(id,api(itemBase+'/catalog-item?uuid='+encodeURIComponent(id)).then(r=>r.item));
     return cache.get(id);
   }
   $effect(()=>{
@@ -24,7 +26,7 @@
     {#if error}
       <div class="pad"><p class="notice bad">{error}</p><button class="btn" onclick={onClose}>Close</button></div>
     {:else if current}
-      <ItemInspector item={current} {level} {campaignId} canBack={stack.length>1}
+      <ItemInspector item={current} {level} campaignId={campaignId??''} {catalogBase} {linksDisabled} canBack={stack.length>1}
         onOpen={item=>stack=[...stack,item]} onBack={()=>stack=stack.slice(0,-1)} onClose={onClose}/>
     {:else}
       <div class="pad muted">Loading…</div>

@@ -31,6 +31,16 @@ test('Leveler data controls slot presence, counts, variants and repeated ancestr
  assert.equal(out.slots.some(s=>s.key==='class-4'),false,
   'Must not invent slots from fallback schedules');
 });
+test('a personal character’s own Free Archetype choice adds or removes archetype slots',()=>{
+ const off=levelerChoiceSlots(fighter,null,{freeArchetype:false}).slots;
+ assert.equal(off.some(s=>s.levelerType==='archetypeFeat'),false);
+ const plain={metadata:{levelerProgression:{...fighter.metadata.levelerProgression,
+  levels:{2:[{type:'classFeat'}],4:[{type:'classFeat'}]}}}};
+ const on=levelerChoiceSlots(plain,null,{freeArchetype:true}).slots;
+ assert.deepEqual(on.filter(s=>s.kind==='archetype').map(s=>s.level),[2,4,6,8,10,12,14,16,18,20]);
+ assert.ok(on.findIndex(s=>s.key==='archetype-2')<on.findIndex(s=>s.key==='class-4'),'Kept in level order');
+ assert.equal(levelerChoiceSlots(plain,null,{}).slots.some(s=>s.kind==='archetype'),false,'No choice: the class data decides');
+});
 test('missing old Leveler schema reports need for sync, not assumed progression',()=>{
  assert.equal(levelerChoiceSlots({metadata:{}}).slots.filter(x=>x.type==='ability').length,4);
  assert.equal(levelerChoiceSlots({metadata:{}}).ready,false);

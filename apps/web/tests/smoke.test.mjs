@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.20\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.21\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.20.0');
+    assert.equal(health.body.version,'0.21.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.20.0');
+    assert.equal(check.body.version,'0.21.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -831,6 +831,72 @@ test('production API: bootstrap → pair world → create player → sync → re
     const dndExport=await send('/api/v1/bridge/'+dndPair.body.integrationId+'/characters/export',
       {characterId:dndRow.id},'',dndOrigin,'POST',dndToken);
     assert.equal(dndExport.status,400,'5e plans are never exported to Foundry');
+
+    // Personal characters: a player's own, built from compendiums that worlds they belong to share.
+    const pSources=()=>send('/api/v1/personal/sources?system=pf2e',undefined,playerCookie,origin,'GET');
+    assert.deepEqual((await pSources()).body.sources,[],'Worlds share nothing until the GM turns it on');
+    const compendiumShare='/api/v1/campaigns/'+campaignId+'/compendium-sharing';
+    assert.equal((await send(compendiumShare,{enabled:true},playerCookie,origin,'PUT')).status,403,'Only GMs share a world');
+    assert.equal((await send(compendiumShare,{enabled:true},ownerCookie,origin,'PUT')).status,200);
+    const offered=(await pSources()).body.sources;
+    assert.deepEqual(offered.map(p=>p.package).sort(),['battlezoo','pf2e'],'Grouped by package (system or module)');
+    assert.equal(offered.find(p=>p.package==='pf2e').worlds[0].integrationId,integrationId);
+    const pCreated=await send('/api/v1/personal',{name:'Sandbox Kyra',system:'pf2e'},playerCookie);
+    assert.equal(pCreated.status,201,JSON.stringify(pCreated));
+    const pRoute='/api/v1/personal/'+pCreated.body.character.id;
+    const pSetup=await send(pRoute+'/setup',{variants:{freeArchetype:true},
+      sources:[{package:'pf2e',integrationId},{package:'battlezoo',integrationId}]},playerCookie,origin,'PUT');
+    assert.equal(pSetup.status,200,JSON.stringify(pSetup));
+    const notShared=await send(pRoute+'/setup',{variants:{},sources:[{package:'dnd5e',integrationId:dndPair.body.integrationId}]},playerCookie,origin,'PUT');
+    assert.equal(notShared.status,400,'Only shared worlds the player belongs to');
+    const pBundle=await send(pRoute+'/catalog-bundle',undefined,playerCookie,origin,'GET');
+    assert.ok(pBundle.body.items?.some(i=>i.name==='Fighter')&&pBundle.body.items.some(i=>i.name==='Battlezoo Test'),JSON.stringify(pBundle).slice(0,400));
+    assert.equal(pBundle.body.variants.freeArchetype,true,'The character’s own variant rules');
+    const pDoc=(extra={})=>({leveler:{creation:{class:{uuid:'Compendium.pf2e.classes.Item.Fighter',name:'Fighter'},
+      ancestryFeat:{uuid:'Compendium.battlezoo.options.Item.BZFeat',name:'Battlezoo Test'},...extra},plan:null},planner:{notes:''}});
+    let pChar=pCreated.body.character;
+    const pSaved=await send(pRoute+'/document',{name:'Sandbox Kyra',level:3,revision:pChar.revision,document:pDoc()},playerCookie,origin,'PUT');
+    assert.equal(pSaved.status,200,JSON.stringify(pSaved));
+    pChar=pSaved.body.character;
+    const pUnknown=await send(pRoute+'/document',{name:'Sandbox Kyra',level:3,revision:pChar.revision,
+      document:pDoc({heritage:{uuid:'Compendium.other.pack.Item.Nope',name:'Nope'}})},playerCookie,origin,'PUT');
+    assert.equal(pUnknown.status,400,'Only items from the character’s sources');
+    assert.equal((await send(pRoute,undefined,ownerCookie,origin,'GET')).status,404,'GMs and the server owner don’t see personal characters');
+    const ownerMe=await send('/api/v1/me',undefined,ownerCookie,origin,'GET');
+    const pShared=await send(pRoute+'/sharing',{shares:[{userId:ownerMe.body.user.id,access:'view'}],publicLink:'on'},playerCookie,origin,'PUT');
+    assert.equal(pShared.status,200,JSON.stringify(pShared));
+    const publicToken=pShared.body.sharing.publicToken;
+    assert.match(publicToken,/^[A-Za-z0-9_-]{43}$/);
+    const ownerView=await send(pRoute,undefined,ownerCookie,origin,'GET');
+    assert.equal(ownerView.status,200);
+    assert.equal(ownerView.body.character.access.edit,false);
+    assert.equal((await send(pRoute+'/document',{name:'x',level:1,revision:pChar.revision,document:pDoc()},ownerCookie,origin,'PUT')).status,403);
+    const people=await send('/api/v1/people?q=te',undefined,playerCookie,origin,'GET');
+    assert.ok(people.body.people.some(p=>p.username==='test-owner'),'Any account can be found to share with');
+    const publicView=await fetch(origin+'/api/v1/public/'+publicToken);
+    assert.equal(publicView.status,200,'Public links need no sign-in');
+    const publicBundle=await (await fetch(origin+'/api/v1/public/'+publicToken+'/catalog-bundle')).json();
+    assert.deepEqual(publicBundle.items.map(i=>i.name).sort(),['Battlezoo Test','Fighter'],'Only the items the build uses');
+    assert.equal((await fetch(origin+'/api/v1/public/'+publicToken+'/catalog-item?uuid=Compendium.pf2e.classes.Item.Fighter')).status,200);
+    assert.equal((await fetch(origin+'/api/v1/public/'+publicToken+'/catalog-item?uuid=Compendium.pf2e.feats-srd.Item.Other')).status,404,
+      'Links in item text can’t be followed from a public link');
+    assert.equal((await fetch(origin+'/api/v1/public/'+'x'.repeat(43))).status,404);
+    const pCopy=await send(pRoute+'/copy',{campaignId},playerCookie);
+    assert.equal(pCopy.status,201,JSON.stringify(pCopy));
+    assert.equal(pCopy.body.report.missing.length,0);
+    assert.equal(pCopy.body.character.campaignId,campaignId);
+    assert.equal((await send(pRoute+'/copy',{campaignId:dndCampaign},playerCookie)).status,403,'Copy only into your own campaigns');
+    // GM turns sharing off: the character keeps what it picked, drops the sources.
+    assert.equal((await send(compendiumShare,{enabled:false},ownerCookie,origin,'PUT')).status,200);
+    const afterOff=await send(pRoute,undefined,playerCookie,origin,'GET');
+    assert.equal(afterOff.body.character.sources.length,0);
+    assert.ok(afterOff.body.character.keptItems>=2,JSON.stringify(afterOff.body.character));
+    const keptBundle=await send(pRoute+'/catalog-bundle',undefined,playerCookie,origin,'GET');
+    assert.deepEqual(keptBundle.body.items.map(i=>i.name).sort(),['Battlezoo Test','Fighter']);
+    assert.equal((await send(pRoute+'/catalog-item?uuid=Compendium.pf2e.classes.Item.Fighter',undefined,playerCookie,origin,'GET')).status,200);
+    const pPublicOff=await send(pRoute+'/sharing',{shares:[],publicLink:'off'},playerCookie,origin,'PUT');
+    assert.equal(pPublicOff.body.sharing.publicToken,null);
+    assert.equal((await fetch(origin+'/api/v1/public/'+publicToken)).status,404,'A turned-off link stops working');
 
     const wrongOrigin=await send('/api/v1/bridge/'+integrationId+'/refresh',
       {refreshToken:paired.body.refreshToken},'','https://untrusted.test.invalid');

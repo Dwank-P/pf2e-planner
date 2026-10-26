@@ -7,8 +7,9 @@
   import ItemDrawer from '../wizard/ItemDrawer.svelte';
   import SharePanel from '../ui/SharePanel.svelte';
   import AppBar from '../ui/AppBar.svelte';
-  import {api,campaignPath} from '../ui/api.js';
-  import {loadCatalog} from '../builder/catalog.js';
+  import {api} from '../ui/api.js';
+  import {loadCatalogAt} from '../builder/catalog.js';
+  import {setContext} from 'svelte';
   import {wishlist} from '../builder/equipment.js';
   import {derive,normalizeBuild,setChoice,addLevel,removeLastLevel,setLevelClass,setSubclass,toggleSpell,summaryLabels}
     from '../systems/dnd5e/build.js';
@@ -17,9 +18,11 @@
   /**
    * D&D 5e character planner (2014 or 2024 rules, following the world's setting): origin,
    * ability scores, levels 1–20 with multiclassing, spells and an equipment wishlist.
-   * Plans stay on the website; nothing is exported to Foundry.
+   * Plans stay on the website; nothing is exported to Foundry. `scope` says where the character
+   * lives (campaign, personal, public link); see BuilderPf2e.
    */
-  let {ctx,campaignId,characterId}=$props();
+  let {ctx,scope,actions:extraActions=null,banner=null}=$props();
+  setContext('catalogBase',scope.catalogBase);
   let catalog=$state(null);
   let character=$state(null);
   let build=$state(null);
@@ -38,11 +41,10 @@
   let timer;
 
   $effect(()=>{
-    const id=characterId,cid=campaignId;
+    const url=scope.characterUrl;
     (async()=>{
       try{
-        const [result,cat]=await Promise.all([
-          api('/api/v1/campaigns/'+encodeURIComponent(cid)+'/characters/'+encodeURIComponent(id)),loadCatalog(cid)]);
+        const [result,cat]=await Promise.all([api(url),loadCatalogAt(scope.catalogKey,scope.catalogBase)]);
         catalog=cat;character=result.character;name=character.name;currentLevel=character.level;
         build=normalizeBuild(character.dnd5e);
         planner={notes:'',wishlist:[],...(character.planner??{})};
@@ -68,7 +70,7 @@
     if(saveState==='saving'||conflict){if(!conflict)schedule();return;}
     saveState='saving';
     try{
-      const result=await api('/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/'+encodeURIComponent(characterId)+'/document',
+      const result=await api(scope.characterUrl+'/document',
         {method:'PUT',body:{name:name.trim()||character.name,level:currentLevel,revision:character.revision,
           document:{format:'dnd5e-plan',schemaVersion:1,build,summary:summaryLabels(sheet),planner}}});
       character={...character,revision:result.character.revision,name:result.character.name,level:result.character.level};
@@ -82,8 +84,8 @@
   async function deleteCharacter(){
     deleting=true;clearTimeout(timer);
     try{
-      await api('/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/'+encodeURIComponent(characterId),{method:'DELETE'});
-      location.replace(campaignPath(campaignId));
+      await api(scope.characterUrl,{method:'DELETE'});
+      location.replace(scope.home);
     }catch(e){error=e.message;deleting=false;confirmDelete=false;}
   }
   function go(target){
@@ -121,12 +123,13 @@
 <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name}>
   {#snippet actions()}
     {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">View only</span>{/if}
-    {#if canManage}<button class="btn small ghost" onclick={()=>sharing=true}>Share</button>
+    {@render extraActions?.()}
+    {#if canManage}<button class="btn small ghost" onclick={()=>scope.onShare?scope.onShare():sharing=true}>Share</button>
       <button class="btn small ghost danger" onclick={()=>confirmDelete=true}>Delete</button>{/if}
   {/snippet}
 </AppBar>
 {#if sharing}
-  <SharePanel url={'/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/'+encodeURIComponent(characterId)+'/sharing'}
+  <SharePanel url={scope.sharingUrl}
     onClose={()=>sharing=false} onSaved={s=>character={...character,visibility:s.visibility}}/>
 {/if}
 {#if confirmDelete}
@@ -140,14 +143,16 @@
   </div>
 {/if}
 {#if character&&!canEdit}
-  <div class="banner"><p class="notice">{character.ownerName??'Its owner'} shared this character with you to view. Changes you make here aren’t saved.</p></div>
+  <div class="banner"><p class="notice">{scope.publicView?`${character.ownerName??'A player'}’s character, from a shared link. It’s read-only.`
+    :`${character.ownerName??'Its owner'} shared this character with you to view. Changes you make here aren’t saved.`}</p></div>
 {/if}
+{@render banner?.()}
 {#if error}
   <div class="banner" role="alert"><p class="notice bad">{error}
     {#if conflict}<button class="link" onclick={()=>location.reload()}>Reload</button>{/if}</p></div>
 {/if}
 {#if build&&catalog&&sheet}
-  {#if !catalog.count}
+  {#if !catalog.count&&scope.campaignId}
     <div class="banner"><p class="notice">The GM hasn’t synced this world’s compendiums yet. Once the Planner Bridge (D&amp;D 5e) runs <i>Sync Now</i>, classes and spells appear here.</p></div>
   {/if}
   <div class="mobile-bar">
@@ -226,7 +231,7 @@
     </main>
     <div class="side"><Summary5e {name} {sheet} {catalog} {variants}/></div>
   </div>
-  <ItemDrawer {campaignId} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
+  <ItemDrawer campaignId={scope.campaignId} catalogBase={scope.campaignId?null:scope.catalogBase} linksDisabled={!!scope.publicView} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
 {:else if !error}
   <p class="loading muted">Loading the character…</p>
 {/if}

@@ -17,6 +17,13 @@
   let confirmDisconnect=$state(false);
   let busy=$state(false);
   let notice=$state('');
+  // Members' personal characters may use this world's compendiums (off by default).
+  let sharing=$state(null);
+  async function setSharing(enabled){
+    busy=true;
+    try{sharing={...sharing,...await api(base+'/compendium-sharing',{method:'PUT',body:{enabled}})};}
+    catch(e){error=e.message;}finally{busy=false;}
+  }
 
   $effect(()=>{
     const id=campaignId;
@@ -26,6 +33,7 @@
         if(!loaded.isGm){location.replace(campaignPath(id));return;}
         ctx=loaded;
         members=(await api(base+'/members')).members;
+        sharing=await api(base+'/compendium-sharing');
       }catch(e){error=e.message;}
     })();
   });
@@ -208,6 +216,12 @@
     <section class="panel block">
       <div class="block-head"><h2>Compendiums</h2></div>
       <p class="muted">Browse everything this campaign synced.</p>
+      {#if sharing}
+        <label class="share-toggle"><input type="checkbox" checked={sharing.enabled} disabled={busy} onchange={e=>setSharing(e.currentTarget.checked)}/>
+          <span><b>Let members use these compendiums in their personal characters</b>
+            <small class="muted">Players can mix this world’s systems and modules with other worlds’ in characters of their own.
+              Nothing is copied. Turning it off keeps the items they already picked.{sharing.personalCharacters?` ${sharing.personalCharacters} personal character${sharing.personalCharacters===1?' uses':'s use'} this world.`:''}</small></span></label>
+      {/if}
       <div class="row start"><a class="btn" href={campaignPath(campaignId,'/feats')}>Feat browser</a>
         <a class="btn ghost" href={campaignPath(campaignId,'/ruleset')}>Detailed sync report</a></div>
     </section>
@@ -236,6 +250,8 @@
   .origins li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:.9rem}
   .origins .num{overflow-wrap:anywhere}
   .packs{columns:2;margin:6px 0 0;padding-left:1.1rem;font-size:.85rem;color:var(--text-2)}
+  .share-toggle{display:flex;gap:10px;align-items:flex-start}
+  .share-toggle span{display:grid;gap:2px}
   .danger-zone{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:10px}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
   .row.start{justify-content:flex-start}

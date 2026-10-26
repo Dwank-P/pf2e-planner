@@ -1,5 +1,6 @@
 import {db,transaction} from '#lib/server/db.js';
 import {respond,sessionUser,ownerOrGm,problem} from '#lib/server/api.js';
+import {retainPicks} from '#lib/server/personal.js';
 
 /**
  * Remove a player from this campaign (GM or site owner). An invitation that was
@@ -18,6 +19,9 @@ export function DELETE(event){
     if(gms<=1)problem(409,'campaign_needs_a_gm');
   }
   const result=transaction(sql=>{
+    // Their personal characters keep what they picked from this world, then stop using it.
+    for(const i of sql.prepare('SELECT id FROM integrations WHERE campaign_id=?').all(campaignId))
+      retainPicks(sql,{integrationId:i.id,ownerId:userId});
     sql.prepare('DELETE FROM memberships WHERE campaign_id=? AND user_id=?').run(campaignId,userId);
     if(target.status==='pending'){
       sql.prepare('DELETE FROM invitations WHERE user_id=?').run(userId);

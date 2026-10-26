@@ -43,7 +43,9 @@ export function storageReport() {
     icons: sum(bytes, ['icon_blobs', 'integration_icons', 'idx_integration_icons_sha',
       ...index('sqlite_autoindex_icon_blobs'), ...index('sqlite_autoindex_integration_icons')]),
     characters: sum(bytes, ['character_builds', 'character_shares', 'foundry_actor_links', 'idx_builds_campaign_owner',
-      ...index('sqlite_autoindex_character'), ...index('sqlite_autoindex_foundry_actor_links')])
+      ...index('sqlite_autoindex_character'), ...index('sqlite_autoindex_foundry_actor_links')]),
+    personal: sum(bytes, ['personal_characters', 'personal_shares', 'personal_sources', 'personal_kept_items',
+      'idx_personal_owner', 'idx_personal_sources_integration', 'idx_personal_kept_icon', ...index('sqlite_autoindex_personal')])
   };
   const accounted = Object.values(groups).reduce((a, b) => a + b, 0);
   const worlds = db().prepare(`SELECT i.id AS integrationId,c.id AS campaignId,c.title,i.revoked_at AS revokedAt,
@@ -75,6 +77,9 @@ export function storageReport() {
     groups: { ...groups, other: Math.max(0, pages * pageSize - accounted - free * pageSize) },
     freeSpace: freeSpace(),
     worlds, unpaired,
+    personal: one(`SELECT COUNT(*) AS characters,COALESCE(SUM(LENGTH(build_json)),0) AS characterBytes,
+      (SELECT COUNT(*) FROM personal_kept_items) AS kept,
+      (SELECT COALESCE(SUM(LENGTH(item_json)),0) FROM personal_kept_items) AS keptBytes FROM personal_characters`),
     sharedIcons: one(`SELECT COUNT(*) AS images,COALESCE(SUM(LENGTH(bytes)),0) AS bytes,
       (SELECT COUNT(*) FROM integration_icons) AS paths FROM icon_blobs`),
     cleanup: cleanupCounts()
@@ -96,8 +101,8 @@ function cleanupTargets(now = unix()) {
       (SELECT 1 FROM catalog_imports i WHERE i.id=catalog_import_digests.import_id)`,
       `SELECT COUNT(*) AS n FROM catalog_import_digests WHERE NOT EXISTS
       (SELECT 1 FROM catalog_imports i WHERE i.id=catalog_import_digests.import_id AND i.created_at>=${now - DAY})`],
-    ['Icons no world uses', `DELETE FROM icon_blobs WHERE NOT EXISTS (SELECT 1 FROM integration_icons i WHERE i.sha256=icon_blobs.sha256)`,
-      `SELECT COUNT(*) AS n FROM icon_blobs WHERE NOT EXISTS (SELECT 1 FROM integration_icons i WHERE i.sha256=icon_blobs.sha256)`],
+    ['Icons no world uses', `DELETE FROM icon_blobs WHERE NOT EXISTS (SELECT 1 FROM integration_icons i WHERE i.sha256=icon_blobs.sha256) AND NOT EXISTS (SELECT 1 FROM personal_kept_items k WHERE k.icon_sha256=icon_blobs.sha256)`,
+      `SELECT COUNT(*) AS n FROM icon_blobs WHERE NOT EXISTS (SELECT 1 FROM integration_icons i WHERE i.sha256=icon_blobs.sha256) AND NOT EXISTS (SELECT 1 FROM personal_kept_items k WHERE k.icon_sha256=icon_blobs.sha256)`],
     ['Old compendium snapshots', `DELETE FROM catalog_entries WHERE NOT EXISTS (SELECT 1 FROM catalog_publications p
       WHERE p.integration_id=catalog_entries.integration_id AND p.snapshot_id=catalog_entries.snapshot_id)`,
       `SELECT COUNT(*) AS n FROM catalog_entries WHERE NOT EXISTS (SELECT 1 FROM catalog_publications p

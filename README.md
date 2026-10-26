@@ -591,3 +591,25 @@ Website only; the Bridge stays at 0.14.1.
 - Server admin → Accounts: the columns line up on every row.
 
 **Update the PF2e Bridge to 0.20.0** (no functional change) and install the 5e Bridge in 5e worlds.
+
+### v0.21.0 — Personal characters
+
+- **My characters** (account menu): characters of your own, outside any campaign. Each one picks
+  its game system (PF2e/SF2e or D&D 5e), its own variant rules, and its **sources**: systems and
+  modules (grouped by compendium package, e.g. `pf2e`, `pf2e-battlezoo-ancestries`) from any world
+  you belong to whose GM shares its compendiums — so Battlezoo from one world, another third-party
+  module from a second and SF2e from a third can be used together. Nothing is copied: the character
+  reads those worlds' current syncs.
+- **GM switch**: Campaign settings → Compendiums → *Let members use these compendiums in their
+  personal characters* (off by default).
+- **Picks are kept**: if a world is disconnected, stops sharing, removes a player or drops a module
+  in a re-sync, the items a character had picked from it are kept for that character; the rest is
+  removed as usual.
+- **Private by default**: GMs and the server owner don't see personal characters. Share with any
+  account (view or edit), or make a **public link** that anyone can open without signing in. Public
+  viewers see the build and the items it uses, but can't follow links in their text to other items.
+- **Copy to campaign**: makes a normal campaign character, matching each pick against that world's
+  compendiums (by ID, then name); anything it doesn't have is listed and left out.
+- Server admin → Storage shows personal characters and kept items.
+
+**Update both Bridges to 0.21.0** (no functional change).

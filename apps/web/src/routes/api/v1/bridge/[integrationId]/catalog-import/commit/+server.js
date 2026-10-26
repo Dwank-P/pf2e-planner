@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import {transaction,unix} from '#lib/server/db.js';
 import {input,bridgeAuth,respond,problem} from '#lib/server/api.js';
 import {checkpointIfLarge,freeSpace} from '#lib/server/storage.js';
+import {retainPicks,packageOf} from '#lib/server/personal.js';
 export async function POST(event){
   bridgeAuth(event,event.params.integrationId);
   const b=await input(event.request);
@@ -36,6 +37,12 @@ export async function POST(event){
       hash.update(row.item_json).update('\n');
     const sha256=hash.digest('hex');
     const rows={length:Number(staged.n)};
+    // Personal characters keep what they picked from packages this sync no longer has
+    // (while the previous snapshot is still the published one).
+    const kept=new Set([...byPack.keys()].map(packageOf));
+    const lost=new Set(sql.prepare('SELECT DISTINCT package FROM personal_sources WHERE integration_id=?')
+      .all(i.integration_id).map(r=>r.package).filter(p=>!kept.has(p)));
+    if(lost.size)retainPicks(sql,{integrationId:i.integration_id,packages:lost});
     sql.prepare(`INSERT INTO catalog_publications(integration_id,snapshot_id,sha256,entry_count,variants_json,
       packs_json,sources_json,updated_at) VALUES(?,?,?,?,?,?,?,?)
       ON CONFLICT(integration_id) DO UPDATE SET snapshot_id=excluded.snapshot_id,

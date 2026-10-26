@@ -195,6 +195,17 @@ export function levelerChoiceSlots(primary,secondary=null,variants={}) {
         label:secondary.name+' signature spells',level,source:'leveler',ranks:second,...entry});
     }
   }
+  // Leveler bakes the world's Free Archetype setting into the class progression; a personal
+  // character's own choice (variants.freeArchetype) adds or removes those slots.
+  if(variants.freeArchetype===false)return {ready:true,source:'pf2e-leveler',version:data.version,
+    slots:slots.filter(s=>s.levelerType!=='archetypeFeat')};
+  if(variants.freeArchetype===true&&!slots.some(s=>s.levelerType==='archetypeFeat')){
+    for(let level=2;level<=20;level+=2){
+      const at=slots.findIndex(s=>s.level>level);
+      slots.splice(at<0?slots.length:at,0,{key:'archetype-'+level,type:'feat',kind:'archetype',
+        label:'Free Archetype feat',level,source:'leveler',levelerType:'archetypeFeat'});
+    }
+  }
   return {ready:true,source:'pf2e-leveler',version:data.version,slots};
 }
 /**

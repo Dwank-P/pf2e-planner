@@ -38,10 +38,14 @@
           {#if me?.siteRole==='owner'||campaigns.some(c=>c.role==='gm')}
             <a role="menuitem" class="add" href="/worlds/new"><span>+ Add a world</span><small>New campaign</small></a>
           {/if}
+          <a role="menuitem" href="/characters">My characters<small>Personal</small></a>
         </div>
       {/if}
       {#if crumb}<span class="sep" aria-hidden="true">/</span><span class="here">{crumb}</span>{/if}
     </div>
+  {:else if crumb&&me}
+    <div class="crumbs"><a class="crumb" href="/characters">My characters</a>
+      {#if crumb!=='My characters'}<span class="sep" aria-hidden="true">/</span><span class="here">{crumb}</span>{/if}</div>
   {/if}
   <span class="spacer"></span>
   {#if campaign}
@@ -62,6 +66,7 @@
               <button class:on={theme===value} aria-pressed={theme===value} onclick={()=>setTheme(value)}>{label}</button>
             {/each}
           </div>
+          <a role="menuitem" href="/characters">My characters</a>
           <a role="menuitem" href="/account">Account</a>
           {#if me.siteRole==='owner'}<a role="menuitem" href="/admin">Server admin</a>{/if}
           <button role="menuitem" class="item" onclick={signOut}>Sign out</button>
@@ -80,6 +85,7 @@
   .crumbs{display:flex;align-items:center;gap:6px;min-width:0}
   .crumb{background:none;border:0;font-weight:700;color:var(--text);padding:4px 6px;border-radius:6px;display:flex;gap:6px;align-items:center}
   .crumb:hover{background:var(--panel-2)}
+  a.crumb{text-decoration:none}
   .crumb span{font-size:.7rem;color:var(--muted)}
   .sep{color:var(--faint)}
   .here{color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:36vw}

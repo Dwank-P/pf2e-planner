@@ -147,6 +147,35 @@ export function db() {
       code TEXT NOT NULL UNIQUE, created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       created_at INTEGER NOT NULL, expires_at INTEGER, revoked_at INTEGER, uses INTEGER NOT NULL DEFAULT 0
     );
+    -- Personal characters: owned by one player, outside any campaign, built from compendiums
+    -- that worlds the player belongs to share (personal_sources). system is 'pf2e' (PF2e/SF2e) or 'dnd5e'.
+    CREATE TABLE IF NOT EXISTS personal_characters (
+      id TEXT PRIMARY KEY, owner_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL, level INTEGER NOT NULL CHECK(level BETWEEN 1 AND 20),
+      system TEXT NOT NULL CHECK(system IN ('pf2e','dnd5e')), variants_json TEXT NOT NULL DEFAULT '{}',
+      build_json TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1,
+      public_token TEXT UNIQUE, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_personal_owner ON personal_characters(owner_user_id, updated_at DESC);
+    CREATE TABLE IF NOT EXISTS personal_shares (
+      character_id TEXT NOT NULL REFERENCES personal_characters(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      access TEXT NOT NULL CHECK(access IN ('view','edit')), PRIMARY KEY(character_id,user_id)
+    );
+    -- One world per package (a compendium id's first part: "pf2e", "pf2e-battlezoo-…", "world").
+    CREATE TABLE IF NOT EXISTS personal_sources (
+      character_id TEXT NOT NULL REFERENCES personal_characters(id) ON DELETE CASCADE,
+      package TEXT NOT NULL, integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
+      PRIMARY KEY(character_id,package)
+    );
+    CREATE INDEX IF NOT EXISTS idx_personal_sources_integration ON personal_sources(integration_id);
+    -- Items a character had picked from a source that went away, kept for that character only.
+    CREATE TABLE IF NOT EXISTS personal_kept_items (
+      character_id TEXT NOT NULL REFERENCES personal_characters(id) ON DELETE CASCADE,
+      uuid TEXT NOT NULL, item_json TEXT NOT NULL, icon_sha256 TEXT, source TEXT NOT NULL,
+      kept_at INTEGER NOT NULL, PRIMARY KEY(character_id,uuid)
+    );
+    CREATE INDEX IF NOT EXISTS idx_personal_kept_icon ON personal_kept_items(icon_sha256);
     -- One-time password reset codes issued by the server owner.
     CREATE TABLE IF NOT EXISTS password_resets (
       code_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -168,6 +197,8 @@ function migrate(sql) {
   addColumn('bridge_credentials', 'origin', 'TEXT');
   addColumn('character_builds', 'visibility',
     "TEXT NOT NULL DEFAULT 'private' CHECK(visibility IN ('private','campaign-view','campaign-edit','custom'))");
+  // GMs opt a world in before members may use its compendiums for personal characters.
+  addColumn('campaigns', 'share_compendiums', 'INTEGER NOT NULL DEFAULT 0');
   sql.exec(`INSERT OR IGNORE INTO integration_origins(integration_id,origin,created_at)
     SELECT id,foundry_origin,created_at FROM integrations`);
   // v0.12 kept a copy of every icon per world; v0.14 shares identical images.
