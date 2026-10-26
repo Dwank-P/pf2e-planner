@@ -1,11 +1,14 @@
 import {db,transaction} from '#lib/server/db.js';
 import {sessionUser,requireMembership,input,problem,respond} from '#lib/server/api.js';
 import {characterAccess,characterSharing,VISIBILITY} from '#lib/server/characters.js';
+import {newPublicToken} from '#lib/server/personal.js';
 
 /**
  * Who can see or edit a character. Only its owner, the campaign's GMs and the
  * server owner change this; GMs always keep access whatever is chosen.
- * Body: {visibility, shares:[{userId, access:'view'|'edit'}]} (shares for 'custom').
+ * Body: {visibility, shares:[{userId, access:'view'|'edit'}] (shares for 'custom'),
+ *   publicLink:'keep'|'on'|'off'|'regenerate'} — a read-only link anyone can open, which another
+ *   planner can also import from.
  */
 export async function PUT(event){
   const user=sessionUser(event);
@@ -14,7 +17,7 @@ export async function PUT(event){
     .get(event.params.characterId,event.params.campaignId);
   characterAccess(user,row,'manage');
   const body=await input(event.request,32000);
-  if(!VISIBILITY.includes(body.visibility))problem(400,'invalid_sharing');
+  if(!VISIBILITY.includes(body.visibility)||!['keep','on','off','regenerate'].includes(body.publicLink??'keep'))problem(400,'invalid_sharing');
   const shares=body.visibility==='custom'?(Array.isArray(body.shares)?body.shares:[]):[];
   if(shares.length>100)problem(400,'invalid_sharing');
   const members=new Set(db().prepare('SELECT user_id FROM memberships WHERE campaign_id=?')
@@ -30,6 +33,10 @@ export async function PUT(event){
     sql.prepare('DELETE FROM character_shares WHERE character_id=?').run(row.id);
     const add=sql.prepare('INSERT INTO character_shares(character_id,user_id,access) VALUES(?,?,?)');
     for(const [userId,access] of clean)add.run(row.id,userId,access);
+    const link=body.publicLink??'keep';
+    if(link==='off')sql.prepare('UPDATE character_builds SET public_token=NULL WHERE id=?').run(row.id);
+    else if(link==='regenerate'||(link==='on'&&!row.public_token))
+      sql.prepare('UPDATE character_builds SET public_token=? WHERE id=?').run(newPublicToken(),row.id);
   });
   return respond({sharing:characterSharing(db().prepare('SELECT * FROM character_builds WHERE id=?').get(row.id))});
 }

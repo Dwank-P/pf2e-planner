@@ -1,5 +1,6 @@
 <script>
   import AppBar from '../../lib/ui/AppBar.svelte';
+  import ImportCharacter from '../../lib/ui/ImportCharacter.svelte';
   import {api,timeAgo} from '../../lib/ui/api.js';
   import {requireSession} from '../../lib/ui/session.js';
   /** My characters: personal characters outside any campaign, and those shared with me. */
@@ -10,6 +11,7 @@
   let name=$state('');
   let system=$state('pf2e');
   let busy=$state(false);
+  let importing=$state(false);
   $effect(()=>{
     (async()=>{
       try{session=await requireSession();list=await api('/api/v1/personal');}
@@ -41,8 +43,8 @@
   </section>
   {#if list}
     {#if !list.sharedWorlds.pf2e&&!list.sharedWorlds.dnd5e}
-      <p class="notice">None of your worlds share their compendiums yet. A GM can turn it on in a campaign’s settings
-        (<i>Let members use these compendiums</i>).</p>
+      <p class="notice">No synced world is available to you yet. Join a campaign whose GM has synced it, or ask a GM to share
+        their compendiums with every account (campaign settings).</p>
     {/if}
     <section class="grid" aria-label="Your personal characters">
       {#each mine as c (c.id)}
@@ -64,9 +66,13 @@
           <div class="row"><button type="button" class="btn ghost" onclick={()=>creating=false}>Cancel</button>
             <button class="btn primary" disabled={busy||!name.trim()}>Create</button></div>
         </form>
+      {:else if importing}
+        <ImportCharacter importUrl="/api/v1/personal/import" personal onCancel={()=>importing=false}/>
       {:else}
         <button class="card new" onclick={()=>creating=true}><span class="plus" aria-hidden="true">+</span><b>New character</b>
           <small>Choose rules and sources next</small></button>
+        <button class="card new" onclick={()=>importing=true}><span class="plus" aria-hidden="true">⇄</span><b>Import a character</b>
+          <small>A public link from any planner, or an exported file</small></button>
       {/if}
     </section>
     {#if shared.length}

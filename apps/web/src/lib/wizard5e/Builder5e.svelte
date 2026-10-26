@@ -8,6 +8,7 @@
   import SharePanel from '../ui/SharePanel.svelte';
   import AppBar from '../ui/AppBar.svelte';
   import {api} from '../ui/api.js';
+  import {downloadJson} from '../ui/download.js';
   import {loadCatalogAt} from '../builder/catalog.js';
   import {setContext} from 'svelte';
   import {wishlist} from '../builder/equipment.js';
@@ -129,6 +130,7 @@
 <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name}>
   {#snippet actions()}
     {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">View only</span>{/if}
+    {#if scope.exportUrl}<button class="btn small ghost" title="Download the build to import into another planner" onclick={()=>downloadJson(scope.exportUrl,name).catch(e=>error=e.message)}>Export</button>{/if}
     {@render extraActions?.()}
     {#if canManage}<button class="btn small ghost" onclick={()=>scope.onShare?scope.onShare():sharing=true}>Share</button>
       <button class="btn small ghost danger" onclick={()=>confirmDelete=true}>Delete</button>{/if}

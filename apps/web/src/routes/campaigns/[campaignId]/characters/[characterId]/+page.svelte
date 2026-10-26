@@ -16,7 +16,8 @@
   const scope=$derived({characterUrl:'/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/'+encodeURIComponent(characterId),
     catalogBase:'/api/v1/campaigns/'+encodeURIComponent(campaignId),catalogKey:'campaign:'+campaignId,
     sharingUrl:'/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/'+encodeURIComponent(characterId)+'/sharing',
-    home:campaignPath(campaignId),campaignId,publicView:false});
+    home:campaignPath(campaignId),campaignId,publicView:false,
+    exportUrl:'/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/'+encodeURIComponent(characterId)+'/export'});
 </script>
 {#if ctx}
   {#key characterId}

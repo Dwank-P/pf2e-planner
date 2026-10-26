@@ -46,7 +46,11 @@ const MESSAGES={
   pathbuilder_not_found:'Pathbuilder has no character with that ID. Check the number and that the export is still shared.',
   pathbuilder_unreachable:'Couldn’t reach Pathbuilder. Try again in a moment.',
   pathbuilder_blocked:'Pathbuilder didn’t let the server fetch that export. Open the export link in your browser, copy the JSON and paste it instead.',
-  pathbuilder_invalid_json:'That Pathbuilder export couldn’t be read.'
+  pathbuilder_invalid_json:'That Pathbuilder export couldn’t be read.',
+  not_a_planner_character_export:'That isn’t a planner character export.',
+  campaign_uses_other_rules_system:'That character is for a different game system than this campaign.',
+  no_synced_world_for_this_system:'None of your worlds has synced compendiums for that game system yet.',
+  source_not_shared_with_you:'That world isn’t available to you any more; reopen Rules & sources.'
 };
 export class ApiError extends Error{
   constructor(code,status){super(MESSAGES[code]??code??'Request failed (HTTP '+status+')');this.code=code;this.status=status;}

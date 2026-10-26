@@ -8,7 +8,8 @@ import {documentUuids,dnd5eUuids,toCharacter} from './characters.js';
  * Personal characters: a player's own characters outside any campaign. Each picks a rules
  * family ('pf2e' covers PF2e and SF2e worlds, 'dnd5e'), its own variant rules, and sources:
  * packages (the first part of a compendium id, e.g. "pf2e", "pf2e-battlezoo-…", "world")
- * from worlds the owner belongs to whose GM shares compendiums. Nothing is copied: the
+ * from worlds the owner belongs to, or that their GM shares with every account on the
+ * server. Nothing is copied: the
  * character reads those worlds' current syncs. When a source goes away, the items the
  * character picked from it are kept for that character (personal_kept_items).
  */
@@ -21,7 +22,7 @@ export const packageOf=packOrUuid=>{
 const COMPENDIUM=/Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+/g;
 const parse=(text,fallback)=>{try{return JSON.parse(text);}catch{return fallback;}};
 
-/** Worlds the user may draw from: member, GM shares compendiums, world paired and synced. */
+/** Worlds the user may draw from (paired and synced): their own campaigns, and any a GM shares with everyone. */
 export function sharedWorlds(userId,system=null){
   // The server owner can open every campaign without being a member, so counts as one everywhere.
   const owner=db().prepare("SELECT 1 FROM users WHERE id=? AND site_role='owner'").get(userId)?1:0;
@@ -30,7 +31,7 @@ export function sharedWorlds(userId,system=null){
     FROM campaigns c
     JOIN integrations i ON i.campaign_id=c.id AND i.revoked_at IS NULL
     JOIN catalog_publications p ON p.integration_id=i.id
-    WHERE c.share_compendiums=1 AND (?=1 OR EXISTS(SELECT 1 FROM memberships m WHERE m.campaign_id=c.id AND m.user_id=?))
+    WHERE c.share_compendiums=1 OR ?=1 OR EXISTS(SELECT 1 FROM memberships m WHERE m.campaign_id=c.id AND m.user_id=?)
     ORDER BY p.updated_at DESC`).all(owner,userId);
   return system?rows.filter(w=>familyOf(w.systemId)===system):rows;
 }
@@ -151,12 +152,14 @@ export function neededItems(row,resolve,limit=400){
  * Before a world's compendium data stops being available to personal characters (world
  * disconnected, sharing turned off, a member removed, a re-sync without some packages), keep
  * the items each affected character picked from it, then drop those sources.
- * `packages` limits it to some packages; `ownerId` to one player's characters; `characterId` to one.
+ * `packages` limits it to some packages; `ownerId` to one player's characters; `characterId` to one;
+ * `exceptOwners` skips players who keep access.
  */
-export function retainPicks(sql,{integrationId,packages=null,ownerId=null,characterId=null}){
+export function retainPicks(sql,{integrationId,packages=null,ownerId=null,characterId=null,exceptOwners=null}){
   const rows=sql.prepare(`SELECT s.character_id,s.package,c.* FROM personal_sources s
     JOIN personal_characters c ON c.id=s.character_id WHERE s.integration_id=?`).all(integrationId)
-    .filter(r=>(!packages||packages.has(r.package))&&(!ownerId||r.owner_user_id===ownerId)&&(!characterId||r.id===characterId));
+    .filter(r=>(!packages||packages.has(r.package))&&(!ownerId||r.owner_user_id===ownerId)&&(!characterId||r.id===characterId)
+      &&!exceptOwners?.has(r.owner_user_id));
   if(!rows.length)return 0;
   const pub=sql.prepare('SELECT snapshot_id FROM catalog_publications WHERE integration_id=?').get(integrationId);
   const title=sql.prepare('SELECT c.title FROM integrations i JOIN campaigns c ON c.id=i.campaign_id WHERE i.id=?')
@@ -207,12 +210,6 @@ export function loadPersonal(user,id,need='view'){
   if(need==='edit'&&!rights.edit)problem(403,'character_view_only');
   if(need==='manage'&&!rights.manage)problem(403,'character_owner_required');
   return {row,rights};
-}
-export function publicRow(token){
-  if(typeof token!=='string'||!/^[A-Za-z0-9_-]{43}$/.test(token))problem(404,'character_not_found');
-  const row=db().prepare('SELECT * FROM personal_characters WHERE public_token=?').get(token);
-  if(!row)problem(404,'character_not_found');
-  return row;
 }
 export const newPublicToken=()=>randomBytes(32).toString('base64url');
 

@@ -221,7 +221,8 @@ export function characterAccess(user, row, need='edit') {
 export function characterSharing(row){
   const shares=db().prepare(`SELECT s.user_id AS userId,s.access,u.display_name AS displayName,u.username
     FROM character_shares s JOIN users u ON u.id=s.user_id WHERE s.character_id=? ORDER BY u.display_name`).all(row.id);
-  return {visibility:row.visibility??'private',shares};
+  const token=db().prepare('SELECT public_token FROM character_builds WHERE id=?').get(row.id)?.public_token??null;
+  return {visibility:row.visibility??'private',shares,publicToken:token};
 }
 export function toCharacter(row,{includeLeveler=true}={}) {
   const stored=readDocument(row);

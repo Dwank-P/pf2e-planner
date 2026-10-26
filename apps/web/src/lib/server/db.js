@@ -199,6 +199,9 @@ function migrate(sql) {
     "TEXT NOT NULL DEFAULT 'private' CHECK(visibility IN ('private','campaign-view','campaign-edit','custom'))");
   // GMs opt a world in before members may use its compendiums for personal characters.
   addColumn('campaigns', 'share_compendiums', 'INTEGER NOT NULL DEFAULT 0');
+  // Read-only public view links for campaign characters (personal ones have their own column).
+  addColumn('character_builds', 'public_token', 'TEXT');
+  sql.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_builds_public_token ON character_builds(public_token) WHERE public_token IS NOT NULL');
   sql.exec(`INSERT OR IGNORE INTO integration_origins(integration_id,origin,created_at)
     SELECT id,foundry_origin,created_at FROM integrations`);
   // v0.12 kept a copy of every icon per world; v0.14 shares identical images.

@@ -3,8 +3,9 @@ import {sessionUser,requireMembership,ownerOrGm,input,problem,respond} from '#li
 import {retainPicks} from '#lib/server/personal.js';
 
 /**
- * Whether members may use this world's synced compendiums in their personal characters
- * (off by default). Turning it off keeps what those characters already picked.
+ * Members can always use their own world's compendiums in personal characters. This switch
+ * (off by default) shares them with every account on the server. Turning it off keeps what
+ * other players' characters already picked.
  */
 export function GET(event){
   const user=sessionUser(event);
@@ -20,8 +21,13 @@ export async function PUT(event){
   const body=await input(event.request,1000);
   if(typeof body.enabled!=='boolean')problem(400,'enabled_required');
   transaction(sql=>{
-    if(!body.enabled)for(const i of sql.prepare('SELECT id FROM integrations WHERE campaign_id=?').all(event.params.campaignId))
-      retainPicks(sql,{integrationId:i.id});
+    if(!body.enabled){
+      // Members and the server owner keep access; everyone else's characters keep their picks.
+      const keep=new Set([...sql.prepare('SELECT user_id FROM memberships WHERE campaign_id=?').all(event.params.campaignId).map(r=>r.user_id),
+        ...sql.prepare("SELECT id FROM users WHERE site_role='owner'").all().map(r=>r.id)]);
+      for(const i of sql.prepare('SELECT id FROM integrations WHERE campaign_id=?').all(event.params.campaignId))
+        retainPicks(sql,{integrationId:i.id,exceptOwners:keep});
+    }
     sql.prepare('UPDATE campaigns SET share_compendiums=? WHERE id=?').run(body.enabled?1:0,event.params.campaignId);
   });
   return respond({enabled:body.enabled});

@@ -14,7 +14,7 @@
   const ctx={me:null,campaigns:[],campaign:null,sync:null};
   const base=$derived('/api/v1/public/'+encodeURIComponent(token));
   const scope=$derived({characterUrl:base,catalogBase:base,catalogKey:'public:'+token,sharingUrl:null,
-    home:'/',campaignId:null,publicView:true});
+    home:'/',campaignId:null,publicView:true,exportUrl:base+'/export'});
 </script>
 <svelte:head><meta name="robots" content="noindex"/></svelte:head>
 {#if character}

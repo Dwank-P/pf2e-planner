@@ -1,5 +1,6 @@
 <script>
   import {page} from '$app/state';
+  import ImportCharacter from '../../../lib/ui/ImportCharacter.svelte';
   import AppBar from '../../../lib/ui/AppBar.svelte';
   import Traits from '../../../lib/ui/Traits.svelte';
   import {api,campaignPath,timeAgo} from '../../../lib/ui/api.js';
@@ -47,6 +48,8 @@
   }
   // Pathbuilder import: by JSON id (Export → Export JSON), or a pasted export.
   let importing=$state(false);
+  // Import a character exported from a planner (this one or another), by public link or file.
+  let importingPlanner=$state(false);
   let pbId=$state('');
   let pbJson=$state('');
   let imported=$state(null);
@@ -114,6 +117,8 @@
             <button class="btn primary" disabled={busy||!newName.trim()}>Start the wizard</button>
           </div>
         </form>
+      {:else if importingPlanner}
+        <ImportCharacter importUrl={'/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/import'} onCancel={()=>importingPlanner=false}/>
       {:else if importing}
         <form class="card new-form" onsubmit={importPathbuilder}>
           <label class="field" for="pb-id">Pathbuilder JSON ID
@@ -135,6 +140,10 @@
           <span class="plus" aria-hidden="true">⇩</span><b>Import from Pathbuilder</b>
           <small>From a Pathbuilder 2e JSON export</small>
         </button>{/if}
+        <button class="card new" onclick={()=>importingPlanner=true}>
+          <span class="plus" aria-hidden="true">⇄</span><b>Import from another planner</b>
+          <small>A public character link or an exported file</small>
+        </button>
       {/if}
     </section>
     {#if imported}

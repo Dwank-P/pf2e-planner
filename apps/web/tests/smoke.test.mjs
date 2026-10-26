@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.22\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.23\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.22.0');
+    assert.equal(health.body.version,'0.23.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.22.0');
+    assert.equal(check.body.version,'0.23.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -832,12 +832,11 @@ test('production API: bootstrap → pair world → create player → sync → re
       {characterId:dndRow.id},'',dndOrigin,'POST',dndToken);
     assert.equal(dndExport.status,400,'5e plans are never exported to Foundry');
 
-    // Personal characters: a player's own, built from compendiums that worlds they belong to share.
-    const pSources=()=>send('/api/v1/personal/sources?system=pf2e',undefined,playerCookie,origin,'GET');
-    assert.deepEqual((await pSources()).body.sources,[],'Worlds share nothing until the GM turns it on');
+    // Personal characters: a player's own, built from their campaigns' compendiums (and any a GM
+    // shares with every account).
+    const pSources=(cookie=playerCookie)=>send('/api/v1/personal/sources?system=pf2e',undefined,cookie,origin,'GET');
     const compendiumShare='/api/v1/campaigns/'+campaignId+'/compendium-sharing';
     assert.equal((await send(compendiumShare,{enabled:true},playerCookie,origin,'PUT')).status,403,'Only GMs share a world');
-    assert.equal((await send(compendiumShare,{enabled:true},ownerCookie,origin,'PUT')).status,200);
     const offered=(await pSources()).body.sources;
     assert.deepEqual(offered.map(p=>p.package).sort(),['battlezoo','pf2e'],'Grouped by package (system or module)');
     assert.equal(offered.find(p=>p.package==='pf2e').worlds[0].integrationId,integrationId);
@@ -886,17 +885,62 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal(pCopy.body.report.missing.length,0);
     assert.equal(pCopy.body.character.campaignId,campaignId);
     assert.equal((await send(pRoute+'/copy',{campaignId:dndCampaign},playerCookie)).status,403,'Copy only into your own campaigns');
-    // GM turns sharing off: the character keeps what it picked, drops the sources.
+    // Someone outside the campaign only gets its compendiums when the GM shares them with everyone.
+    const outsiderInvite=await send('/api/v1/campaigns/'+dndCampaign+'/members',{},ownerCookie);
+    const outsider=await send('/api/v1/join/redeem',{code:outsiderInvite.body.inviteCode,username:'outsider',password:'very-long-test-password-456'});
+    assert.equal(outsider.status,201,JSON.stringify(outsider));
+    const outsiderCookie=outsider.cookie;
+    assert.deepEqual((await pSources(outsiderCookie)).body.sources,[],'Not a member, not shared');
+    assert.equal((await send(compendiumShare,{enabled:true},ownerCookie,origin,'PUT')).status,200);
+    assert.deepEqual((await pSources(outsiderCookie)).body.sources.map(p=>p.package).sort(),['battlezoo','pf2e'],'Shared with every account');
+    const oCreated=await send('/api/v1/personal',{name:'Visitor',system:'pf2e'},outsiderCookie);
+    const oRoute='/api/v1/personal/'+oCreated.body.character.id;
+    assert.equal((await send(oRoute+'/setup',{variants:{},sources:[{package:'pf2e',integrationId},{package:'battlezoo',integrationId}]},outsiderCookie,origin,'PUT')).status,200);
+    assert.equal((await send(oRoute+'/document',{name:'Visitor',level:1,revision:oCreated.body.character.revision,document:pDoc()},outsiderCookie,origin,'PUT')).status,200);
+    // GM turns sharing off: members keep using the world; the outsider's character keeps what it picked.
     assert.equal((await send(compendiumShare,{enabled:false},ownerCookie,origin,'PUT')).status,200);
-    const afterOff=await send(pRoute,undefined,playerCookie,origin,'GET');
+    assert.equal((await send(pRoute,undefined,playerCookie,origin,'GET')).body.character.sources.length,2,'Members keep their world');
+    const afterOff=await send(oRoute,undefined,outsiderCookie,origin,'GET');
     assert.equal(afterOff.body.character.sources.length,0);
     assert.ok(afterOff.body.character.keptItems>=2,JSON.stringify(afterOff.body.character));
-    const keptBundle=await send(pRoute+'/catalog-bundle',undefined,playerCookie,origin,'GET');
+    const keptBundle=await send(oRoute+'/catalog-bundle',undefined,outsiderCookie,origin,'GET');
     assert.deepEqual(keptBundle.body.items.map(i=>i.name).sort(),['Battlezoo Test','Fighter']);
-    assert.equal((await send(pRoute+'/catalog-item?uuid=Compendium.pf2e.classes.Item.Fighter',undefined,playerCookie,origin,'GET')).status,200);
+    assert.equal((await send(oRoute+'/catalog-item?uuid=Compendium.pf2e.classes.Item.Fighter',undefined,outsiderCookie,origin,'GET')).status,200);
     const pPublicOff=await send(pRoute+'/sharing',{shares:[],publicLink:'off'},playerCookie,origin,'PUT');
     assert.equal(pPublicOff.body.sharing.publicToken,null);
     assert.equal((await fetch(origin+'/api/v1/public/'+publicToken)).status,404,'A turned-off link stops working');
+
+    // Export and import between planners: campaign characters get public links too.
+    const cRoute='/api/v1/campaigns/'+campaignId+'/characters/'+pCopy.body.character.id;
+    const cShared=await send(cRoute+'/sharing',{visibility:'private',shares:[],publicLink:'on'},playerCookie,origin,'PUT');
+    assert.equal(cShared.status,200,JSON.stringify(cShared));
+    const cToken=cShared.body.sharing.publicToken;
+    assert.match(cToken,/^[A-Za-z0-9_-]{43}$/);
+    const cPublic=await (await fetch(origin+'/api/v1/public/'+cToken)).json();
+    assert.equal(cPublic.character.name,'Sandbox Kyra');
+    assert.equal(cPublic.character.campaignId,undefined,'Public views don\u2019t reveal the campaign');
+    const exportResponse=await fetch(origin+'/api/v1/public/'+cToken+'/export',{headers:{origin:'https://other-planner.example'}});
+    assert.equal(exportResponse.headers.get('access-control-allow-origin'),'*','Another planner can read the export');
+    const exported=await exportResponse.json();
+    assert.equal(exported.format,'planner-character');
+    assert.deepEqual(exported.items['Compendium.pf2e.classes.Item.Fighter'],{name:'Fighter',type:'class'});
+    // As if from another planner: one item has a different uuid there (matched by name), one doesn't exist.
+    const foreign=JSON.parse(JSON.stringify(exported).replaceAll('Compendium.pf2e.classes.Item.Fighter','Compendium.other.classes.Item.Fighter'));
+    foreign.items['Compendium.other.classes.Item.Fighter']={name:'Fighter',type:'class'};
+    foreign.document.leveler.creation.heritage={uuid:'Compendium.other.heritages.Item.Nowhere',name:'Nowhere Heritage'};
+    foreign.items['Compendium.other.heritages.Item.Nowhere']={name:'Nowhere Heritage',type:'heritage'};
+    const cImport=await send('/api/v1/campaigns/'+campaignId+'/characters/import',{export:foreign},playerCookie);
+    assert.equal(cImport.status,201,JSON.stringify(cImport));
+    assert.equal(cImport.body.report.renamed,1,'Fighter matched by name');
+    assert.deepEqual(cImport.body.report.missing,['Nowhere Heritage']);
+    assert.equal((await send('/api/v1/campaigns/'+dndCampaign+'/characters/import',{export:foreign},ownerCookie)).status,400,'Other game system');
+    assert.equal((await send('/api/v1/campaigns/'+campaignId+'/characters/import',{export:{format:'x'}},playerCookie)).status,400);
+    const pImport=await send('/api/v1/personal/import',{export:foreign},playerCookie);
+    assert.equal(pImport.status,201,JSON.stringify(pImport));
+    assert.deepEqual(pImport.body.report.missing,['Nowhere Heritage']);
+    const exportFile=await fetch(origin+cRoute+'/export',{headers:{cookie:playerCookie}});
+    assert.equal(exportFile.status,200);
+    assert.match(exportFile.headers.get('content-disposition')??'',/attachment; filename="Sandbox Kyra\.planner\.json"/);
 
     const wrongOrigin=await send('/api/v1/bridge/'+integrationId+'/refresh',
       {refreshToken:paired.body.refreshToken},'','https://untrusted.test.invalid');

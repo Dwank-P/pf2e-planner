@@ -635,3 +635,19 @@ Website only; the Bridge stays at 0.14.1.
   shows species and class icons and marks each class's primary abilities.
 
 **Update both Bridges to 0.22.0**; in D&D 5e worlds run Sync Now so spell lists reach the website.
+
+### v0.23.0 — Sharing between accounts and planners
+
+- **Personal characters use your campaigns' compendiums by default.** The campaign setting is now
+  *Share these compendiums with every account on this server* (off by default): it opens the world
+  to players outside the campaign. Turning it off keeps what their characters already picked.
+- **Export and import builds between planners.** Every character has *Export* (a `.planner.json`
+  file). *Import from another planner* (party page and My characters) takes that file or a public
+  link from any planner; items are matched by ID, then by name and type, and anything this world
+  doesn't have is listed and left out. The campaign's rules apply (differences are listed).
+- **Campaign characters can have public links** too, like personal ones: read-only, no sign-in, the
+  build's items only — and another planner can import the character from the link.
+- **Name autocomplete** when sharing a character (campaign or personal) and when adding someone who
+  already has an account to a campaign.
+
+**Update both Bridges to 0.23.0** (no functional change).

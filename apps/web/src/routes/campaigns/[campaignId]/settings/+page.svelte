@@ -2,6 +2,7 @@
   import {page} from '$app/state';
   import AppBar from '../../../../lib/ui/AppBar.svelte';
   import PairingCode from '../../../../lib/ui/PairingCode.svelte';
+  import PeoplePicker from '../../../../lib/ui/PeoplePicker.svelte';
   import {api,campaignPath,timeAgo} from '../../../../lib/ui/api.js';
   import {loadCampaign} from '../../../../lib/ui/session.js';
 
@@ -12,8 +13,6 @@
   let error=$state('');
   let invite=$state(null);
   let copied=$state('');
-  let search=$state('');
-  let matches=$state([]);
   let confirmDisconnect=$state(false);
   let busy=$state(false);
   let notice=$state('');
@@ -47,11 +46,11 @@
 
   async function run(work){busy=true;error='';notice='';try{await work();}catch(e){error=e.message;}finally{busy=false;}}
   const invitePlayer=()=>run(async()=>{invite=await api(base+'/members',{method:'POST',body:{}});members=(await api(base+'/members')).members;});
-  const find=()=>run(async()=>{matches=(await api('/api/v1/users?q='+encodeURIComponent(search))).users;});
+  const findPeople=async q=>(await api('/api/v1/users?q='+encodeURIComponent(q))).users;
   const addExisting=user=>run(async()=>{
     const result=await api(base+'/members',{method:'POST',body:{existingUserId:user.id}});
     notice=result.alreadyMember?`${user.displayName} is already in this campaign.`:`${user.displayName} added. They sign in with their existing account.`;
-    matches=[];search='';members=(await api(base+'/members')).members;
+    members=(await api(base+'/members')).members;
   });
   let confirming=$state(null);
   const removeMember=m=>run(async()=>{
@@ -201,15 +200,8 @@
             {/if}</li>
         {/each}
       </ul>
-      <form class="add" onsubmit={e=>{e.preventDefault();find();}}>
-        <label class="field" for="existing">Add someone who already has an account
-          <span class="row"><input id="existing" minlength="2" bind:value={search} placeholder="Name or username"/>
-            <button class="btn" disabled={busy||search.trim().length<2}>Search</button></span></label>
-      </form>
-      {#if matches.length}
-        <ul class="members">{#each matches as user}<li><span class="who"><b>{user.displayName}</b><small>@{user.username}</small></span>
-          <button class="btn small" onclick={()=>addExisting(user)}>Add</button></li>{/each}</ul>
-      {/if}
+      <div class="add field"><label for="existing">Add someone who already has an account</label>
+        <PeoplePicker id="existing" search={findPeople} onPick={addExisting} exclude={members.map(m=>m.id)}/></div>
       <p class="muted small">Coming next: players sign in straight from Foundry, so invitations won't be needed.</p>
     </section>
 
@@ -218,9 +210,10 @@
       <p class="muted">Browse everything this campaign synced.</p>
       {#if sharing}
         <label class="share-toggle"><input type="checkbox" checked={sharing.enabled} disabled={busy} onchange={e=>setSharing(e.currentTarget.checked)}/>
-          <span><b>Let members use these compendiums in their personal characters</b>
-            <small class="muted">Players can mix this world’s systems and modules with other worlds’ in characters of their own.
-              Nothing is copied. Turning it off keeps the items they already picked.{sharing.personalCharacters?` ${sharing.personalCharacters} personal character${sharing.personalCharacters===1?' uses':'s use'} this world.`:''}</small></span></label>
+          <span><b>Share these compendiums with every account on this server</b>
+            <small class="muted">This campaign’s players can always use its systems and modules in their personal characters
+              (My characters). Tick this to let everyone else here use them too. Nothing is copied; turning it off keeps
+              what other players’ characters already picked.{sharing.personalCharacters?` ${sharing.personalCharacters} personal character${sharing.personalCharacters===1?' uses':'s use'} this world.`:''}</small></span></label>
       {/if}
       <div class="row start"><a class="btn" href={campaignPath(campaignId,'/feats')}>Feat browser</a>
         <a class="btn ghost" href={campaignPath(campaignId,'/ruleset')}>Detailed sync report</a></div>

@@ -19,9 +19,11 @@ export function DELETE(event){
     if(gms<=1)problem(409,'campaign_needs_a_gm');
   }
   const result=transaction(sql=>{
-    // Their personal characters keep what they picked from this world, then stop using it.
-    for(const i of sql.prepare('SELECT id FROM integrations WHERE campaign_id=?').all(campaignId))
-      retainPicks(sql,{integrationId:i.id,ownerId:userId});
+    // Unless the world is shared with everyone, their personal characters keep what they picked
+    // from it, then stop using it.
+    if(!sql.prepare('SELECT share_compendiums FROM campaigns WHERE id=?').get(campaignId)?.share_compendiums)
+      for(const i of sql.prepare('SELECT id FROM integrations WHERE campaign_id=?').all(campaignId))
+        retainPicks(sql,{integrationId:i.id,ownerId:userId});
     sql.prepare('DELETE FROM memberships WHERE campaign_id=? AND user_id=?').run(campaignId,userId);
     if(target.status==='pending'){
       sql.prepare('DELETE FROM invitations WHERE user_id=?').run(userId);

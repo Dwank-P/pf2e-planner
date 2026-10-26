@@ -29,7 +29,7 @@
   });
   const base=$derived('/api/v1/personal/'+encodeURIComponent(characterId));
   const scope=$derived({characterUrl:base,catalogBase:base,catalogKey:'personal:'+characterId,sharingUrl:null,
-    home:'/characters',campaignId:null,publicView:false,onShare:()=>panel='share'});
+    home:'/characters',campaignId:null,publicView:false,onShare:()=>panel='share',exportUrl:base+'/export'});
   function saved(result){
     character={...character,variants:result.variants,sources:result.sources};
     forgetCatalog('personal:'+characterId);

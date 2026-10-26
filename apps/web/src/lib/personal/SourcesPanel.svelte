@@ -64,8 +64,8 @@
     {#if available===null&&!error}
       <p class="muted">Loading…</p>
     {:else if !available?.length}
-      <p class="muted">No world you belong to shares its compendiums yet. A GM can turn it on in their campaign settings
-        (<i>Let members use these compendiums</i>).</p>
+      <p class="muted">No synced {character.system==='dnd5e'?'D&D 5e':'PF2e/SF2e'} world is available to you: join a campaign,
+        or ask a GM to share their compendiums with every account (campaign settings).</p>
     {:else}
       {#if available.length>8}<input type="search" placeholder="Filter packages…" bind:value={filter} aria-label="Filter packages"/>{/if}
       <ul class="packages">
