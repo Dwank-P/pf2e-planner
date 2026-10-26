@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.18\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.18\.1/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.18.0');
+    assert.equal(health.body.version,'0.18.1');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.18.0');
+    assert.equal(check.body.version,'0.18.1');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -749,6 +749,17 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.ok(storage.body.files.database>0);
     assert.equal(storage.body.worlds.length,1);
     assert.equal(storage.body.worlds[0].icons,1);
+    // Backups: listed, made and verified, downloadable; owner only.
+    assert.equal((await send('/api/v1/admin/backups',undefined,playerCookie,origin,'GET')).status,403);
+    const madeBackup=await send('/api/v1/admin/backups',{},ownerCookie);
+    assert.equal(madeBackup.status,201,JSON.stringify(madeBackup));
+    assert.equal(madeBackup.body.backup.verified,true);
+    const backupList=await send('/api/v1/admin/backups',undefined,ownerCookie,origin,'GET');
+    assert.equal(backupList.status,200);
+    assert.ok(backupList.body.backups.some(b=>b.name===madeBackup.body.backup.name));
+    const download=await fetch(origin+'/api/v1/admin/backups/'+madeBackup.body.backup.name,{headers:{cookie:ownerCookie}});
+    assert.equal(download.status,200);
+    assert.equal(Buffer.from(await download.arrayBuffer()).subarray(0,15).toString(),'SQLite format 3');
     for(const action of ['checkpoint','cleanup','optimize']){
       const done=await send('/api/v1/admin/storage',{action},ownerCookie);
       assert.equal(done.status,200,action+' '+JSON.stringify(done));

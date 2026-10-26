@@ -557,3 +557,8 @@ Website only; the Bridge stays at 0.14.1.
 - Never-expiring invite links show a warning.
 
 **Update the Bridge to 0.18.0** for the safer Pull from Planner.
+
+### v0.18.1 — Backups page fix
+
+- Server admin failed to load: the backup API wasn't in 0.18.0's build because a `.gitignore` rule
+  for backup folders also matched it. Fixed; CI now checks the backup API.

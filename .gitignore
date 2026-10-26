@@ -13,7 +13,8 @@
 *.sqlite-wal
 *.db
 data/
-backups/
+# Database backups (made under data/backups by default, which data/ already covers).
+/backups/
 *.secret
 *.pem
 .DS_Store
