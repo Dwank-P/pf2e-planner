@@ -167,7 +167,7 @@
             <span><b>{u.displayName}</b><small class="muted"> {u.username?'@'+u.username:'(invited)'}{u.siteRole==='owner'?' · owner':''}</small></span>
             <span>{u.status==='active'?'Active':u.status==='pending'?'Invited':'Disabled'}{#if u.resetPendingUntil>now}<small class="muted"> · reset link sent</small>{/if}</span>
             <span class="num">{u.campaigns}</span><span class="num">{u.characters}</span>
-            <span class="row-actions">
+            <span class="row-actions" class:confirm={confirmDelete===u.id}>
               {#if confirmDelete===u.id}
                 <span class="small">Delete {u.displayName} everywhere? Their characters move to you.</span>
                 <button class="btn small" onclick={()=>confirmDelete=null}>Keep</button>
@@ -199,7 +199,9 @@
   .bar b{text-align:right}
   .table{display:grid;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
   .row{display:grid;grid-template-columns:minmax(0,1.6fr) 1fr 1fr 1fr .8fr;gap:10px;padding:8px 12px;border-top:1px solid var(--line);font-size:.9rem;align-items:baseline}
-  .row.users{grid-template-columns:minmax(0,1.6fr) 1fr .6fr .6fr auto}
+  /* One fixed actions column, so every row (with or without Delete) lines up with the header. */
+  .row.users{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) 90px 90px 190px}
+  .row-actions.confirm{grid-column:1/-1}
   .row.th{border-top:0;background:var(--panel-2);font:600 .72rem var(--mono);color:var(--muted);text-transform:uppercase}
   .warn{color:var(--warn)}
   .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
@@ -214,6 +216,7 @@
   @media(max-width:700px){
     .row,.row.users{grid-template-columns:1fr 1fr}
     .row.th{display:none}
+    .row.users .row-actions{grid-column:1/-1;justify-content:flex-start}
     .bar{grid-template-columns:110px 1fr 64px}
   }
 </style>

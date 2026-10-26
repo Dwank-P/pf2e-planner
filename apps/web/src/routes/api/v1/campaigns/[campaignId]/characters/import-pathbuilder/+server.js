@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {db,unix} from '#lib/server/db.js';
 import {sessionUser,requireMembership,input,problem,respond,throttle} from '#lib/server/api.js';
-import {validateDocument,toCharacter} from '#lib/server/characters.js';
+import {validateDocument,toCharacter,campaignSystem} from '#lib/server/characters.js';
 import {campaignImportCatalog} from '#lib/server/import-catalog.js';
 import {importPathbuilder,PATHBUILDER_ID,pathbuilderUrl} from '#lib/builder/pathbuilder.js';
 
@@ -35,6 +35,7 @@ async function fetchPathbuilder(fetch,id){
 export async function POST(event){
   const user=sessionUser(event),campaignId=event.params.campaignId;
   requireMembership(user,campaignId);
+  if(campaignSystem(campaignId)==='dnd5e')problem(400,'pathbuilder_is_for_pf2e_campaigns');
   throttle(event,'pathbuilder-import',20,600);
   const body=await input(event.request,MAX_BYTES);
   let json;

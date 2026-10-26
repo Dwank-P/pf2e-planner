@@ -45,7 +45,7 @@ const find=(type,name)=>all.find(i=>i.type===type&&i.name===name);
 function character(owner,name,level,creation,plan=null){
   const doc=emptyDocument();
   doc.leveler.creation=creation;doc.leveler.plan=plan;
-  sql.prepare(`INSERT INTO character_builds VALUES(?,?,?,?,?,?,1,?,?)`)
+  sql.prepare(`INSERT INTO character_builds(id,campaign_id,owner_user_id,name,level,build_json,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,1,?,?)`)
     .run(randomUUID(),campaign,owner,name,level,JSON.stringify(doc),now,now);
 }
 let valeros=C.setAncestry(doc0(),find('ancestry','Human'));
@@ -66,6 +66,25 @@ ezren=C.setHeritage(ezren,find('heritage','Skilled Human'));
 ezren=C.setBackground(ezren,find('background','Scholar'));
 character(mira,'Ezren',1,ezren);
 character(gm,'Kyra',1,doc0());
-console.log(`Seeded ${process.env.DB_PATH}: campaign ${campaign}, ${all.length} catalog items. Sign in as gm or mira.`);
+// A D&D 5e world (5e Bridge): its own catalog and plan documents.
+const {dnd5eCatalog,dnd5eVariants,uuid:dndUuid}=await import('../tests/fixtures/dnd5e-catalog.mjs');
+const {emptyDnd5eDocument}=await import('../src/lib/server/characters.js');
+const dndCampaign=randomUUID(),dndIntegration=randomUUID(),dndSnapshot=randomUUID();
+sql.prepare('INSERT INTO campaigns VALUES(?,?,?,?,?,?)').run(dndCampaign,'Dragon Heist',gm,'dragon-heist','dnd5e',now);
+sql.prepare("INSERT INTO memberships VALUES(?,?,'gm')").run(dndCampaign,gm);
+sql.prepare("INSERT INTO memberships VALUES(?,?,'player')").run(dndCampaign,mira);
+sql.prepare('INSERT INTO integrations VALUES(?,?,?,?,?,NULL)').run(dndIntegration,dndCampaign,'https://foundry-dnd.test','dragon-heist',now);
+sql.prepare(`INSERT INTO catalog_publications VALUES(?,?,?,?,?,?,?,?)`).run(dndIntegration,dndSnapshot,'dev-'+dndSnapshot,dnd5eCatalog.length,
+  JSON.stringify(dnd5eVariants),JSON.stringify([...new Set(dnd5eCatalog.map(i=>i.pack))]),
+  JSON.stringify({worldId:'dragon-heist',systemId:'dnd5e',systemVersion:'5.1.0',levelerVersion:null}),now);
+for(const item of dnd5eCatalog)insert.run(dndIntegration,dndSnapshot,item.uuid,item.type,item.pack,item.level,item.rarity,
+  item.name,JSON.stringify(item.traits),JSON.stringify(item));
+const vex=emptyDnd5eDocument();
+Object.assign(vex.build,{speciesUuid:dndUuid('race','half-elf'),backgroundUuid:dndUuid('background','sage'),
+  abilities:{method:'standard',base:{str:15,dex:13,con:14,int:12,wis:10,cha:8}},
+  levels:[dndUuid('class','fighter'),dndUuid('class','fighter'),dndUuid('class','fighter')]});
+vex.summary={species:'Half-Elf',background:'Sage',classes:'Fighter 3'};
+sql.prepare(`INSERT INTO character_builds(id,campaign_id,owner_user_id,name,level,build_json,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,1,?,?)`).run(randomUUID(),dndCampaign,mira,'Vex',3,JSON.stringify(vex),now,now);
+console.log(`Seeded ${process.env.DB_PATH}: campaign ${campaign}, ${all.length} catalog items; D&D 5e campaign ${dndCampaign}. Sign in as gm or mira.`);
 
 function doc0(){return emptyDocument().leveler.creation;}

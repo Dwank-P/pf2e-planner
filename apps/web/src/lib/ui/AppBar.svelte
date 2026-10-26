@@ -45,7 +45,7 @@
   {/if}
   <span class="spacer"></span>
   {#if campaign}
-    <span class="sync" title={sync?.ruleset?`PF2e ${sync.ruleset.systemVersion??'?'} · Leveler ${sync.ruleset.levelerVersion??'?'}`:''}>
+    <span class="sync" title={sync?.ruleset?(sync.ruleset.levelerVersion?`${(sync.ruleset.systemId??'pf2e').toUpperCase()} ${sync.ruleset.systemVersion??'?'} · Leveler ${sync.ruleset.levelerVersion}`:`${(sync.ruleset.systemId??'').toUpperCase()} ${sync.ruleset.systemVersion??'?'}`):''}>
       <span class="status-dot {syncState}"></span>
       {#if syncState==='none'}Not synced yet{:else}Synced {timeAgo(sync.updatedAt)}{/if}
     </span>

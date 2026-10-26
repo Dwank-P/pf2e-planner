@@ -38,6 +38,12 @@ jobs:
             node --check "$js"
           done
           node -e "const m=require('./apps/foundry-module/module.json'); if(!m.relationships.requires.some(d=>d.id==='pf2e-leveler')) process.exit(1);"
+      - name: Validate D&D 5e Foundry JavaScript
+        run: |
+          for js in apps/foundry-module-5e/scripts/*.mjs; do
+            node --check "$js"
+          done
+          node -e "const m=require('./apps/foundry-module-5e/module.json'); if(m.id!=='planner-bridge-5e'||!m.relationships.systems.some(s=>s.id==='dnd5e')) process.exit(1);"
       - name: Test Foundry bridge URL normalization
         run: node --test tests/foundry-url.test.mjs
       - name: Package Foundry module

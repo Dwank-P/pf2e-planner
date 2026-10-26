@@ -8,6 +8,12 @@ The private monorepo now contains a dedicated `foundry-release` branch with a re
 https://raw.githubusercontent.com/Dwank-P/pf2e-planner/foundry-release/module.json
 ```
 
+D&D 5e worlds install the separate **Planner Bridge (D&D 5e)** module (v0.20.0+) instead:
+
+```text
+https://raw.githubusercontent.com/Dwank-P/pf2e-planner/foundry-release/dnd5e/module.json
+```
+
 Steps:
 1. Change repo visibility to **Public** in GitHub → Settings → General → Danger Zone.
 2. In Foundry Setup, select **Add-on Modules → Install Module**, paste the manifest URL, click Install.

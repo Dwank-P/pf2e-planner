@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.19\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.20\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.19.0');
+    assert.equal(health.body.version,'0.20.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.19.0');
+    assert.equal(check.body.version,'0.20.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -778,6 +778,59 @@ test('production API: bootstrap → pair world → create player → sync → re
     const pbCharacter=await send(charRoute+'/'+pbImport.body.character.id,undefined,playerCookie,origin,'GET');
     assert.equal(pbCharacter.body.character.leveler.creation.class.name,'Fighter');
     assert.equal(pbCharacter.body.character.leveler.plan.levels[2].classFeats[0].name,'Demonstration Feat');
+
+    // D&D 5e: a separate world paired by the 5e Bridge, with its own plan documents.
+    const dndCode=await send('/api/v1/pairing-codes',{},ownerCookie);
+    const dndOrigin='https://dnd.test.invalid';
+    const dndPair=await send('/api/v1/bridge/pair',{code:dndCode.body.code,worldId:'dnd-world',worldTitle:'Dragon Heist',
+      systemId:'dnd5e',systemVersion:'5.1.0',levelerVersion:null,clientNonce:randomUUID()},'',dndOrigin);
+    assert.equal(dndPair.status,201,JSON.stringify(dndPair));
+    const dndToken=dndPair.body.accessToken,dndImport='/api/v1/bridge/'+dndPair.body.integrationId+'/catalog-import';
+    const dndClass='Compendium.dnd5e.classes.Item.fighter0000000',dndSpell='Compendium.dnd5e.spells.Item.firebolt000000';
+    const dndVariants={system:'dnd5e',rulesVersion:'modern',allowFeats:true,
+      traits:{languages:Object.fromEntries(Array.from({length:400},(_,i)=>['languages:exotic:tongue-'+i,{label:'Tongue '+i,group:false}]))}};
+    assert.ok(JSON.stringify(dndVariants).length>15000,'5e trait vocabularies exceed the old variants limit');
+    const dndStart=await send(dndImport+'/start',{packs:['dnd5e.classes','dnd5e.spells'],variants:dndVariants,
+      sourceVersions:{worldId:'dnd-world',systemId:'dnd5e',systemVersion:'5.1.0',levelerVersion:null},expectedCount:2,
+      packDigests:{'dnd5e.classes':{sha256:'a'.repeat(64),count:1},'dnd5e.spells':{sha256:'b'.repeat(64),count:1}},reusePacks:[]},
+      '',dndOrigin,'POST',dndToken);
+    assert.equal(dndStart.status,201,JSON.stringify(dndStart));
+    const dndBatch=await send(dndImport+'/batch',{snapshotId:dndStart.body.snapshotId,batchNumber:0,items:[
+      {uuid:dndClass,type:'class',name:'Fighter',identifier:'fighter',hitDie:'d10',edition:'2024',
+        advancement:[{_id:'hp',type:'HitPoints',configuration:{}},{_id:'sub',type:'Subclass',level:3,configuration:{}}]},
+      {uuid:dndSpell,type:'spell',name:'Fire Bolt',level:0,school:'evo',spellLists:['class:wizard']}]},'',dndOrigin,'POST',dndToken);
+    assert.equal(dndBatch.status,201,JSON.stringify(dndBatch));
+    const dndCommit=await send(dndImport+'/commit',{snapshotId:dndStart.body.snapshotId},'',dndOrigin,'POST',dndToken);
+    assert.equal(dndCommit.status,201,JSON.stringify(dndCommit));
+    const dndCampaign=dndPair.body.campaignId,dndChars='/api/v1/campaigns/'+dndCampaign+'/characters';
+    const dndCreated=await send(dndChars,{name:'Vex'},ownerCookie);
+    assert.equal(dndCreated.status,201,JSON.stringify(dndCreated));
+    assert.equal(dndCreated.body.character.format,'dnd5e');
+    assert.deepEqual(dndCreated.body.character.dnd5e.levels,[]);
+    const dndDoc=build=>({format:'dnd5e-plan',schemaVersion:1,build,
+      summary:{species:null,background:null,classes:'Fighter 2'},planner:{notes:'Plan',wishlist:[]}});
+    const dndBuild={abilities:{method:'standard',base:{str:15,dex:14,con:13,int:12,wis:10,cha:8}},speciesUuid:null,backgroundUuid:null,
+      levels:[dndClass,dndClass],subclasses:{},choices:{[dndClass+'|skills|L1|c0']:['skills:ath','skills:prc']},
+      spells:{},feats:[],hp:'average'};
+    let dndRow=dndCreated.body.character;
+    const dndSaved=await send(dndChars+'/'+dndRow.id+'/document',{name:'Vex',level:2,revision:dndRow.revision,document:dndDoc(dndBuild)},ownerCookie,origin,'PUT');
+    assert.equal(dndSaved.status,200,JSON.stringify(dndSaved));
+    dndRow=dndSaved.body.character;
+    assert.deepEqual(dndRow.dnd5e.levels,[dndClass,dndClass]);
+    assert.deepEqual(dndRow.dnd5e.choices[dndClass+'|skills|L1|c0'],['skills:ath','skills:prc']);
+    const dndUnknown=await send(dndChars+'/'+dndRow.id+'/document',{name:'Vex',level:2,revision:dndRow.revision,
+      document:dndDoc({...dndBuild,spells:{[dndClass]:['Compendium.dnd5e.spells.Item.notsynced000000']}})},ownerCookie,origin,'PUT');
+    assert.equal(dndUnknown.status,400,'Only synced items can be planned');
+    const dndPf2eDoc=await send(dndChars+'/'+dndRow.id+'/document',{name:'Vex',level:2,revision:dndRow.revision,
+      document:{leveler:{creation:null,plan:null},planner:{}}},ownerCookie,origin,'PUT');
+    assert.equal(dndPf2eDoc.status,400,'A 5e campaign stores 5e plans only');
+    const dndList=await send(dndChars,undefined,ownerCookie,origin,'GET');
+    assert.equal(dndList.body.characters[0].summary.className,'Fighter 2');
+    const dndPathbuilder=await send(dndChars+'/import-pathbuilder',{json:{}},ownerCookie);
+    assert.equal(dndPathbuilder.status,400);
+    const dndExport=await send('/api/v1/bridge/'+dndPair.body.integrationId+'/characters/export',
+      {characterId:dndRow.id},'',dndOrigin,'POST',dndToken);
+    assert.equal(dndExport.status,400,'5e plans are never exported to Foundry');
 
     const wrongOrigin=await send('/api/v1/bridge/'+integrationId+'/refresh',
       {refreshToken:paired.body.refreshToken},'','https://untrusted.test.invalid');

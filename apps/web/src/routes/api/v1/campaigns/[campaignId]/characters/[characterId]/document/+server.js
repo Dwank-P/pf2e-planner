@@ -1,6 +1,6 @@
 import {db,unix} from '#lib/server/db.js';
 import {sessionUser,requireMembership,input,problem,respond} from '#lib/server/api.js';
-import {characterAccess,readDocument,validateDocument,toCharacter} from '#lib/server/characters.js';
+import {characterAccess,readDocument,validateDocument,toCharacter,campaignSystem,validateDnd5eDocument} from '#lib/server/characters.js';
 
 /**
  * Save a whole character document (Leveler creation + plan, planner extras)
@@ -18,7 +18,10 @@ export async function PUT(event){
   if(!Number.isInteger(body.level)||body.level<1||body.level>20)problem(400,'level_1_to_20_required');
   if(!Number.isInteger(body.revision)||body.revision!==row.revision)
     problem(409,'character_changed_elsewhere_refresh_first');
-  const doc=validateDocument(row.campaign_id,readDocument(row).doc,body.document);
+  const current=readDocument(row).doc;
+  const doc=campaignSystem(row.campaign_id)==='dnd5e'
+    ?validateDnd5eDocument(row.campaign_id,current,body.document)
+    :validateDocument(row.campaign_id,current,body.document);
   const result=db().prepare(`UPDATE character_builds
     SET name=?,level=?,build_json=?,revision=revision+1,updated_at=?
     WHERE id=? AND revision=?`)

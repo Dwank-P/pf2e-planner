@@ -150,6 +150,7 @@ function mergeContext(catalog, view) {
 /** Canonical document of a row; pre-v2 rows hold a bare builder view. */
 export function readDocument(row) {
   const stored=JSON.parse(row.build_json);
+  if(isDnd5eDocument(stored))return {doc:stored,view:null,dnd5e:true};
   return isCharacterDocument(stored)?{doc:stored,view:projectView(stored)}:{doc:null,view:stored};
 }
 /** Merge a validated builder view into the row's document (migrating legacy rows). */
@@ -224,6 +225,16 @@ export function characterSharing(row){
 }
 export function toCharacter(row,{includeLeveler=true}={}) {
   const stored=readDocument(row);
+  if(stored.dnd5e){
+    const s=stored.doc.summary??{},b=stored.doc.build??{};
+    return {id:row.id,campaignId:row.campaign_id,ownerUserId:row.owner_user_id,name:row.name,level:row.level,
+      visibility:row.visibility??'private',format:'dnd5e',
+      summary:{ancestry:s.species??null,heritage:null,background:s.background??null,className:s.classes??null,
+        dualClassName:null,subclass:null,plannedTo:b.levels?.length||null,
+        created:!!(b.speciesUuid&&b.backgroundUuid&&b.levels?.length)},
+      ...(includeLeveler?{dnd5e:b,planner:stored.doc.planner}:{}),
+      revision:row.revision,createdAt:row.created_at,updatedAt:row.updated_at};
+  }
   // Editors work on Leveler documents, so pre-v2 rows are converted for
   // display; they are stored in the new shape on their next save.
   const converted=includeLeveler&&!stored.doc?mergeView(row.campaign_id,null,stored.view):null;
@@ -259,26 +270,6 @@ export function documentUuids(value,out=new Set()){
       if(key==='uuid'&&typeof entry==='string'&&COMPENDIUM_UUID.test(entry))out.add(entry);
       else if(entry&&typeof entry==='object')documentUuids(entry,out);
     }
-  }
-  return out;
-}
-/** Runesmith rune plan: {[level]: {count?, picks?}} (website only, see lib/builder/runes.js). */
-function validateRunes(value){
-  if(!value||typeof value!=='object'||Array.isArray(value))problem(400,'invalid_runes');
-  const out={};
-  for(const [level,entry] of Object.entries(value)){
-    if(!/^([1-9]|1\d|20)$/.test(level)||!entry||typeof entry!=='object'||Array.isArray(entry))problem(400,'invalid_runes');
-    const own={};
-    if(entry.count!==undefined){
-      if(!Number.isInteger(entry.count)||entry.count<0||entry.count>50)problem(400,'invalid_runes');
-      own.count=entry.count;
-    }
-    if(entry.picks!==undefined){
-      if(!Array.isArray(entry.picks)||entry.picks.length>50||!entry.picks.every(u=>typeof u==='string'&&COMPENDIUM_UUID.test(u)))
-        problem(400,'invalid_runes');
-      own.picks=[...new Set(entry.picks)];
-    }
-    if(Object.keys(own).length)out[level]=own;
   }
   return out;
 }
@@ -321,15 +312,106 @@ export function validateDocument(campaignId,current,value){
      Object.keys(extraFeats).length>40||!Object.values(extraFeats).every(x=>typeof x==='string'&&COMPENDIUM_UUID.test(x)))
     problem(400,'invalid_extra_feats');
   const wishlist=validateWishlist(planner.wishlist??[]);
-  const runes=validateRunes(planner.runes??{});
   const doc={...emptyDocument(),leveler:{creation:leveler.creation,plan:leveler.plan},
-    planner:{modifiers,notes,extraFeats,wishlist,runes}};
+    planner:{modifiers,notes,extraFeats,wishlist}};
   const before=documentUuids(current?.leveler??{});
   const added=[...documentUuids(doc.leveler)].filter(uuid=>!before.has(uuid));
   if(added.length){
     const catalog=catalogFor(campaignId);
     if(!catalog)problem(409,'sync_compendiums_before_selecting_items');
     for(const uuid of added)if(!catalog.has(uuid))problem(400,'build_contains_item_not_in_synced_catalog');
+  }
+  return doc;
+}
+
+// ---- D&D 5e plans ----------------------------------------------------------------------------
+// dnd5e worlds have no Leveler: the website stores its own plan (lib/systems/dnd5e) and never
+// exports it to Foundry.
+
+export const DND5E_FORMAT='dnd5e-plan';
+/** The rules system a campaign was paired with ('pf2e', 'sf2e' or 'dnd5e'). */
+export function campaignSystem(campaignId){
+  return db().prepare('SELECT system_id FROM campaigns WHERE id=?').get(campaignId)?.system_id??'pf2e';
+}
+export function emptyDnd5eDocument(){
+  return {format:DND5E_FORMAT,schemaVersion:1,
+    build:{abilities:{method:'standard',base:{}},speciesUuid:null,backgroundUuid:null,levels:[],
+      subclasses:{},choices:{},spells:{},feats:[],hp:'average'},
+    summary:{species:null,background:null,classes:null},planner:{notes:'',wishlist:[]}};
+}
+export const isDnd5eDocument=value=>!!value&&typeof value==='object'&&value.format===DND5E_FORMAT;
+const ABILITY=/^[a-z]{3}$/;
+const nullableUuid=value=>value===null||value===undefined?null
+  :typeof value==='string'&&COMPENDIUM_UUID.test(value)?value:problem(400,'invalid_build_reference');
+/** Every compendium uuid anywhere in a 5e build (keys and values). */
+function dnd5eUuids(value,out=new Set()){
+  if(typeof value==='string'){for(const m of value.matchAll(/Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+/g))out.add(m[0]);}
+  else if(Array.isArray(value))for(const entry of value)dnd5eUuids(entry,out);
+  else if(value&&typeof value==='object')for(const [key,entry] of Object.entries(value)){dnd5eUuids(key,out);dnd5eUuids(entry,out);}
+  return out;
+}
+/** Validate a whole 5e plan document; uuids new relative to `current` must be in the synced catalog. */
+export function validateDnd5eDocument(campaignId,current,value){
+  if(!isDnd5eDocument(value))problem(400,'invalid_character_document');
+  const b=value.build;
+  if(!b||typeof b!=='object'||Array.isArray(b)||JSON.stringify(b).length>200000||!depthOk(b))problem(400,'invalid_character_build');
+  const method=b.abilities?.method??'standard';
+  if(!['standard','pointbuy','manual'].includes(method))problem(400,'invalid_ability_method');
+  const base={};
+  for(const [key,n] of Object.entries(b.abilities?.base??{})){
+    if(!ABILITY.test(key)||!Number.isInteger(n)||n<1||n>30)problem(400,'invalid_ability_score');
+    base[key]=n;
+  }
+  if(!Array.isArray(b.levels)||b.levels.length>20)problem(400,'invalid_class_levels');
+  const levels=b.levels.map(nullableUuid);
+  if(levels.includes(null))problem(400,'invalid_class_levels');
+  const map=(input,check,max,code)=>{
+    if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).length>max)problem(400,code);
+    return Object.fromEntries(Object.entries(input).map(([k,v])=>[k,check(k,v)]));
+  };
+  const subclasses=map(b.subclasses??{},(k,v)=>{nullableUuid(k);return nullableUuid(v);},20,'invalid_subclasses');
+  const text=v=>typeof v==='string'&&v.length>0&&v.length<=160;
+  const choices=map(b.choices??{},(k,v)=>{
+    if(!/^[\w.|>:-]{1,600}$/.test(k))problem(400,'invalid_choice');
+    if(Array.isArray(v)){
+      if(v.length>60||!v.every(text))problem(400,'invalid_choice');
+      return [...new Set(v)];
+    }
+    if(v&&typeof v==='object'&&v.mode==='asi'){
+      const points={};
+      for(const [a,n] of Object.entries(v.points??{})){
+        if(!ABILITY.test(a)||!Number.isInteger(n)||n<0||n>4)problem(400,'invalid_choice');
+        if(n)points[a]=n;
+      }
+      return {mode:'asi',points};
+    }
+    if(v&&typeof v==='object'&&v.mode==='feat')return {mode:'feat',uuid:nullableUuid(v.uuid)};
+    problem(400,'invalid_choice');
+  },400,'invalid_choices');
+  const spells=map(b.spells??{},(k,v)=>{
+    nullableUuid(k);
+    if(!Array.isArray(v)||v.length>120)problem(400,'invalid_spell_choices');
+    return [...new Set(v.map(nullableUuid))];
+  },20,'invalid_spell_choices');
+  if(!Array.isArray(b.feats??[])||(b.feats??[]).length>40)problem(400,'invalid_extra_feats');
+  const feats=(b.feats??[]).map(nullableUuid);
+  const s=value.summary??{};
+  const label=v=>typeof v==='string'&&v.length<=160?v:null;
+  const planner=value.planner??{};
+  if(!planner||typeof planner!=='object'||Array.isArray(planner))problem(400,'invalid_planner_data');
+  if(typeof (planner.notes??'')!=='string'||(planner.notes??'').length>4000)problem(400,'invalid_notes');
+  const doc={format:DND5E_FORMAT,schemaVersion:1,
+    build:{abilities:{method,base},speciesUuid:nullableUuid(b.speciesUuid),backgroundUuid:nullableUuid(b.backgroundUuid),
+      levels,subclasses,choices,spells,feats,hp:b.hp==='max'?'max':'average'},
+    summary:{species:label(s.species),background:label(s.background),classes:label(s.classes)},
+    planner:{notes:planner.notes??'',wishlist:validateWishlist(planner.wishlist??[])}};
+  const before=dnd5eUuids(current?.build??{});
+  for(const w of current?.planner?.wishlist??[])before.add(w.uuid);
+  const added=[...dnd5eUuids(doc.build),...doc.planner.wishlist.map(w=>w.uuid)].filter(uuid=>!before.has(uuid));
+  if(added.length){
+    const catalog=catalogFor(campaignId);
+    if(!catalog)problem(409,'sync_compendiums_before_selecting_items');
+    for(const uuid of new Set(added))if(!catalog.has(uuid))problem(400,'build_contains_item_not_in_synced_catalog');
   }
   return doc;
 }

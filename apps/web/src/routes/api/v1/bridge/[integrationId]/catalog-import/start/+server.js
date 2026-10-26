@@ -4,14 +4,14 @@ import {input,bridgeAuth,respond,problem} from '#lib/server/api.js';
 export async function POST(event){
   bridgeAuth(event,event.params.integrationId);
   const b=await input(event.request,100000);
-  if(!Array.isArray(b.packs)||b.packs.length<1||b.packs.length>160||
+  if(!Array.isArray(b.packs)||b.packs.length<1||b.packs.length>400||
      !b.packs.every(p=>typeof p==='string'&&/^[a-z0-9_-]+\.[a-z0-9_-]+$/i.test(p))||
      !Number.isInteger(b.expectedCount)||b.expectedCount<1||b.expectedCount>30000||
      !b.variants||typeof b.variants!=='object'||Array.isArray(b.variants)||
      !b.sourceVersions||typeof b.sourceVersions!=='object'||Array.isArray(b.sourceVersions))
     problem(400,'invalid_import_manifest');
   const variantText=JSON.stringify(b.variants),sourceText=JSON.stringify(b.sourceVersions);
-  if(variantText.length>15000||sourceText.length>6000)problem(413,'oversized_import_manifest');
+  if(variantText.length>60000||sourceText.length>6000)problem(413,'oversized_import_manifest');
   const digests=b.packDigests??{},reuse=b.reusePacks??[];
   if(!digests||typeof digests!=='object'||Array.isArray(digests)||
      Object.keys(digests).length!==b.packs.length||

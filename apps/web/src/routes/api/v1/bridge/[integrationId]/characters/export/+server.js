@@ -22,6 +22,7 @@ export async function POST(event){
       .get(characterId,auth.campaign_id);
     if(!row)problem(404,'character_not_found');
     const current=readDocument(row);
+    if(current.dnd5e)problem(400,'dnd5e_plans_are_not_exported');
     // Pre-v2 builds are converted on the fly; the stored row is left unchanged.
     const doc=current.doc??mergeView(row.campaign_id,null,current.view);
     if(b.link===true){

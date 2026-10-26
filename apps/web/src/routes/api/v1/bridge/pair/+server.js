@@ -12,7 +12,7 @@ export async function POST(event) {
   const worldTitle=typeof body.worldTitle==='string' ? body.worldTitle.trim() : '';
   const systemId=body.systemId;
   if (!worldId || worldId.length>128 || !worldTitle || worldTitle.length>128 ||
-      !['pf2e','sf2e'].includes(systemId) || !origin) problem(400,'invalid_world');
+      !['pf2e','sf2e','dnd5e'].includes(systemId) || !origin) problem(400,'invalid_world');
   const integrationId=randomUUID(),campaignId=randomUUID();
   const result=transaction(sql=>{
     const pairing=sql.prepare(`SELECT p.creator_id,u.site_role FROM pairing_codes p

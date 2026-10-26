@@ -25,8 +25,9 @@ export async function PATCH(event) {
   if(!Number.isInteger(body.level)||body.level<1||body.level>20)problem(400,'level_1_to_20_required');
   if(!Number.isInteger(body.revision)||body.revision!==row.revision)
     problem(409,'character_changed_elsewhere_refresh_first');
-  const view=validateBuild(body.build);
   const current=readDocument(row);
+  if(current.dnd5e)problem(400,'use_the_document_endpoint_for_dnd5e');
+  const view=validateBuild(body.build);
   validateReferences(row.campaign_id,view,current.view);
   // Stored as PF2e Leveler creation/plan documents; see lib/leveler-format.js.
   const build=mergeView(row.campaign_id,current.doc,view);

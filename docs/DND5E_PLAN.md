@@ -68,12 +68,25 @@ beyond what items' advancement describes, and character sheets.
 4. Spells and the spell-slot table.
 5. Summary polish; optional export to Foundry.
 
-## Questions to settle first
+## Decisions (settled for v0.20.0)
 
-1. **Content**: only what's in the world's compendiums (SRD and anything imported, e.g. purchased
-   content via D&D Beyond importers), or do you need anything outside Foundry?
-2. **Editions in one world**: dnd5e can mix 2014 and 2024 content. Follow the world's rules-version
-   setting only, or let each character choose?
-3. **Bridge**: extend the same Bridge module (one install for every system), or a separate small
-   module for 5e worlds? Recommendation: same module, system adapters inside.
-4. **Export**: is "plan only, no export" fine for the first release?
+1. **Content**: only what's installed in the world's compendiums; the 5e Bridge syncs every Item
+   compendium (the GM can untick some). Third-party classes work through their advancement data.
+2. **Edition**: follow the world's *Rules Version* setting; items tagged for the other edition are
+   hidden until a player ticks *Show unavailable*. Untagged (most third-party) content always shows.
+3. **Bridge**: a separate module, `apps/foundry-module-5e` (`planner-bridge-5e`), published on
+   `foundry-release` under `dnd5e/`.
+4. **Export**: none. Plans stay on the website.
+
+## As built (v0.20.0)
+
+- `apps/web/src/lib/systems/dnd5e/rules.js`: ability methods, proficiency bonus, 2014 multiclass
+  prerequisites (2024 uses the class's primary ability), spell-slot and pact tables.
+- `apps/web/src/lib/systems/dnd5e/build.js`: the plan document and `derive()`, which walks species,
+  background, class and subclass advancement level by level (HitPoints, ItemGrant, ItemChoice,
+  Trait, AbilityScoreImprovement, Subclass, ScaleValue, Size), including items granted or chosen
+  along the way (feats taken at an ASI, origin feats).
+- `apps/web/src/lib/wizard5e/`: the builder screens. The character page switches to it when the
+  campaign's `system_id` is `dnd5e`.
+- Stored as `{format:'dnd5e-plan', build, summary, planner}`; validated in
+  `lib/server/characters.js` (`validateDnd5eDocument`).

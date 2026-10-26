@@ -8,8 +8,7 @@
   import ItemDrawer from '../../../../../lib/wizard/ItemDrawer.svelte';
   import SharePanel from '../../../../../lib/ui/SharePanel.svelte';
   import ExtrasPanel from '../../../../../lib/wizard/ExtrasPanel.svelte';
-  import RunesPanel from '../../../../../lib/wizard/RunesPanel.svelte';
-  import {isRunesmith} from '../../../../../lib/builder/runes.js';
+  import Builder5e from '../../../../../lib/wizard5e/Builder5e.svelte';
   import {api,campaignPath} from '../../../../../lib/ui/api.js';
   import {loadCampaign} from '../../../../../lib/ui/session.js';
   import {loadCatalog} from '../../../../../lib/builder/catalog.js';
@@ -24,6 +23,8 @@
   const campaignId=$derived(page.params.campaignId);
   const characterId=$derived(page.params.characterId);
   let ctx=$state(null);
+  // D&D 5e campaigns use their own builder (lib/wizard5e).
+  let system=$state(null);
   let catalog=$state(null);
   let character=$state(null);
   let creation=$state(null);
@@ -45,7 +46,9 @@
     const id=characterId,cid=campaignId;
     (async()=>{
       try{
-        const [loaded,result,cat]=await Promise.all([loadCampaign(cid),
+        const loaded=await loadCampaign(cid);
+        if(loaded.campaign.system_id==='dnd5e'){ctx=loaded;system='dnd5e';return;}
+        const [result,cat]=await Promise.all([
           api('/api/v1/campaigns/'+encodeURIComponent(cid)+'/characters/'+encodeURIComponent(id)),loadCatalog(cid)]);
         // SF2e worlds add Computers and Piloting; the Bridge sends the world's skill list.
         setSkillSet(cat.variants?.skills);
@@ -159,7 +162,10 @@
   const labelOf=id=>id==='equipment'?'Equipment plan':id?.startsWith('level-')?'Level '+id.slice(6):'';
   const saveLabel=$derived({saved:'Saved',saving:'Saving…',unsaved:'Unsaved',error:'Not saved'}[saveState]);
 </script>
-<svelte:head><title>{name||'Character'} · PF2e Planner</title></svelte:head>
+<svelte:head>{#if system!=='dnd5e'}<title>{name||'Character'} · PF2e Planner</title>{/if}</svelte:head>
+{#if system==='dnd5e'}
+  <Builder5e {ctx} {campaignId} {characterId}/>
+{:else}
 {#if ctx}
   <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name}>
     {#snippet actions()}
@@ -250,9 +256,6 @@
       {:else if at==='equipment'}
         <WishlistPanel {planner} {catalog} {updatePlanner} {currentLevel} info={uuid=>detail=uuid}/>
       {/if}
-      {#if atLevel&&isRunesmith(creation)}
-        {#key atLevel}<RunesPanel level={atLevel} {planner} {catalog} {updatePlanner} info={uuid=>detail=uuid} readonly={!canEdit}/>{/key}
-      {/if}
       {#if atLevel&&(atLevel===1||primary)}
         {#key atLevel}
           <ExtrasPanel level={atLevel} {creation} {plan} {catalog} {variants} {updatePlan} info={uuid=>detail=uuid} bind:mode={extraMode}/>
@@ -282,6 +285,7 @@
   <ItemDrawer {campaignId} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
 {:else if !error}
   <p class="loading muted">Loading the character…</p>
+{/if}
 {/if}
 <style>
   .save{font:500 12px var(--mono);color:var(--muted);min-width:64px}

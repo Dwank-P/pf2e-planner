@@ -64,6 +64,7 @@ In production configure `PUBLIC_ORIGIN` as the real HTTPS origin, reverse proxy,
 ## Foundry module development
 
 The current source manifest is `apps/foundry-module/module.json`, with `pf2e-leveler` required.
+D&D 5e worlds use the separate `apps/foundry-module-5e/` module (id `planner-bridge-5e`, requires the `dnd5e` system, no Leveler).
 
 For manual installation, put the contents of `apps/foundry-module/` in Foundry user data `Data/modules/pf2e-planner-bridge/`, reload and enable the module as GM. The previously installed v0.1.0 build is only a diagnostic bridge. **An installable v0.2.0 alpha manifest and ZIP are now staged on the separate `foundry-release` branch**; temporarily make the repository public to install/update through that branch's manifest (then restore private). See installation guide.
 
@@ -568,10 +569,25 @@ Website only; the Bridge stays at 0.14.1.
 - **SF2e worlds sync**: the Bridge no longer refuses Starfinder 2e. Settings, languages, traits and
   reference packs come from the world's own system, and the website shows SF2e's Computers and
   Piloting skills. (PF2e with the Anachronism module already worked.)
-- **Runesmith runes**: a *Runes known* card at every level for Runesmith characters. Each level uses
-  the nearest earlier level's runes until you change it there; change level 1 later and every level
-  you haven't changed follows. Raise *Runes known* at the level you gain one. Runes are planned on
-  the website only (Leveler can't apply them), so add them in Foundry.
+- **Runesmith runes**: a *Runes known* card for Runesmith characters (removed again in v0.20.0).
 - D&D 5e / 5.5: see the plan in `docs/DND5E_PLAN.md`.
 
 **Update the Bridge to 0.19.0** and run Sync Now in SF2e worlds.
+
+### v0.20.0 — D&D 5e planner
+
+- **D&D 5e worlds** (2014 or 2024 rules, following the world's *Rules Version* setting): a separate
+  Foundry module, **Planner Bridge (D&D 5e)**, pairs the world and syncs every installed Item
+  compendium — SRD, purchased and third-party content alike (untick any under *Choose compendiums*).
+  Players plan on the website: race/species, background, ability scores (standard array, point buy or
+  manual), levels 1–20 with **multiclassing** (prerequisites checked), subclasses, ASI-or-feat,
+  feature choices (Fighting Styles, invocations…), skills, expertise, languages and tools, spells per
+  class from its spell list, and an equipment wishlist. Everything is read from the items'
+  advancement data, so third-party classes work the same way. Content for the other edition is hidden
+  until you tick *Show unavailable*. Plans stay on the website; nothing is exported to Foundry.
+  Install from `https://raw.githubusercontent.com/Dwank-P/pf2e-planner/foundry-release/dnd5e/module.json`.
+- **Runesmith rune planning removed**: Foundry has no clean way to apply it. Saved rune plans are
+  dropped the next time a character is saved.
+- Server admin → Accounts: the columns line up on every row.
+
+**Update the PF2e Bridge to 0.20.0** (no functional change) and install the 5e Bridge in 5e worlds.

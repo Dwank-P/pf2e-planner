@@ -4,14 +4,17 @@
  * Foundry); never changes the actor or spends money.
  */
 const COIN_GP={pp:10,gp:1,sp:0.1,cp:0.01};
-const ITEM_TYPES=['weapon','armor','shield','equipment','consumable','backpack','treasure','kit'];
+// PF2e types, then the extra D&D 5e ones (5e armor is an 'equipment' item).
+const ITEM_TYPES=['weapon','armor','shield','equipment','consumable','backpack','treasure','kit','tool','loot','container'];
 export const TYPE_LABELS={weapon:'Weapon',armor:'Armor',shield:'Shield',equipment:'Worn & held',
-  consumable:'Consumable',backpack:'Container',treasure:'Treasure',kit:'Kit'};
+  consumable:'Consumable',backpack:'Container',treasure:'Treasure',kit:'Kit',tool:'Tool',loot:'Loot',container:'Container'};
 
 /** Price in gp (fractional), or null when the sync carried no price (Bridge < 0.11). */
 export function priceGp(item){
-  const price=item?.metadata?.rules?.price??item?.price;
+  const price=item?.metadata?.rules?.price??item?.metadata?.price??item?.price;
   const value=price?.value??price;
+  // D&D 5e: {value: 15, denomination: 'gp'}.
+  if(typeof value==='number'&&price?.denomination)return Math.round(value*(COIN_GP[price.denomination]??1)*100)/100;
   if(!value||typeof value!=='object')return typeof value==='number'?value:null;
   const total=Object.entries(value).reduce((n,[coin,amount])=>n+(COIN_GP[coin]??0)*(Number(amount)||0),0);
   const per=Number(price?.per)||1;

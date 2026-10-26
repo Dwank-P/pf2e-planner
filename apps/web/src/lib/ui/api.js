@@ -27,7 +27,6 @@ const MESSAGES={
   member_not_found:'That person isn’t in this campaign any more.',
   invalid_or_expired_code:'That code is invalid or has expired. Ask for a new one.',
   current_password_incorrect:'Your current password isn’t right.',
-  invalid_runes:'The rune plan couldn\'t be saved; reload and try again.',
   not_enough_free_space_for_backup:'Not enough free disk space for a backup (it needs about the database\'s size).',
   not_enough_free_space_for_sync:'Not enough free disk space to publish this sync.',
   backup_failed_integrity_check:'The backup failed its integrity check and was removed. Try again; if it repeats, check the disk.',

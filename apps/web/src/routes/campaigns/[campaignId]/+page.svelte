@@ -30,7 +30,11 @@
   const variantNames={freeArchetype:'Free Archetype',dualClass:'Dual Class',ancestralParagon:'Ancestral Paragon',
     gradualAbilityBoosts:'Gradual Boosts',automaticBonusProgression:'Automatic Bonus Progression',
     proficiencyWithoutLevel:'Proficiency Without Level',mythic:'Mythic',stamina:'Stamina'};
-  const variants=$derived(Object.entries(ctx?.sync?.variants??{}).filter(([,on])=>on===true).map(([k])=>variantNames[k]??k));
+  const dnd5e=$derived(ctx?.campaign?.system_id==='dnd5e');
+  // D&D 5e worlds show their rules edition and optional scores instead of PF2e variant rules.
+  const variants=$derived(dnd5e?[ctx?.sync?.variants?.rulesVersion==='modern'?'2024 rules':'2014 rules',
+      ...(ctx?.sync?.variants?.honorScore?['Honor']:[]),...(ctx?.sync?.variants?.sanityScore?['Sanity']:[])]
+    :Object.entries(ctx?.sync?.variants??{}).filter(([,on])=>on===true).map(([k])=>variantNames[k]??k));
 
   async function create(event){
     event.preventDefault();
@@ -96,7 +100,7 @@
     </section>
     {#if !ctx.sync?.synced}
       <p class="notice warn">This campaign hasn’t synced its compendiums yet.
-        {ctx.isGm?'In Foundry, open Settings → PF2e Planner Bridge → Sync Now.':'Ask your GM to run Sync Now in Foundry.'}</p>
+        {ctx.isGm?'In Foundry, open Settings → '+(dnd5e?'Planner Bridge (D&D 5e)':'PF2e Planner Bridge')+' → Sync Now.':'Ask your GM to run Sync Now in Foundry.'}</p>
     {/if}
 
     <section class="grid" aria-label="Your characters">
@@ -125,12 +129,12 @@
       {:else}
         <button class="card new" onclick={()=>creating=true}>
           <span class="plus" aria-hidden="true">+</span><b>New character</b>
-          <small>Starts the Character Wizard</small>
+          <small>{dnd5e?'Starts the D&D 5e planner':'Starts the Character Wizard'}</small>
         </button>
-        <button class="card new" onclick={()=>{importing=true;imported=null;}}>
+        {#if !dnd5e}<button class="card new" onclick={()=>{importing=true;imported=null;}}>
           <span class="plus" aria-hidden="true">⇩</span><b>Import from Pathbuilder</b>
           <small>From a Pathbuilder 2e JSON export</small>
-        </button>
+        </button>{/if}
       {/if}
     </section>
     {#if imported}
