@@ -63,6 +63,16 @@ export function setPlanFeat(plan,slot,item){
     data[category]=list.filter(Boolean);
   });
 }
+/** A feat's own picks (ChoiceSets), stored on its entry as Leveler stores them: {flag: value}. */
+export function setPlanFeatChoices(plan,slot,choices){
+  const category=CATEGORY_FOR_KIND[slot.kind];
+  return edit(plan,slot.level,data=>{
+    const list=[...(data[category]??[])];
+    const index=slotIndex(slot);
+    if(list[index])list[index]={...list[index],choices:{...choices}};
+    data[category]=list;
+  });
+}
 
 export function planBoosts(plan,level){
   return (plan?.levels?.[level]?.abilityBoosts??[]).map(a=>String(a).toLowerCase());
@@ -77,6 +87,9 @@ export function addCustomFeat(plan,level,item){
 }
 export function removeCustomFeat(plan,level,index){
   return edit(plan,level,data=>{data.customFeats=(data.customFeats??[]).filter((_,i)=>i!==index);});
+}
+export function setCustomFeatChoices(plan,level,index,choices){
+  return edit(plan,level,data=>{data.customFeats=(data.customFeats??[]).map((f,i)=>i===index?{...f,choices:{...choices}}:f);});
 }
 export const customSkillIncreases=(plan,level)=>plan?.levels?.[level]?.customSkillIncreases??[];
 export function addCustomSkillIncrease(plan,level,skill,toRank){

@@ -1,5 +1,7 @@
 <script>
   import OptionGrid from './OptionGrid.svelte';
+  import FeatChoices from './FeatChoices.svelte';
+  import {choiceContext} from '../builder/choice-sets.js';
   import RankLadder from '../ui/RankLadder.svelte';
   import * as P from '../builder/plan.js';
   import {buildState,checkFeat,featNameIndex,skillRanks} from '../builder/legality.js';
@@ -26,7 +28,9 @@
       <ul>
         {#each extras as feat,i (feat.uuid+i)}
           <li><button class="link" onclick={()=>info(feat.uuid)}>{feat.name}</button><small class="muted">extra feat</small>
-            <button class="link x" aria-label={'Remove '+feat.name} onclick={()=>updatePlan(p=>P.removeCustomFeat(p,level,i))}>×</button></li>
+            <button class="link x" aria-label={'Remove '+feat.name} onclick={()=>updatePlan(p=>P.removeCustomFeat(p,level,i))}>×</button>
+            <div class="extra-choices"><FeatChoices entry={feat} {catalog} context={choiceContext(creation,plan,lookup)} {info}
+              onChange={choices=>updatePlan(p=>P.setCustomFeatChoices(p,level,i,choices))}/></div></li>
         {/each}
         {#each increases as inc,i (inc.skill+i)}
           <li><span>{titleCase(String(inc.skill).replace(/-/g,' '))} → {RANKS[inc.toRank]??'+1'}</span><small class="muted">extra skill increase</small>
@@ -70,4 +74,5 @@
   .skill span{font-weight:700}
   .skill small{grid-column:1/-1;color:var(--muted);font-size:.75rem}
   .skill:disabled{opacity:.4}
+  .extra-choices{flex-basis:100%}
 </style>

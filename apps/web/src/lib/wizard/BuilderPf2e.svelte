@@ -18,6 +18,7 @@
   import {levelerChoiceSlots} from '../leveler-progression.js';
   import {emptyCreation} from '../leveler-format.js';
   import {setSkillSet} from '../builder/rules.js';
+  import {choiceSetsFor,choicesComplete,choiceContext} from '../builder/choice-sets.js';
 
   /**
    * The PF2e/SF2e character builder (levels 1–20, equipment). `scope` says where the character
@@ -85,7 +86,11 @@
   const index=$derived(sequence.indexOf(at));
 
   function slotDone(slot){
-    if(slot.type==='feat')return !!planFeat(plan,slot);
+    if(slot.type==='feat'){
+      const feat=planFeat(plan,slot);
+      const item=feat&&catalog.get(feat.uuid);
+      return !!feat&&(!item||choicesComplete(choiceSetsFor(item,feat.choices??{},catalog,choiceContext(creation,plan,catalog.get))));
+    }
     if(slot.type==='ability')return planBoosts(plan,slot.level).length>=slot.count;
     if(slot.type==='skill')return !!planSkillIncrease(plan,slot);
     if(slot.type==='spells')return planSpells(plan,slot.level).length>=(slot.allowance?.total??0);

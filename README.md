@@ -651,3 +651,18 @@ Website only; the Bridge stays at 0.14.1.
   already has an account to a campaign.
 
 **Update both Bridges to 0.23.0** (no functional change).
+
+### v0.24.0 — Choices inside feats
+
+- **Feats and features that ask for a choice now offer it**, read generically from their PF2e
+  ChoiceSet rule elements (as PF2e Leveler does) rather than case by case: Order Explorer's druid
+  order, Skill Training's skill, Adopted Ancestry's ancestry, and so on. Options come from the
+  ChoiceSet's own list, from the system's lists (skills, attributes…), or from the synced compendiums
+  matched with the same filters Leveler uses (tags, traits, type, level, rarity…).
+- **Picks lead to further choices**: when a pick is granted (a GrantItem of the chosen item, like the
+  druid order itself), that item's own choices are offered underneath.
+- Works for level-1 feats, feats at levels 2–20 and extra feats. Picks are stored where Leveler
+  stores them (each feat's `choices`), so they reach Foundry with the rest of the plan. A feat with
+  an unmade pick shows its level as partly done.
+
+**Update the PF2e Bridge to 0.24.0 and run Sync Now** — it now sends each item's ChoiceSets.

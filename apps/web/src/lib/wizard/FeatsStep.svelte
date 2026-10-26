@@ -1,7 +1,9 @@
 <script>
   import OptionGrid from './OptionGrid.svelte';
   import {level1FeatSlots,featField} from '../builder/schema.js';
-  import {setFeat} from '../builder/creation.js';
+  import {setFeat,setFeatChoices} from '../builder/creation.js';
+  import FeatChoices from './FeatChoices.svelte';
+  import {choiceContext,storedChoiceSets} from '../builder/choice-sets.js';
   import {buildState,checkFeat,featNameIndex} from '../builder/legality.js';
   import {featOptions} from './options.js';
   let {creation,plan,catalog,variants,update,info}=$props();
@@ -31,6 +33,9 @@
         <span class="value" class:unset={!chosen}>{chosen?.name??'Choose a feat'}</span>
         <span class="state" aria-hidden="true">{chosen?'✓':'○'}</span>
       </button>
+      {#if chosen}<FeatChoices entry={chosen} {catalog} context={choiceContext(creation,null,catalog.get)} {info}
+        onChange={choices=>update(c=>setFeatChoices(c,slot.slot,choices,
+          storedChoiceSets(catalog.get(chosen.uuid),choices,catalog,choiceContext(c,null,catalog.get))))}/>{/if}
       {#if open===slot.slot}
         <OptionGrid id={'feat-'+slot.slot} items={featOptions(catalog,kindOf(slot),creation)} selected={chosen?[chosen.uuid]:[]}
           onToggle={item=>pick(slot,item)} onInfo={item=>info(item.uuid)}

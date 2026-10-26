@@ -227,6 +227,13 @@ export function setFeat(data,slot,item){
     d[FEAT_FIELDS[slot]]=item?entry(item,{choiceSets:[],grantedSkills:[],grantedLores:[],choices:{}}):null;
   });
 }
+/** A level-1 feat's own picks (ChoiceSets): creation.<feat>.choices, as Leveler stores them. */
+export function setFeatChoices(data,slot,choices,choiceSets=null){
+  return edit(data,d=>{
+    const field=FEAT_FIELDS[slot];
+    if(d[field])d[field]={...d[field],choices:{...choices},...(choiceSets?{choiceSets}:{})};
+  });
+}
 
 /** Level-1 spells: cantrips or rank-1 in the class (or dual class) spell list. */
 export function toggleSpell(data,item,{cantrip,max,target='primary'}){

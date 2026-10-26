@@ -284,6 +284,52 @@ function exportItem(doc,pack){
     out.otherTags=otherTags.filter(x=>typeof x==='string').slice(0,20);
   const rules=rulesData(type,system);
   if(rules)out.rules=rules;
+  // ChoiceSets (Order Explorer's druid order, a skill to train…) and the GrantItems that use their
+  // picks; the website offers the same choices and stores them as Leveler does (feat.choices).
+  if(type!=='class')Object.assign(out,choiceData(system.rules));
+  return out;
+}
+const localize=value=>{
+  const text=typeof value==='string'?value:value?.label??value?.name??'';
+  try{return game.i18n.has?.(text)?game.i18n.localize(text):text;}catch{return text;}
+};
+/** A ChoiceSet's flag the way PF2e (and Leveler) name it. */
+const choiceFlag=(rule,index)=>typeof rule.flag==='string'&&rule.flag?rule.flag
+  :typeof rule.rollOption==='string'&&rule.rollOption?rule.rollOption:'choiceSet'+(index+1);
+/** Lists from the system's config (skills, attributes, damage types…), resolved here as {value,label}. */
+function configChoices(key){
+  const path=String(key).replace(/^CONFIG\.PF2E\./,'');
+  const table=foundry.utils.getProperty(CONFIG.PF2E??{},path);
+  if(!table||typeof table!=='object')return null;
+  return Object.entries(table).slice(0,120).map(([value,label])=>({value,label:localize(label)||value}));
+}
+function choiceData(rules){
+  if(!Array.isArray(rules))return {};
+  const sets=[],grants=[];
+  rules.forEach((rule,index)=>{
+    if(rule?.key==='ChoiceSet'){
+      const set={flag:choiceFlag(rule,index),prompt:localize(rule.prompt)||null};
+      if(rule.predicate)set.predicate=rule.predicate;
+      const c=rule.choices;
+      if(Array.isArray(c)){
+        set.options=c.slice(0,120).map(o=>({value:typeof o?.value==='object'?JSON.stringify(o.value):o?.value??null,
+          label:localize(o?.label)||String(o?.value??''),...(o?.predicate?{predicate:o.predicate}:{})}))
+          .filter(o=>o.value!==null&&o.value!=='');
+      }else if(typeof c==='string'||typeof c?.config==='string'){
+        set.options=configChoices(typeof c==='string'?c:c.config);
+        if(!set.options)return;
+      }else if(c&&typeof c==='object'){
+        set.query={itemType:c.itemType??null,filter:c.filter??[],slugsAsValues:!!c.slugsAsValues};
+        if(c.ownedItems||c.unarmedAttacks)return;// depends on the actor's own items
+      }else return;
+      sets.push(set);
+    }else if(rule?.key==='GrantItem'&&typeof rule.uuid==='string'&&rule.uuid.includes('{')){
+      grants.push({uuid:rule.uuid.slice(0,300),...(rule.predicate?{predicate:rule.predicate}:{})});
+    }
+  });
+  const out={};
+  if(sets.length&&JSON.stringify(sets).length<12000)out.choiceSets=sets;
+  if(grants.length&&JSON.stringify(grants).length<3000)out.grantChoices=grants;
   return out;
 }
 /** Rules fields the web Character Wizard computes with, copied as PF2e stores them. */

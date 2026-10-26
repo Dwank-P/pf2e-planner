@@ -9,12 +9,15 @@
   import {classFeaturesAt} from '../leveler-progression.js';
   import {wishlist,formatPrice} from '../builder/equipment.js';
   import GrantsPanel from './GrantsPanel.svelte';
+  import FeatChoices from './FeatChoices.svelte';
+  import {choiceContext} from '../builder/choice-sets.js';
   import {levelGrantRequirements,toggleGrantSelection,takenFormulas} from '../builder/grants.js';
   /** One planned level (2–20): every slot Leveler's schedule gives, editable inline. */
   let {level,slots,creation,plan,planner={},catalog,variants,updatePlan,info,currentLevel=1,onEquipment=()=>{}}=$props();
   const lookup=$derived(catalog.get);
   const state=$derived(buildState(creation,plan,lookup,level,variants));
   const names=$derived(featNameIndex(catalog));
+  const choiceCtx=$derived(choiceContext(creation,plan,lookup));
   const features=$derived(classFeaturesAt([lookup(creation.class?.uuid),variants.dualClass===true?lookup(creation.dualClass?.uuid):null],level));
   const before=$derived(attributeModifiers(creation,lookup,plan?.levels??{},level-1));
   const ranksBefore=$derived(skillRanks(creation,plan,lookup,level-1));
@@ -98,6 +101,8 @@
             {#if verdict?.blocked}<small class="warn">⚠ {verdict.blocked}</small>{/if}</span>
           <span class="action">{chosen?'Change':'Choose'}</span>
         </button>
+        {#if chosen}<FeatChoices entry={chosen} {catalog} context={choiceCtx} {info}
+          onChange={choices=>updatePlan(p=>P.setPlanFeatChoices(p,slot,choices))}/>{/if}
         {#if open===slot.key}
           <OptionGrid id={slot.key} items={featOptions(catalog,slot.kind,creation)} selected={chosen?[chosen.uuid]:[]}
             onToggle={item=>setFeat(slot,item)} onInfo={item=>info(item.uuid)}

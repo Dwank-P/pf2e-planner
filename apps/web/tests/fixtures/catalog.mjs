@@ -118,7 +118,10 @@ export const classFeatures=[
   classFeature('Cloistered','Cloistered Cleric',['cleric-doctrine']),
   classFeature('Warpriest','Warpriest',['cleric-doctrine']),
   classFeature('Imperial','Imperial',['sorcerer-bloodline']),
-  classFeature('Draconic','Draconic',['sorcerer-bloodline'])
+  classFeature('Draconic','Draconic',['sorcerer-bloodline']),
+  classFeature('AnimalOrder','Animal Order',['druid-order']),
+  classFeature('StormOrder','Storm Order',['druid-order'],{choiceSets:[{flag:'stormSkill',prompt:'Choose a skill to train',
+    options:[{value:'athletics',label:'Athletics'},{value:'nature',label:'Nature'}]}]})
 ];
 export const deities=[
   item('deities','Sarenrae','deity','Sarenrae',null,{rules:{font:['heal'],sanctification:{modal:'can',what:['holy']},skill:['medicine']}}),
@@ -129,6 +132,12 @@ export const deities=[
 const feat=(id,name,level,category,traits,extra={})=>item('feats-srd',id,'feat',name,level,
   {featType:category,category,actions:null,prerequisites:[],...extra},{traits});
 export const feats=[
+  // ChoiceSet feat: pick another druid order, which is then granted (with its own choices).
+  feat('OrderExplorer','Order Explorer',2,'class',['druid'],{choiceSets:[{flag:'druidOrder',prompt:'Select a druid order',
+    query:{itemType:'feat',filter:['item:tag:druid-order'],slugsAsValues:false}}],
+    grantChoices:[{uuid:'{item|flags.pf2e.rulesSelections.druidOrder}'}]}),
+  feat('SkillTraining','Skill Training',1,'general',['general'],{choiceSets:[{flag:'skill',prompt:'Select a skill',
+    options:['acrobatics','arcana','athletics','crafting','deception','diplomacy'].map(v=>({value:v,label:v[0].toUpperCase()+v.slice(1)}))}]}),
   feat('NaturalAmbition','Natural Ambition',1,'ancestry',['human'],{ancestryAccess:{restrictedTo:['human'],universal:false}}),
   feat('CooperativeNature','Cooperative Nature',1,'ancestry',['human'],{ancestryAccess:{restrictedTo:['human'],universal:false}}),
   feat('ElvenLore','Elven Lore',1,'ancestry',['elf'],{ancestryAccess:{restrictedTo:['elf'],universal:false}}),
