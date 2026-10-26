@@ -208,7 +208,8 @@ export function proficienciesAt(creation,lookup,level=1){
   return ranks;
 }
 /** PF2e proficiency bonus: untrained 0, otherwise rank × 2 + level. */
-export const proficiencyBonus=(rank,level)=>rank>0?rank*2+level:0;
+/** Proficiency bonus; Proficiency Without Level (GM Core) drops the level and makes untrained −2. */
+export const proficiencyBonus=(rank,level,withoutLevel=false)=>withoutLevel?(rank>0?rank*2:-2):rank>0?rank*2+level:0;
 /** Level-1 proficiency ranks from the class Item. */
 export function classProficiencies(creation,lookup){
   const rules=rulesOf(lookup(creation?.class?.uuid));

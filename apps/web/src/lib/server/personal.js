@@ -23,12 +23,15 @@ const parse=(text,fallback)=>{try{return JSON.parse(text);}catch{return fallback
 
 /** Worlds the user may draw from: member, GM shares compendiums, world paired and synced. */
 export function sharedWorlds(userId,system=null){
+  // The server owner can open every campaign without being a member, so counts as one everywhere.
+  const owner=db().prepare("SELECT 1 FROM users WHERE id=? AND site_role='owner'").get(userId)?1:0;
   const rows=db().prepare(`SELECT i.id AS integrationId,c.id AS campaignId,c.title,c.system_id AS systemId,
       p.snapshot_id AS snapshotId,p.sha256,p.updated_at AS updatedAt,p.variants_json AS variantsJson
-    FROM memberships m JOIN campaigns c ON c.id=m.campaign_id
+    FROM campaigns c
     JOIN integrations i ON i.campaign_id=c.id AND i.revoked_at IS NULL
     JOIN catalog_publications p ON p.integration_id=i.id
-    WHERE m.user_id=? AND c.share_compendiums=1 ORDER BY p.updated_at DESC`).all(userId);
+    WHERE c.share_compendiums=1 AND (?=1 OR EXISTS(SELECT 1 FROM memberships m WHERE m.campaign_id=c.id AND m.user_id=?))
+    ORDER BY p.updated_at DESC`).all(owner,userId);
   return system?rows.filter(w=>familyOf(w.systemId)===system):rows;
 }
 /** Packages a user can pick, each with the worlds that have it (most recently synced first). */
@@ -90,6 +93,8 @@ export function personalVariants(row,sources=activeSources(row)){
     if(variants.skills5e){variants.skills=variants.skills5e;delete variants.skills5e;}
   }
   variants.system=row.system;
+  // Builders apply these rules themselves instead of the source worlds' (personalRules).
+  variants.personal=true;
   return variants;
 }
 

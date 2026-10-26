@@ -613,3 +613,25 @@ Website only; the Bridge stays at 0.14.1.
 - Server admin → Storage shows personal characters and kept items.
 
 **Update both Bridges to 0.21.0** (no functional change).
+
+### v0.22.0 — Personal rules, 5e builder polish
+
+- **Personal characters choose every variant rule themselves**: Gradual Ability Boosts, Automatic
+  Bonus Progression (rules as written or fundamental potency), Ancestral Paragon, Proficiency
+  Without Level, Free Archetype, Dual Class, Mythic. The source worlds' settings baked into class
+  data are undone and the character's applied instead. Copy to campaign reports rule differences
+  and clears attribute boosts when the boost schedules differ.
+- **Fixed: D&D 5e sources not offered** to the server owner in worlds they can open without being
+  a member.
+- **Fixed: spell choices such as Magic Initiate showed nothing.** The 5e Bridge now sends the
+  world's class spell lists (update it and run Sync Now); the website also no longer reads dnd5e's
+  empty restriction type as "feat", and offers any spell of the right level if lists are missing.
+  Untitled choices get readable titles ("2 cantrips").
+- **Character summary under 1180px wide** is a drawer opened from the button at the top right,
+  instead of sitting under (and behind) the levels list.
+- **D&D 5e builder**: origin groups are collapsible boxes that close once chosen; any level can be
+  removed, or a level inserted before it (that class's later choices are renumbered); the class
+  picker lists the character's classes first with a green "Level N in this class"; the summary
+  shows species and class icons and marks each class's primary abilities.
+
+**Update both Bridges to 0.22.0**; in D&D 5e worlds run Sync Now so spell lists reach the website.

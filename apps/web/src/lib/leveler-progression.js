@@ -103,6 +103,55 @@ export function classFeaturesAt(classes,level){
   return out;
 }
 
+const GRADUAL_LEVELS=[2,3,4,5,7,8,9,10,12,13,14,15,17,18,19,20];
+const PARAGON_LEVELS=[3,7,11,15,19];
+// Automatic Bonus Progression (GM Core): what each level grants. Fundamental potency keeps only
+// the benefits that replace fundamental runes.
+const ABP={2:['Attack potency +1'],3:['Skill potency'],4:['Devastating attacks (2 dice)'],5:['Defense potency +1'],
+  6:['Skill potency'],7:['Perception potency +1'],8:['Saving throw potency +1'],9:['Skill potency'],10:['Attack potency +2'],
+  11:['Defense potency +2'],12:['Devastating attacks (3 dice)'],13:['Perception potency +2','Skill potency'],
+  14:['Saving throw potency +2'],15:['Skill potency'],16:['Attack potency +3'],17:['Attribute apex','Skill potency'],
+  18:['Defense potency +3'],19:['Devastating attacks (4 dice)','Perception potency +3'],20:['Saving throw potency +3','Skill potency']};
+const FUNDAMENTAL=/^(Attack potency|Devastating attacks|Defense potency|Saving throw potency)/;
+/**
+ * Personal characters choose their own variant rules, but Leveler bakes the source world's
+ * settings into each class's schedule. Strip those from the slots and apply the character's:
+ * Free Archetype, gradual attribute boosts, Ancestral Paragon's extra ancestry feats, and ABP.
+ */
+export function personalRules(slots,variants={}){
+  let out=[...slots];
+  const insert=slot=>{
+    const at=out.findIndex(s=>s.level>slot.level);
+    out.splice(at<0?out.length:at,0,slot);
+  };
+  if(typeof variants.freeArchetype==='boolean'){
+    out=out.filter(s=>s.levelerType!=='archetypeFeat');
+    if(variants.freeArchetype)for(let level=2;level<=20;level+=2)
+      insert({key:'archetype-'+level,type:'feat',kind:'archetype',label:'Free Archetype feat',level,source:'leveler',levelerType:'archetypeFeat'});
+  }
+  if(typeof variants.gradualAbilityBoosts==='boolean'){
+    out=out.filter(s=>!(s.type==='ability'&&s.level>=2));
+    const levels=variants.gradualAbilityBoosts?GRADUAL_LEVELS:[5,10,15,20];
+    for(const level of levels)insert({key:'level-'+level,type:'ability',kind:'abilityBoosts',label:'Ability boosts',
+      level,count:variants.gradualAbilityBoosts?1:4,source:'leveler',levelerType:'abilityBoosts'});
+  }
+  if(typeof variants.ancestralParagon==='boolean'){
+    // Paragon's extra ancestry feats are the ones at odd levels (normal ones come at 5, 9, 13, 17).
+    out=out.filter(s=>!(s.levelerType==='ancestryFeat'&&PARAGON_LEVELS.includes(s.level)));
+    if(variants.ancestralParagon)for(const level of PARAGON_LEVELS)
+      insert({key:'ancestry-'+level,type:'feat',kind:'ancestry',label:'Ancestry feat (Ancestral Paragon)',level,source:'leveler',levelerType:'ancestryFeat'});
+  }
+  if(typeof variants.automaticBonusProgression==='string'){
+    out=out.filter(s=>s.kind!=='abp');
+    if(variants.automaticBonusProgression!=='noABP')for(const [level,benefits] of Object.entries(ABP)){
+      const shown=variants.automaticBonusProgression==='ABPFundamentalPotency'?benefits.filter(b=>FUNDAMENTAL.test(b)):benefits;
+      if(shown.length)insert({key:'abp-'+level,type:'informational',kind:'abp',label:'Automatic bonus progression: '+shown.join(', '),
+        level:Number(level),source:'leveler'});
+    }
+  }
+  return out;
+}
+
 export function levelerChoiceSlots(primary,secondary=null,variants={}) {
   const data=primary?.metadata?.levelerProgression;
   const secondData=secondary?.metadata?.levelerProgression;
@@ -195,18 +244,8 @@ export function levelerChoiceSlots(primary,secondary=null,variants={}) {
         label:secondary.name+' signature spells',level,source:'leveler',ranks:second,...entry});
     }
   }
-  // Leveler bakes the world's Free Archetype setting into the class progression; a personal
-  // character's own choice (variants.freeArchetype) adds or removes those slots.
-  if(variants.freeArchetype===false)return {ready:true,source:'pf2e-leveler',version:data.version,
-    slots:slots.filter(s=>s.levelerType!=='archetypeFeat')};
-  if(variants.freeArchetype===true&&!slots.some(s=>s.levelerType==='archetypeFeat')){
-    for(let level=2;level<=20;level+=2){
-      const at=slots.findIndex(s=>s.level>level);
-      slots.splice(at<0?slots.length:at,0,{key:'archetype-'+level,type:'feat',kind:'archetype',
-        label:'Free Archetype feat',level,source:'leveler',levelerType:'archetypeFeat'});
-    }
-  }
-  return {ready:true,source:'pf2e-leveler',version:data.version,slots};
+  return {ready:true,source:'pf2e-leveler',version:data.version,slots:variants.personal===true?personalRules(slots,variants):slots};
+
 }
 /**
  * Spell ranks that need a signature spell at `level` (Leveler's

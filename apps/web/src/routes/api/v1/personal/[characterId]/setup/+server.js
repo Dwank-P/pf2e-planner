@@ -2,7 +2,9 @@ import {db,unix,transaction} from '#lib/server/db.js';
 import {sessionUser,input,problem,respond} from '#lib/server/api.js';
 import {loadPersonal,availableSources,retainPicks,listSources} from '#lib/server/personal.js';
 
-const PF2E_VARIANTS=['freeArchetype','dualClass','ancestralParagon','mythic','ignoreArchetypeDedicationLock'];
+const PF2E_VARIANTS=['freeArchetype','dualClass','ancestralParagon','mythic','ignoreArchetypeDedicationLock',
+  'gradualAbilityBoosts','proficiencyWithoutLevel'];
+const ABP=['noABP','ABPFundamentalPotency','ABPRulesAsWritten'];
 
 /**
  * The character's own variant rules and sources (owner only):
@@ -22,6 +24,7 @@ export async function PUT(event){
     variants={rulesVersion:raw.rulesVersion,allowFeats:raw.allowFeats!==false};
   }else{
     variants=Object.fromEntries(PF2E_VARIANTS.map(k=>[k,raw[k]===true]));
+    variants.automaticBonusProgression=ABP.includes(raw.automaticBonusProgression)?raw.automaticBonusProgression:'noABP';
   }
   const wanted=Array.isArray(body.sources)?body.sources:[];
   if(wanted.length>300)problem(400,'invalid_sources');

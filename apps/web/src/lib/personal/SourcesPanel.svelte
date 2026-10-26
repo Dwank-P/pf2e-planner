@@ -6,7 +6,9 @@
    */
   let {character,onClose,onSaved}=$props();
   const PF2E=[['freeArchetype','Free Archetype'],['dualClass','Dual Class'],['ancestralParagon','Ancestral Paragon'],
+    ['gradualAbilityBoosts','Gradual Ability Boosts'],['proficiencyWithoutLevel','Proficiency Without Level'],
     ['mythic','Mythic'],['ignoreArchetypeDedicationLock','Ignore the archetype dedication lock']];
+  const ABP=[['noABP','No Automatic Bonus Progression'],['ABPFundamentalPotency','ABP: fundamental potency only'],['ABPRulesAsWritten','ABP: rules as written']];
   let variants=$state({...(character.variants??{})});
   let available=$state(null);
   // package → integrationId ('' = not used)
@@ -47,7 +49,10 @@
       {#each PF2E as [key,label]}
         <label class="check"><input type="checkbox" checked={variants[key]===true} onchange={e=>variants={...variants,[key]:e.currentTarget.checked}}/> {label}</label>
       {/each}
-      <p class="hint">Gradual boosts and Automatic Bonus Progression follow the class data of the world each class comes from.</p>
+      <label class="field" for="abp">Automatic Bonus Progression
+        <select id="abp" value={variants.automaticBonusProgression??'noABP'} onchange={e=>variants={...variants,automaticBonusProgression:e.currentTarget.value}}>
+          {#each ABP as [value,label]}<option {value}>{label}</option>{/each}</select></label>
+      <p class="hint">These rules are this character’s own, whatever the source worlds use.</p>
     {/if}
   </section>
   <section class="group">

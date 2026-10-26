@@ -1,5 +1,6 @@
 <script>
-  import {ABILITIES,modifier,signed} from '../systems/dnd5e/rules.js';
+  import Icon from '../ui/Icon.svelte';
+  import {ABILITIES,ABILITY_NAMES,modifier,signed,multiclassRequirement} from '../systems/dnd5e/rules.js';
   import {traitLabel} from '../systems/dnd5e/build.js';
   /** At-a-glance sheet for the planned character at its last planned level. */
   let {name,sheet,catalog,variants}=$props();
@@ -11,13 +12,27 @@
   }));
   const list=set=>[...set].map(k=>traitLabel(k,variants)).join(', ');
   const ordinal=n=>['','1st','2nd','3rd'][n]??n+'th';
+  // Primary abilities of every class (what multiclassing checks), marked on the scores.
+  const primary=$derived.by(()=>{
+    const out=new Map();
+    for(const c of sheet.classes)for(const group of multiclassRequirement(c.item,variants))for(const a of group){
+      if(!out.has(a))out.set(a,[]);
+      out.get(a).push(c.item?.name??'?');
+    }
+    return out;
+  });
+  const identity=$derived([
+    sheet.species?{label:sheet.species.name,img:sheet.species.img}:null,
+    ...sheet.classes.map(c=>({label:(c.item?.name??'?')+' '+c.levels+(c.subclass?' ('+c.subclass.name+')':''),img:c.subclass?.img??c.item?.img}))
+  ].filter(Boolean));
 </script>
 <div class="sheet">
   <header>
     <span class="eyebrow">Planned to level {sheet.level||0}</span>
     <h2>{name||'Character'}</h2>
-    <p>{[sheet.species?.name,sheet.background?.name].filter(Boolean).join(' · ')||'No origin yet'}</p>
-    <p class="classes">{sheet.classes.map(c=>(c.item?.name??'?')+' '+c.levels+(c.subclass?' ('+c.subclass.name+')':'')).join(' / ')||'No class yet'}</p>
+    {#each identity as row}<p class="identity"><Icon src={row.img} size={26}/><span>{row.label}</span></p>{/each}
+    {#if !identity.length}<p>No origin or class yet</p>{/if}
+    {#if sheet.background}<p class="muted">{sheet.background.name}</p>{/if}
   </header>
   <div class="stats">
     <span><small>HP</small><b class="num">{sheet.hp||'—'}</b></span>
@@ -26,11 +41,15 @@
   </div>
   <div class="scores">
     {#each ABILITIES as a}
-      <span class:save={p.saves.has(a)} title={p.saves.has(a)?'Proficient in saves':''}><small>{a.toUpperCase()}</small><b class="num">{sheet.scores[a]}</b>
+      <span class:save={p.saves.has(a)} title={[p.saves.has(a)?'Saving throw proficiency (starting class)':'',
+        primary.has(a)?'Primary ability: '+primary.get(a).join(', '):''].filter(Boolean).join(' · ')}>
+        <small>{a.toUpperCase()}{#if primary.has(a)}<i class="key" aria-label={'Primary ability of '+primary.get(a).join(', ')}>◆</i>{/if}</small><b class="num">{sheet.scores[a]}</b>
         <em class="num">{signed(modifier(sheet.scores[a]))}</em></span>
     {/each}
   </div>
   {#if p.saves.size}<p class="line"><b>Saves</b> {[...p.saves].map(a=>a.toUpperCase()).join(', ')}</p>{/if}
+  {#if primary.size}<p class="legend muted">Outlined: saving throws (from the starting class). ◆ primary ability:
+    {[...primary.entries()].map(([a,names])=>ABILITY_NAMES[a]+' ('+names.join(', ')+')').join(', ')}.</p>{/if}
   <div class="skills">
     {#each skills as s}<span class:prof={s.rank>=1} class:exp={s.rank>=2}><i aria-hidden="true">{s.rank>=2?'◆':s.rank?'●':'○'}</i>{s.label}<b class="num">{signed(s.bonus)}</b></span>{/each}
   </div>
@@ -56,7 +75,9 @@
   header{display:grid;gap:2px}
   h2{font:800 1.25rem var(--display);margin:0}
   header p{margin:0;color:var(--text-2)}
-  .classes{font-weight:700;color:var(--text)!important}
+  .identity{display:flex;gap:8px;align-items:center;font-weight:700;color:var(--text)!important}
+  .key{font-style:normal;color:var(--brass);margin-left:3px;font-size:.65rem}
+  .legend{margin:0;font-size:.78rem}
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   .stats span,.scores span{display:grid;justify-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 4px;background:var(--panel-2)}
   small{color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}

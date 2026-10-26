@@ -25,7 +25,8 @@ export async function POST(event){
   const count=db().prepare('SELECT COUNT(*) AS n FROM personal_characters WHERE owner_user_id=?').get(user.id).n;
   if(count>=100)problem(409,'maximum_100_personal_characters');
   const doc=body.system==='dnd5e'?emptyDnd5eDocument():emptyDocument();
-  const variants=body.system==='dnd5e'?{rulesVersion:'modern',allowFeats:true}:{freeArchetype:false,dualClass:false,ancestralParagon:false,mythic:false};
+  const variants=body.system==='dnd5e'?{rulesVersion:'modern',allowFeats:true}:{freeArchetype:false,dualClass:false,ancestralParagon:false,mythic:false,gradualAbilityBoosts:false,
+    proficiencyWithoutLevel:false,automaticBonusProgression:'noABP'};
   const id=randomUUID(),now=unix();
   db().prepare(`INSERT INTO personal_characters(id,owner_user_id,name,level,system,variants_json,build_json,revision,created_at,updated_at)
     VALUES(?,?,?,1,?,?,?,1,?,?)`).run(id,user.id,name,body.system,JSON.stringify(variants),JSON.stringify(doc),now,now);

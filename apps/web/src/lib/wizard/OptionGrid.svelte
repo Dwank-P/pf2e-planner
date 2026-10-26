@@ -10,9 +10,10 @@
    *   "Show unavailable" is ticked, then shown with the reason as a warning. They can
    *   still be picked (this is a planner; the GM decides) unless `hard` is set.
    * test(item) → bool: extra filter from the step's own filter controls (filters snippet).
-   * detail(item) → one-line subtitle.
+   * detail(item) → one-line subtitle. badge(item) → short highlighted note (e.g. "level 3 in this class").
+   * first: uuids listed before everything else, in that order (e.g. classes the character already has).
    */
-  let {items=[],selected=[],max=1,onToggle,onInfo,check=()=>null,test=null,detail=()=>'',filters,
+  let {items=[],selected=[],max=1,onToggle,onInfo,check=()=>null,test=null,detail=()=>'',badge=()=>'',first=[],filters,
     placeholder='Search…',empty='Nothing matches.',id='options'}=$props();
   let query=$state('');
   let rarity=$state([]);
@@ -29,7 +30,9 @@
   const blockedCount=$derived(checked.filter(c=>c.result.blocked&&!selected.includes(c.item.uuid)).length);
   const visible=$derived(checked.filter(c=>showBlocked||!c.result.blocked||selected.includes(c.item.uuid)));
   // Picked options first so they stay visible while searching.
-  const ordered=$derived([...visible.filter(c=>selected.includes(c.item.uuid)),...visible.filter(c=>!selected.includes(c.item.uuid))]);
+  const rank=uuid=>{const i=first.indexOf(uuid);return i<0?Infinity:i;};
+  const pinned=$derived(first.length?[...visible].sort((a,b)=>rank(a.item.uuid)-rank(b.item.uuid)):visible);
+  const ordered=$derived([...pinned.filter(c=>selected.includes(c.item.uuid)),...pinned.filter(c=>!selected.includes(c.item.uuid))]);
   const full=$derived(max>1&&selected.length>=max);
   function toggleRarity(r){rarity=rarity.includes(r)?rarity.filter(x=>x!==r):[...rarity,r];limit=60;}
 </script>
@@ -57,6 +60,7 @@
         <div class="opt" class:on={isOn} class:blocked={!!reason&&!isOn} class:warned={!!reason&&isOn}>
           <button class="pick" disabled={!isOn&&((!!reason&&result.hard)||(full&&max>1))} aria-pressed={isOn} onclick={()=>onToggle(item)}>
             <span class="top"><span class="name"><Icon src={item.img} size={28}/><b>{item.name}</b></span>{#if Number.isFinite(item.level)&&item.type!=='class'&&item.metadata?.category!=='classfeature'&&!(item.traits??[]).includes('cantrip')}<span class="lvl num">{item.level}</span>{/if}</span>
+            {#if badge(item)}<span class="badge-good">{badge(item)}</span>{/if}
             {#if detail(item)}<span class="detail">{detail(item)}</span>{/if}
             <Traits traits={item.traits??[]} rarity={item.rarity} max={4}/>
             {#if reason}<span class="reason">⚠ {reason}{#if !isOn&&!result.hard} · you can still pick it{/if}</span>
@@ -106,4 +110,5 @@
   .on .tick{background:var(--brass)}
   .info{position:absolute;left:12px;bottom:8px;font-size:.78rem}
   .more{justify-self:center}
+  .badge-good{justify-self:start;font:700 .72rem var(--mono);color:var(--good);background:var(--good-soft);border:1px solid var(--good);border-radius:4px;padding:1px 6px}
 </style>

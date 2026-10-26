@@ -11,7 +11,7 @@
   import {loadCatalogAt} from '../builder/catalog.js';
   import {setContext} from 'svelte';
   import {wishlist} from '../builder/equipment.js';
-  import {derive,normalizeBuild,setChoice,addLevel,removeLastLevel,setLevelClass,setSubclass,toggleSpell,summaryLabels}
+  import {derive,normalizeBuild,setChoice,addLevel,removeLevelAt,insertLevelAt,setLevelClass,setSubclass,toggleSpell,summaryLabels}
     from '../systems/dnd5e/build.js';
   import {isModern} from '../systems/dnd5e/rules.js';
 
@@ -35,6 +35,8 @@
   let at=$state('origin');
   let detail=$state(null);
   let railOpen=$state(false);
+  // Under 1180px the summary is a drawer, opened from the button at the top right.
+  let summaryOpen=$state(false);
   let sharing=$state(false);
   let confirmDelete=$state(false);
   let deleting=$state(false);
@@ -99,9 +101,13 @@
     update(b=>level>b.levels.length?addLevel(b,classUuid):setLevelClass(b,level-1,classUuid));
     if(level>currentLevel&&currentLevel===planned)currentLevel=Math.min(20,level);
   }
-  function removeLevel(){
-    update(removeLastLevel);
-    if(atLevel&&atLevel>planned-1)go('level-'+Math.max(1,planned-1));
+  function removeLevel(level){
+    update(b=>removeLevelAt(b,level-1));
+    if(currentLevel>planned)currentLevel=Math.max(1,planned);
+    if(level>planned)go('level-'+Math.max(1,planned));
+  }
+  function insertLevel(level,classUuid){
+    update(b=>insertLevelAt(b,level-1,classUuid));
   }
   const labelOf=id=>({origin:'Origin',spells:'Spells',equipment:'Equipment plan',notes:'Notes'})[id]??(id?.startsWith('level-')?'Level '+id.slice(6):'');
   function levelLine(level){
@@ -159,8 +165,11 @@
     <button class="menu-btn" aria-expanded={railOpen} aria-controls="builder-rail" onclick={()=>railOpen=!railOpen}>
       <span aria-hidden="true">☰</span><span class="sr">Levels</span></button>
     <span class="where"><b>{labelOf(at)}</b><small>{name} · level {currentLevel}</small></span>
+    <button class="summary-btn" aria-expanded={summaryOpen} aria-controls="builder-summary" title="Character summary"
+      onclick={()=>{summaryOpen=!summaryOpen;railOpen=false;}}><span aria-hidden="true">◧</span><span class="sr">Summary</span></button>
   </div>
   {#if railOpen}<div class="scrim" role="presentation" onclick={()=>railOpen=false}></div>{/if}
+  {#if summaryOpen}<div class="sum-scrim" role="presentation" onclick={()=>summaryOpen=false}></div>{/if}
   <div class="builder">
     <nav class="rail" class:open={railOpen} id="builder-rail" aria-label="Levels">
       <div class="identity">
@@ -209,13 +218,10 @@
         <Origin5e {build} {catalog} {variants} {sheet} {update} info={uuid=>detail=uuid} readonly={!canEdit}/>
       {:else if atLevel}
         {#key atLevel}
-          <Level5e level={atLevel} {build} {catalog} {variants} {sheet} {onClass} readonly={!canEdit}
+          <Level5e level={atLevel} {build} {catalog} {variants} {sheet} {onClass} onInsert={insertLevel} onRemove={removeLevel} readonly={!canEdit}
             onChoice={(key,value)=>update(b=>setChoice(b,key,value))}
             onSubclass={(cls,sub)=>update(b=>setSubclass(b,cls,sub))} info={uuid=>detail=uuid}/>
         {/key}
-        {#if atLevel===planned&&planned>0&&canEdit}
-          <button class="btn small ghost danger remove" onclick={removeLevel}>Remove level {planned}</button>
-        {/if}
       {:else if at==='spells'}
         <Spells5e {build} {catalog} {variants} {sheet} onToggle={(cls,uuid)=>update(b=>toggleSpell(b,cls,uuid))} info={uuid=>detail=uuid} readonly={!canEdit}/>
       {:else if at==='equipment'}
@@ -229,7 +235,7 @@
         {#if index<sequence.length-1}<button class="btn primary" onclick={()=>go('next')}>{labelOf(sequence[index+1])} →</button>{/if}
       </footer>
     </main>
-    <div class="side"><Summary5e {name} {sheet} {catalog} {variants}/></div>
+    <div class="side" class:open={summaryOpen} id="builder-summary"><Summary5e {name} {sheet} {catalog} {variants}/></div>
   </div>
   <ItemDrawer campaignId={scope.campaignId} catalogBase={scope.campaignId?null:scope.catalogBase} linksDisabled={!!scope.publicView} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
 {:else if !error}
@@ -269,19 +275,31 @@
   .stage{padding:24px 28px 40px;display:grid;gap:18px;align-content:start;min-width:0}
   .stage-head{display:grid;gap:4px}
   h1{font-size:clamp(1.5rem,3vw,2rem);font-weight:800}
-  .remove{justify-self:start}
   .notes{width:100%;min-height:320px;font:inherit;padding:12px;border-radius:var(--radius)}
   .stage-foot{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:16px;flex-wrap:wrap}
   .side{border-left:1px solid var(--line);background:var(--panel);padding:20px 18px;position:sticky;top:57px;
     max-height:calc(100vh - 57px);overflow:auto;padding-right:max(18px,env(safe-area-inset-right,0px))}
-  .mobile-bar,.scrim{display:none}
+  .mobile-bar,.scrim,.sum-scrim{display:none}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   @media(max-width:1180px){
     .builder{grid-template-columns:250px minmax(0,1fr)}
-    .side{grid-column:1/-1;position:static;max-height:none;border-left:0;border-top:1px solid var(--line)}
+    .side{position:fixed;top:0;bottom:0;right:0;width:min(360px,92vw);max-height:none;z-index:50;
+      transform:translateX(102%);transition:transform .18s ease-out;box-shadow:var(--shadow);
+      padding-top:max(20px,env(safe-area-inset-top,0px));padding-bottom:max(20px,env(safe-area-inset-bottom,0px))}
+    .side.open{transform:none}
+    .sum-scrim{display:block;position:fixed;inset:0;background:var(--overlay);z-index:49}
+    .mobile-bar{display:flex;align-items:center;gap:10px;position:sticky;top:57px;z-index:20;
+      background:var(--panel);border-bottom:1px solid var(--line);
+      padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
+    .menu-btn{display:none}
+    .where{display:grid;min-width:0}
+    .where b{font:800 .95rem var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .where small{color:var(--muted);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .summary-btn{margin-left:auto;width:38px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);font-size:1.1rem}
   }
   @media(max-width:760px){
     .builder{grid-template-columns:minmax(0,1fr)}
+    .menu-btn{display:block}
     .mobile-bar{display:flex;align-items:center;gap:10px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 49px);z-index:20;
       background:var(--panel);border-bottom:1px solid var(--line);
       padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}

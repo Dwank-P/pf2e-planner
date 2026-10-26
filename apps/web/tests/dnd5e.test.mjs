@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {indexCatalog} from '../src/lib/builder/catalog.js';
-import {derive,addLevel,setChoice,setSubclass,spellOptions,featOptions,editionMatches,expandPool,summaryLabels}
+import {derive,addLevel,setChoice,setSubclass,spellOptions,featOptions,editionMatches,expandPool,summaryLabels,
+  itemChoiceOptions,removeLevelAt,insertLevelAt,setLevelClass}
   from '../src/lib/systems/dnd5e/build.js';
 import {casterLevel,slotsForCasterLevel,multiclassRequirement,meetsRequirement,pointBuyCost,scoresValid,proficiencyBonus}
   from '../src/lib/systems/dnd5e/rules.js';
@@ -118,4 +119,40 @@ test('editions and wildcard pools',()=>{
   assert.ok(editionMatches(catalog.get(U('tough')),{rulesVersion:'modern'}));
   assert.deepEqual(featOptions(catalog,variants,4).map(f=>f.name),['Alert']);
   assert.deepEqual(expandPool(['languages:standard'],variants).length,3);
+});
+
+test('Magic Initiate-style choices: spell type wins over an empty restriction type; lists apply when synced',()=>{
+  const feat=item('magic-initiate','feat','Magic Initiate',{featType:'feat',advancement:[
+    {_id:'cantrips',type:'ItemChoice',title:'',configuration:{type:'spell',choices:{0:{count:2}},pool:[],
+      restriction:{type:'',subtype:'',level:'0',list:['class:cleric','class:druid','class:wizard']}}}]});
+  const cat=indexCatalog({items:[...catalog.types().flatMap(t=>catalog.ofType(t)),feat]});
+  let b=plan();
+  b={...b,feats:[feat.uuid]};
+  const card=derive(b,cat,variants).pages[0].choices.find(c=>c.kind==='itemChoice');
+  assert.equal(card.count,2);
+  assert.equal(card.title,'2 cantrips','Untitled choices get a readable title');
+  assert.equal(card.restriction.type,'spell');
+  assert.deepEqual(itemChoiceOptions(card,cat,variants).map(s=>s.name),['Fire Bolt'],'Wizard-list cantrips only');
+  // A world synced before spell lists were sent: any cantrip fits rather than nothing.
+  const bare=indexCatalog({items:cat.types().flatMap(t=>cat.ofType(t)).map(i=>i.type==='spell'?{...i,metadata:{...i.metadata,spellLists:[]}}:i)});
+  assert.deepEqual(itemChoiceOptions(card,bare,variants).map(s=>s.name),['Fire Bolt']);
+});
+
+test('removing or inserting a level renumbers that class’s later choices',()=>{
+  let b=plan();// Fighter 1–4
+  b=addLevel(b,wizard.uuid);// level 5: Wizard 1
+  const asi=fighter.uuid+'|asi4|L4',skills=fighter.uuid+'|skills|L1|c0',lang=elf.uuid+'|lang|L1|c0';
+  b={...b,choices:{[asi]:{mode:'asi',points:{str:2}},[skills]:['skills:ath'],[lang]:['languages:standard:dwarvish']}};
+  const removed=removeLevelAt(b,1);// drop Fighter level 2
+  assert.deepEqual(removed.levels,[fighter.uuid,fighter.uuid,fighter.uuid,wizard.uuid]);
+  assert.deepEqual(removed.choices[fighter.uuid+'|asi4|L3'],{mode:'asi',points:{str:2}},'Fighter 4’s ASI is now at Fighter 3');
+  assert.equal(removed.choices[asi],undefined);
+  assert.ok(removed.choices[skills]&&removed.choices[lang],'Earlier class and origin choices stay');
+  const inserted=insertLevelAt(removed,1,fighter.uuid);
+  assert.deepEqual(inserted.levels,b.levels);
+  assert.deepEqual(inserted.choices,b.choices,'Inserting the level back restores the numbering');
+  const lastWizard=removeLevelAt(b,4);
+  assert.equal(lastWizard.levels.includes(wizard.uuid),false);
+  const swapped=setLevelClass(b,4,fighter.uuid);
+  assert.deepEqual(swapped.levels,[...Array(5)].map(()=>fighter.uuid));
 });

@@ -1,5 +1,6 @@
 <script>
   import OptionGrid from '../wizard/OptionGrid.svelte';
+  import Fold from './Fold.svelte';
   import {ABILITIES,ABILITY_NAMES,STANDARD_ARRAY,POINT_BUY_COST,POINT_BUY_BUDGET,pointBuyCost,defaultScores,
     scoresValid,modifier,signed,isModern} from '../systems/dnd5e/rules.js';
   import {editionMatches} from '../systems/dnd5e/build.js';
@@ -26,22 +27,28 @@
       return {...b,abilities:{...b.abilities,base:next}};
     });
   }
-  const pick=(field,item)=>update(b=>({...b,[field]:b[field]===item.uuid?null:item.uuid}));
+  // Each group is a box that closes once chosen; open ones start where something is missing.
+  let open=$state({species:!build.speciesUuid,background:!build.backgroundUuid,scores:!scoresValid(build.abilities.method,build.abilities.base??{}),hp:false});
+  function pick(field,item){
+    const choosing=build[field]!==item.uuid;
+    update(b=>({...b,[field]:b[field]===item.uuid?null:item.uuid}));
+    if(choosing)open={...open,[field==='speciesUuid'?'species':'background']:false};
+  }
+  const species=$derived(catalog.get(build.speciesUuid));
+  const background=$derived(catalog.get(build.backgroundUuid));
+  const scoreLine=$derived(scoresValid(method,base)?ABILITIES.map(a=>a.toUpperCase()+' '+sheet.scores[a]).join(' · '):'');
 </script>
-<section class="block">
-  <h2>{modern?'Species':'Race'}</h2>
+<Fold title={modern?'Species':'Race'} summary={species?.name} img={species?.img} done={!!species} bind:open={open.species}>
   <OptionGrid items={catalog.ofType('race')} selected={build.speciesUuid?[build.speciesUuid]:[]} max={1} check={otherEdition}
     onToggle={item=>!readonly&&pick('speciesUuid',item)} onInfo={item=>info(item.uuid)} detail={origin}
     placeholder={modern?'Search species…':'Search races…'} id="species"/>
-</section>
-<section class="block">
-  <h2>Background</h2>
+</Fold>
+<Fold title="Background" summary={background?.name} img={background?.img} done={!!background} bind:open={open.background}>
   <OptionGrid items={catalog.ofType('background')} selected={build.backgroundUuid?[build.backgroundUuid]:[]} max={1} check={otherEdition}
     onToggle={item=>!readonly&&pick('backgroundUuid',item)} onInfo={item=>info(item.uuid)} detail={origin}
     placeholder="Search backgrounds…" id="background"/>
-</section>
-<section class="block">
-  <h2>Ability scores</h2>
+</Fold>
+<Fold title="Ability scores" summary={scoreLine} done={!!scoreLine} bind:open={open.scores}>
   <div class="seg" role="group" aria-label="Method">
     {#each [['standard','Standard array'],['pointbuy','Point buy'],['manual','Manual / rolled']] as [m,label]}
       <button class:on={method===m} aria-pressed={method===m} disabled={readonly} onclick={()=>setMethod(m)}>{label}</button>
@@ -75,17 +82,14 @@
     {/each}
   </div>
   {#if !scoresValid(method,base)}<p class="notice">{method==='pointbuy'&&spent>POINT_BUY_BUDGET?'Over the point-buy budget.':'Some scores still need a value.'}</p>{/if}
-</section>
-<section class="block">
-  <h2>Hit points</h2>
+</Fold>
+<Fold title="Hit points" summary={build.hp==='max'?'Maximum per level':'Average per level'} done bind:open={open.hp}>
   <div class="seg" role="group" aria-label="Hit points">
     <button class:on={build.hp!=='max'} disabled={readonly} onclick={()=>update(b=>({...b,hp:'average'}))}>Average per level</button>
     <button class:on={build.hp==='max'} disabled={readonly} onclick={()=>update(b=>({...b,hp:'max'}))}>Maximum per level</button>
   </div>
-</section>
+</Fold>
 <style>
-  .block{display:grid;gap:10px}
-  h2{font:800 1.1rem var(--display);margin:0}
   .hint{color:var(--muted);font-size:.85rem;margin:0}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;width:max-content;max-width:100%;flex-wrap:wrap}
   .seg button{background:none;border:0;padding:7px 12px;color:var(--text-2)}

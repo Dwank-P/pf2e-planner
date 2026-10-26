@@ -32,14 +32,32 @@ test('Leveler data controls slot presence, counts, variants and repeated ancestr
   'Must not invent slots from fallback schedules');
 });
 test('a personal character’s own Free Archetype choice adds or removes archetype slots',()=>{
- const off=levelerChoiceSlots(fighter,null,{freeArchetype:false}).slots;
+ const off=levelerChoiceSlots(fighter,null,{personal:true,freeArchetype:false}).slots;
  assert.equal(off.some(s=>s.levelerType==='archetypeFeat'),false);
  const plain={metadata:{levelerProgression:{...fighter.metadata.levelerProgression,
   levels:{2:[{type:'classFeat'}],4:[{type:'classFeat'}]}}}};
- const on=levelerChoiceSlots(plain,null,{freeArchetype:true}).slots;
+ const on=levelerChoiceSlots(plain,null,{personal:true,freeArchetype:true}).slots;
  assert.deepEqual(on.filter(s=>s.kind==='archetype').map(s=>s.level),[2,4,6,8,10,12,14,16,18,20]);
  assert.ok(on.findIndex(s=>s.key==='archetype-2')<on.findIndex(s=>s.key==='class-4'),'Kept in level order');
- assert.equal(levelerChoiceSlots(plain,null,{}).slots.some(s=>s.kind==='archetype'),false,'No choice: the class data decides');
+ assert.equal(levelerChoiceSlots(plain,null,{freeArchetype:true}).slots.some(s=>s.kind==='archetype'),false,
+  'Campaign characters follow the class data Leveler built');
+});
+test('personal characters get their own gradual boosts, Ancestral Paragon and ABP',()=>{
+ const gradual=levelerChoiceSlots(fighter,null,{personal:true,gradualAbilityBoosts:true}).slots.filter(s=>s.type==='ability'&&s.level>=2);
+ assert.deepEqual(gradual.map(s=>s.level),[2,3,4,5,7,8,9,10,12,13,14,15,17,18,19,20]);
+ assert.ok(gradual.every(s=>s.count===1));
+ const standard=levelerChoiceSlots(fighter,null,{personal:true,gradualAbilityBoosts:false}).slots.filter(s=>s.type==='ability'&&s.level>=2);
+ assert.deepEqual(standard.map(s=>[s.level,s.count]),[[5,4],[10,4],[15,4],[20,4]],'The world’s gradual-shaped data is undone');
+ const noParagon=levelerChoiceSlots(fighter,null,{personal:true,ancestralParagon:false}).slots;
+ assert.equal(noParagon.some(s=>s.levelerType==='ancestryFeat'&&s.level===3),false);
+ const paragon=levelerChoiceSlots(fighter,null,{personal:true,ancestralParagon:true}).slots;
+ assert.deepEqual(paragon.filter(s=>s.levelerType==='ancestryFeat').map(s=>s.level),[3,7,11,15,19]);
+ const abp=levelerChoiceSlots(fighter,null,{personal:true,automaticBonusProgression:'ABPRulesAsWritten'}).slots.filter(s=>s.kind==='abp');
+ assert.equal(abp.length,19);
+ assert.match(abp.find(s=>s.level===17).label,/Attribute apex/);
+ const potency=levelerChoiceSlots(fighter,null,{personal:true,automaticBonusProgression:'ABPFundamentalPotency'}).slots.filter(s=>s.kind==='abp');
+ assert.equal(potency.some(s=>/Skill potency|Perception|apex/.test(s.label)),false);
+ assert.equal(levelerChoiceSlots(fighter,null,{personal:true,automaticBonusProgression:'noABP'}).slots.some(s=>s.kind==='abp'),false);
 });
 test('missing old Leveler schema reports need for sync, not assumed progression',()=>{
  assert.equal(levelerChoiceSlots({metadata:{}}).slots.filter(x=>x.type==='ability').length,4);

@@ -7,7 +7,8 @@
   import {classTitle} from '../builder/summaries.js';
   import Icon from '../ui/Icon.svelte';
   /** The character at its current `level`: level-1 creation plus planned boosts, increases and class features. */
-  let {name,creation,plan=null,lookup,steps=[],onStep,level=1}=$props();
+  let {name,creation,plan=null,lookup,steps=[],onStep,level=1,variants={}}=$props();
+  const pwl=$derived(variants?.proficiencyWithoutLevel===true);
   const result=$derived(attributeModifiers(creation,lookup,plan?.levels??{},level));
   const mods=$derived(result.mods);
   const hp=$derived(hitPoints(creation,lookup,mods.con,level));
@@ -26,10 +27,10 @@
     creation.class?{label:classTitle(creation.class,creation.subclass),img:img(creation.class)}:null,
     creation.dualClass?{label:classTitle(creation.dualClass,creation.dualSubclass),img:img(creation.dualClass)}:null
   ].filter(Boolean));
-  const total=(attribute,rank)=>formatModifier((mods[attribute]??0)+proficiencyBonus(rank,level));
+  const total=(attribute,rank)=>formatModifier((mods[attribute]??0)+proficiencyBonus(rank,level,pwl));
   const defenses=$derived([['Perception','wis',prof.perception],['Fortitude','con',prof.fortitude],
     ['Reflex','dex',prof.reflex],['Will','wis',prof.will]]);
-  const classDC=$derived(creation.class&&key?10+mods[key]+proficiencyBonus(Math.max(1,prof.classDC),level):null);
+  const classDC=$derived(creation.class&&key?10+mods[key]+proficiencyBonus(Math.max(1,prof.classDC),level,pwl):null);
 </script>
 <aside class="summary" aria-label="Character summary">
   <div class="who">

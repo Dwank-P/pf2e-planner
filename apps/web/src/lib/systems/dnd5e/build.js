@@ -170,9 +170,11 @@ function deriveOnce(input,catalog,variants,known){
             const count=choiceCount(adv,at);
             const picked=asArray(build.choices[key]).slice(0,count);
             const cfg=adv.configuration??{};
+            if(!adv.title)base.title=choiceTitle(cfg,count);
             page.choices.push({...base,kind:'itemChoice',count,value:picked,done:picked.length>=count,
-              pool:asArray(cfg.pool).map(uuidOf).filter(Boolean),restriction:{type:cfg.type??cfg.restriction?.type??null,
-                ...(cfg.restriction??{})},replacement:!!(adv.configuration?.choices?.[at]??{}).replacement});
+              pool:asArray(cfg.pool).map(uuidOf).filter(Boolean),restriction:{...(cfg.restriction??{}),
+                // dnd5e stores restriction.type as '' when unset; the choice's own type (e.g. 'spell') wins.
+                type:cfg.type||cfg.restriction?.type||null},replacement:!!(adv.configuration?.choices?.[at]??{}).replacement});
             for(const uuid of picked)granted(uuid,{page,key,classUuid,depth,parent:item});
             break;
           }
@@ -336,6 +338,17 @@ function scaleText(entry,type){
   if(type==='distance')return entry.value+' ft.';
   return String(entry.value??'');
 }
+/** A readable title for an untitled ItemChoice ("2 cantrips", "1 level 1 spell", "1 feat"). */
+function choiceTitle(cfg,count){
+  const type=cfg.type||cfg.restriction?.type;
+  const level=cfg.restriction?.level;
+  if(type==='spell'){
+    if(String(level)==='0')return count+' cantrip'+(count===1?'':'s');
+    return count+(level&&level!=='available'?' level '+level:'')+' spell'+(count===1?'':'s');
+  }
+  if(cfg.restriction?.subtype)return count+' '+cfg.restriction.subtype.replace(/([A-Z])/g,' $1').toLowerCase()+(count===1?'':'s');
+  return 'Choose '+count;
+}
 function defaultTitle(adv){
   return {ItemGrant:'Features',ItemChoice:'Choose',Trait:'Proficiencies',AbilityScoreImprovement:'Ability Score Improvement',
     Subclass:'Subclass',Size:'Size'}[adv.type]??adv.type;
@@ -352,15 +365,49 @@ export const setChoice=(build,key,value)=>{
 export const addLevel=(build,classUuid)=>build.levels.length>=20?build:{...build,levels:[...build.levels,classUuid]};
 /** Remove the last level (choices are kept, so re-adding the class restores them). */
 export const removeLastLevel=build=>({...build,levels:build.levels.slice(0,-1)});
-/** Change the class taken at one level; later class levels renumber. */
+/**
+ * Class choices are keyed by class level ("<class or subclass>|<advancement>|L<n>…"), so removing or
+ * inserting a level of a class renumbers that class's later choices. Origin choices are keyed by
+ * character level and stay put (a species feature at level 3 still comes at level 3).
+ */
+function shiftClassChoices(build,classUuid,classLevel,delta){
+  const side=new Set([classUuid,build.subclasses[classUuid]].filter(Boolean));
+  const out={};
+  for(const [key,value] of Object.entries(build.choices)){
+    const m=/^(Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+)\|([^|>]+)\|L(\d+)(.*)$/s.exec(key);
+    if(!m||!side.has(m[1])){out[key]=value;continue;}
+    let n=Number(m[3]);
+    if(delta<0){if(n===classLevel)continue;if(n>classLevel)n--;}
+    else if(n>=classLevel)n++;
+    out[m[1]+'|'+m[2]+'|L'+n+m[4]]=value;
+  }
+  return out;
+}
+function dropUnusedClasses(build){
+  const subclasses={...build.subclasses},spells={...build.spells};
+  for(const uuid of Object.keys(subclasses))if(!build.levels.includes(uuid))delete subclasses[uuid];
+  for(const uuid of Object.keys(spells))if(!build.levels.includes(uuid))delete spells[uuid];
+  return {...build,subclasses,spells};
+}
+/** Remove the level at `index` (0-based); that class's later levels move down one. */
+export function removeLevelAt(build,index){
+  const classUuid=build.levels[index];
+  if(!classUuid)return build;
+  const classLevel=build.levels.slice(0,index+1).filter(u=>u===classUuid).length;
+  const levels=build.levels.filter((_,i)=>i!==index);
+  return dropUnusedClasses({...build,choices:shiftClassChoices(build,classUuid,classLevel,-1),levels});
+}
+/** Insert a level of `classUuid` at `index`; that class's later levels move up one. */
+export function insertLevelAt(build,index,classUuid){
+  if(build.levels.length>=20)return build;
+  const classLevel=build.levels.slice(0,index).filter(u=>u===classUuid).length+1;
+  const levels=[...build.levels.slice(0,index),classUuid,...build.levels.slice(index)];
+  return {...build,choices:shiftClassChoices(build,classUuid,classLevel,1),levels};
+}
+/** Change the class taken at one level: remove it there, then insert the new class in its place. */
 export function setLevelClass(build,index,classUuid){
-  const levels=[...build.levels];
-  levels[index]=classUuid;
-  const subclasses={...build.subclasses};
-  for(const uuid of Object.keys(subclasses))if(!levels.includes(uuid))delete subclasses[uuid];
-  const spells={...build.spells};
-  for(const uuid of Object.keys(spells))if(!levels.includes(uuid))delete spells[uuid];
-  return {...build,levels,subclasses,spells};
+  if(build.levels[index]===classUuid)return build;
+  return insertLevelAt(removeLevelAt(build,index),index,classUuid);
 }
 export const setSubclass=(build,classUuid,subclassUuid)=>{
   const subclasses={...build.subclasses};
@@ -383,13 +430,16 @@ export function summaryLabels(derived){
 /** Items a choice card offers: its pool, or catalog items matching its restriction. */
 export function itemChoiceOptions(card,catalog,variants,{showAll=false}={}){
   const r=card.restriction??{};
+  const lists=asArray(r.list);
+  const listsKnown=lists.length&&catalog.ofType('spell').some(s=>s.metadata?.spellLists?.length);
   let items=card.pool.length?card.pool.map(u=>catalog.get(u)).filter(Boolean)
     :catalog.ofType(r.type==='spell'?'spell':'feat').filter(item=>{
       if(r.type&&r.type!=='spell'&&item.type!==r.type&&!(r.type==='feat'&&item.type==='feat'))return false;
       if(r.subtype&&item.metadata?.featSubtype!==r.subtype)return false;
       if(r.type==='feat'&&!r.subtype&&item.metadata?.featType&&item.metadata.featType!=='feat'&&item.metadata.featType!==r.type)return false;
       if(item.type==='spell'&&r.level!==undefined&&r.level!==''&&r.level!==null&&String(r.level)!=='available'&&Number(item.metadata?.level??item.level)!==Number(r.level))return false;
-      if(r.list?.length&&item.type==='spell'&&!(item.metadata?.spellLists??[]).some(l=>r.list.includes(l)||r.list.includes(l.split(':')[1])))return false;
+          // Worlds synced before the 5e Bridge sent spell lists have none: then any spell of the level fits.
+      if(lists.length&&listsKnown&&item.type==='spell'&&!(item.metadata?.spellLists??[]).some(l=>lists.includes(l)||lists.includes(l.split(':')[1])))return false;
       return true;
     });
   if(!showAll)items=items.filter(i=>editionMatches(i,variants)||card.value.includes(i.uuid));

@@ -212,15 +212,16 @@ async function spellLists(){
   try{
     const registry=globalThis.dnd5e?.registry?.spellLists;
     if(!registry)return out;
-    if(registry.ready)await registry.ready;
-    for(const type of ['class','subclass']){
-      const options=registry.options?.filter?.(o=>o.type===type)??[];
-      for(const option of options){
-        const list=registry.forType?.(type,option.value??option.identifier);
-        for(const uuid of values(list?.uuids??list?.spells)){
-          if(!out.has(uuid))out.set(uuid,[]);
-          out.get(uuid).push(type+':'+(option.value??option.identifier));
-        }
+    // Lists load from journal pages after "ready"; wait (briefly) until they have.
+    for(let i=0;i<40&&registry.ready===false;i++)await sleep(250);
+    // options: [{value:'class:wizard', type:'class', …}]; forType accepts 'class:wizard' whole.
+    for(const option of registry.options??[]){
+      const key=String(option.value??'');
+      if(!key.includes(':'))continue;
+      const list=registry.forType?.(key);
+      for(const uuid of values(list?.uuids)){
+        if(!out.has(uuid))out.set(uuid,[]);
+        out.get(uuid).push(key);
       }
     }
   }catch(error){console.warn(LOG,'Spell lists unavailable:',error.message);}
