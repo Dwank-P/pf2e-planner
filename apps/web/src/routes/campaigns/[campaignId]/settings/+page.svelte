@@ -149,6 +149,7 @@
               <option value="hours">hours</option><option value="days">days</option><option value="months">months</option>
               <option value="years">years</option><option value="never">Never expires</option></select>
             <button class="btn primary" disabled={busy}>Create link</button></span></label>
+        {#if linkUnit==='never'}<p class="notice warn small">A link that never expires lets anyone who ever sees it join this campaign. Turn it off once your group has joined.</p>{/if}
       </form>
       {#if links.length}
         <ul class="links">

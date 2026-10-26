@@ -32,6 +32,10 @@ function requireGM(){
     throw Error('Planner synchronization requires a GM in a PF2e or SF2e world.');
   if(!game.modules.get('pf2e-leveler')?.active)throw Error('PF2e Leveler must be active.');
 }
+const API_MESSAGES={
+  character_linked_to_other_actor:'This website build is linked to another Foundry character. Tick "Move the link here" to move it.',
+  actor_linked_to_other_character:'This Foundry character is linked to another website build. Tick "Move the link here" to replace that link.'
+};
 async function post(base,path,data,bearer=null){
   const response=await fetch(base+path,{
     method:'POST',mode:'cors',cache:'no-store',credentials:'omit',redirect:'error',
@@ -40,8 +44,10 @@ async function post(base,path,data,bearer=null){
     body:JSON.stringify(data)
   });
   const body=await response.json().catch(()=>({}));
-  if(!response.ok)throw Error('Planner API '+response.status+': '+
-    (typeof body.message==='string'?body.message:body.error||response.statusText));
+  if(!response.ok){
+    const code=typeof body.message==='string'?body.message:body.error||response.statusText;
+    throw Error(API_MESSAGES[code]??('Planner API '+response.status+': '+code));
+  }
   return body;
 }
 const variantKeys = {
@@ -764,22 +770,32 @@ function bindClassGrants(actor,plan,unbind=false){
 export async function pullCharacterFromPlanner(actor,characterId,{writeCreation=false,relink=false}={}){
   requireGM();
   if(!actor?.testUserPermission(game.user,'OWNER'))throw Error('Character access denied.');
-  const {base,id,auth}=await authorized();
+  let {base,id,auth}=await authorized();
+  // 1. Fetch the build and check the link is allowed, without recording it yet.
   const result=await post(base,'/api/v1/bridge/'+id+'/characters/export',
-    {characterId,actorId:actor.id,link:true,relink},auth.accessToken);
+    {characterId,actorId:actor.id,link:true,relink,commit:false},auth.accessToken);
   const {plan,creation}=result.leveler;
   // Leveler shows each choice's stored icon; use this world's compendium icons.
   fillIcons(plan);fillIcons(creation);
   bindClassGrants(actor,plan);
-  // unsetFlag first: setFlag merges objects, which would keep removed levels.
-  if(plan){
-    await actor.unsetFlag(LEVELER,'plan');
-    await actor.setFlag(LEVELER,'plan',plan);
-  }
-  if(writeCreation&&creation){
-    await actor.unsetFlag(LEVELER,'creation');
-    await actor.setFlag(LEVELER,'creation',creation);
-  }
-  return {...result,wrotePlan:!!plan,wroteCreation:!!(writeCreation&&creation),
+  // 2. Write Leveler's flags; a failed write puts the previous ones back.
+  if(plan)await replaceFlag(actor,'plan',plan);
+  if(writeCreation&&creation)await replaceFlag(actor,'creation',creation);
+  // 3. Only now record the website link.
+  ({auth}=await authorized());
+  await post(base,'/api/v1/bridge/'+id+'/characters/export',
+    {characterId,actorId:actor.id,link:true,relink,commit:true},auth.accessToken);
+  return {...result,linked:true,wrotePlan:!!plan,wroteCreation:!!(writeCreation&&creation),
     warnings:pullWarnings(actor,result.leveler)};
+}
+/** Replace one Leveler flag (unset first: setFlag merges objects and would keep removed levels). */
+async function replaceFlag(actor,key,value){
+  const previous=plain(actor.getFlag(LEVELER,key));
+  try{
+    await actor.unsetFlag(LEVELER,key);
+    await actor.setFlag(LEVELER,key,value);
+  }catch(error){
+    try{if(previous!==null&&previous!==undefined)await actor.setFlag(LEVELER,key,previous);}catch{}
+    throw error;
+  }
 }

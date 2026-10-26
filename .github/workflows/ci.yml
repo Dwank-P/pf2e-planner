@@ -11,10 +11,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-          # Lockfile is not committed yet; enable npm caching after generating one.
-      - name: Install dependencies
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install dependencies (exact versions from the lockfile)
         working-directory: apps/web
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-fund
+      - name: Audit production dependencies
+        working-directory: apps/web
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
       - name: Validate app types and Svelte components
         working-directory: apps/web
         run: npm run check

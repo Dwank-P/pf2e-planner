@@ -1,7 +1,8 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --no-audit --no-fund
+# Exact dependency versions from the committed lockfile.
+RUN npm ci --no-audit --no-fund
 COPY . .
 RUN npm run build
 

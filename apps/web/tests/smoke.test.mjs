@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.17\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.18\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.17.0');
+    assert.equal(health.body.version,'0.18.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.17.0');
+    assert.equal(check.body.version,'0.18.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -551,6 +551,27 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.deepEqual(fromActorRead.body.character.leveler.creation.boosts.free,['str','con','int','cha']);
     assert.equal(fromActorRead.body.character.leveler.creation.ancestry.name,'Anadi');
     assert.equal(fromActorRead.body.character.leveler.plan.levels[2].classFeats[0].uuid,entries[1].uuid);
+    // Pull from Planner never steals an actor's link silently; it checks, then commits after Foundry writes.
+    const delta=await send(actorRoute,{...actorPayload,actorId:'ActorDelta0123456',name:'Delta'},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(delta.status,201,JSON.stringify(delta));
+    const exportRoute='/api/v1/bridge/'+integrationId+'/characters/export';
+    const linkRoute='/api/v1/bridge/'+integrationId+'/characters/list';
+    const loose=await send('/api/v1/campaigns/'+campaignId+'/characters',{name:'Unlinked build',level:1,build:{}},ownerCookie);
+    const looseId=loose.body.character.id;
+    const taken=await send(exportRoute,{characterId:looseId,actorId:'ActorDelta0123456',link:true},'',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(taken.status,409);
+    assert.equal(taken.body.message,'actor_linked_to_other_character');
+    const linkCheck=await send(exportRoute,{characterId:looseId,actorId:'ActorDelta0123456',link:true,relink:true,commit:false},
+      '',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(linkCheck.status,200);assert.equal(linkCheck.body.linked,false);
+    const linksAfterCheck=(await send(linkRoute,{},'',gmOrigin,'POST',paired.body.accessToken)).body.characters;
+    assert.equal(linksAfterCheck.find(c=>c.id===delta.body.characterId).linkedActorId,'ActorDelta0123456','a check changes nothing');
+    const moved=await send(exportRoute,{characterId:looseId,actorId:'ActorDelta0123456',link:true,relink:true,commit:true},
+      '',gmOrigin,'POST',paired.body.accessToken);
+    assert.equal(moved.status,200);
+    const linksAfterMove=(await send(linkRoute,{},'',gmOrigin,'POST',paired.body.accessToken)).body.characters;
+    assert.equal(linksAfterMove.find(c=>c.id===looseId).linkedActorId,'ActorDelta0123456');
+    assert.equal(linksAfterMove.find(c=>c.id===delta.body.characterId).linkedActorId??null,null,'the previous build is unlinked, visibly');
     assert.equal(playerOwnedRead.body.character.name,'PC assigned to player');
     const secondImport=await send(actorRoute,{...actorPayload,name:'Overwrite prohibited'},
       '',gmOrigin,'POST',paired.body.accessToken);

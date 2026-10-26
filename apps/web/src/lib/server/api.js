@@ -12,8 +12,21 @@ export async function input(request, maxBytes = 32768) {
   if (!request.headers.get('content-type')?.toLowerCase().startsWith('application/json')) problem(415, 'json_required');
   const size = Number(request.headers.get('content-length') || 0);
   if (size > maxBytes) problem(413, 'payload_too_large');
-  const raw = await request.text();
-  if (Buffer.byteLength(raw) > maxBytes) problem(413, 'payload_too_large');
+  // Read in chunks and stop at the limit, so a body without an honest Content-Length
+  // can't be buffered whole.
+  const chunks = [];
+  let received = 0;
+  if (request.body) {
+    const reader = request.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (received > maxBytes) { await reader.cancel().catch(() => {}); problem(413, 'payload_too_large'); }
+      chunks.push(value);
+    }
+  }
+  const raw = Buffer.concat(chunks.map(c => Buffer.from(c.buffer, c.byteOffset, c.byteLength))).toString('utf8');
   try {
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;

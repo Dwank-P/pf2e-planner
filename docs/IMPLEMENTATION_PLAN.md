@@ -259,3 +259,13 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [x] Leveler-accurate dual-class skill training; stale picks dropped; extra lores.
 - [x] Source icons on level slots; specialization names in the summary.
 - [x] Account deletion in Server admin; campaign removal keeps the account.
+
+## v0.18.0 audit follow-up (v0.17 audit)
+- [x] B01 link conflicts at both ends; B02 two-phase pull with flag rollback.
+- [x] B03 streamed body limit; B08 commit without loading the catalog; free-space check.
+- [x] B04 scheduled, verified backups with retention and download.
+- [x] B06 digest cleanup; B07 month-end expiry; G02 upgrade/backup tests; G03 lockfile + npm ci;
+      G08 README status; G09 dead CSS; G07 warning for never-expiring links.
+- [ ] G01 automated Foundry v14 + Leveler round trip (needs a Foundry test world in CI).
+- [ ] B05 server-side pack hashes (low risk: only a faulty Bridge could mislabel a pack).
+- [ ] G04 test the published ZIP from foundry-release; G06 optional icon directory on disk.

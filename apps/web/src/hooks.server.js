@@ -1,4 +1,8 @@
 import { db } from '#lib/server/db.js';
+import { startBackupSchedule } from '#lib/server/backup.js';
+
+// Verified database backups every PLANNER_BACKUP_HOURS (default 24; 0 turns them off).
+startBackupSchedule();
 
 function siteOrigin() {
   return process.env.PUBLIC_ORIGIN || 'http://localhost:5173';

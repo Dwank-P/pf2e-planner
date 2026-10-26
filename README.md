@@ -2,22 +2,17 @@
 
 Private monorepo for a **Docker-hosted Pathfinder 2e / Starfinder 2e character planner** and an independently installable **Foundry VTT v14 bridge module**.
 
-> **Development status: v0.3.0 implementation branch.** Web login/account activation, pairing, GM-client bearer tokens and a **bounded metadata preview** are coded but not yet verified by a complete npm build, container test or real Foundry v14 integration test. This is **not yet ready for public deployment or real character imports**.
+> **Status: v0.18 — in testing.** The website and Bridge are used with real Foundry v14 worlds
+> and PF2e Leveler, but there is no automated end-to-end test against Foundry yet. Keep the built-in
+> backups (Server admin → Backups) and copy them off the server before relying on it as the only
+> copy of your plans. Release notes for each version are at the end of this file.
 
-## v1 redesign (branch `v1-redesign`, in progress)
-
-The web app is being rebuilt around PF2e Leveler's two tools:
-
-- **Party** (`/campaigns/:id`): one card per character with plan progress and Foundry link; GM tools under **Campaign settings**.
-- **Character Wizard** (`/campaigns/:id/characters/:cid`): level 1, with steps generated from the class
-  (`lib/builder/schema.js`) the way Leveler's wizard does, a live summary, and saving straight into
-  Leveler's creation document.
-- **Level Planner** (`…/plan`): the pre-1.0 planner until phase 4 rebuilds it.
-- The compendium catalog downloads once per sync (`catalog-bundle`) and is searched in the browser.
+**Known gaps:** feat and specialization sub-choices (ChoiceSets) are made in Foundry; legality checks
+are planning-grade (Leveler re-checks against the actor); focus, innate and archetype spellcasting
+aren't planned yet; level-1 extras aren't applied by Leveler.
 
 Local preview without Foundry: `DB_PATH=./data/dev.sqlite node scripts/seed-dev.mjs`, then
 `DB_PATH=./data/dev.sqlite npm run dev` and sign in as `gm` (password in `scripts/seed-dev.mjs`).
-After updating the Bridge, run **Sync Now** once: the export now includes rules data for the wizard.
 
 ## Two applications, one repository
 
@@ -543,3 +538,22 @@ Website only; the Bridge stays at 0.14.1.
   as Leveler's bonus feats and extra skill increases, so Leveler applies them on level-up.
 
 **Update the Bridge to 0.17.0** for the export change.
+
+### v0.18.0 — Extras from level 1, backups, audit fixes
+
+- **"+" beside the next-level button** adds an extra feat or extra skill increase at any level,
+  including level 1 (Leveler applies extras from level 2 on; add level-1 extras in Foundry).
+- **Backups**: a verified copy of the database every 24 hours (Server admin → Backups, also *Back
+  up now* and *Download*), the newest 7 kept in `/data/backups`. Set `PLANNER_BACKUP_HOURS`
+  (0 = off), `PLANNER_BACKUP_KEEP` or `PLANNER_BACKUP_DIR` to change that. Copy backups off the server.
+- **Pull from Planner** no longer moves an actor's link silently: if the Foundry character is linked
+  to another build, it asks you to tick *Move the link here*. Leveler's flags are written first (put
+  back if writing fails) and the website link is recorded only after that succeeds.
+- **Safer server**: request bodies are capped while they're read; publishing a big sync no longer
+  loads the whole catalog into memory and checks free disk space first; cleanup removes leftover sync
+  digests; invite links "in 1 month" from 31 January end on 28/29 February.
+- **Builds**: dependencies install from a committed lockfile (`npm ci`) in CI and Docker; CI also
+  runs a dependency audit. Database upgrades and backups have their own tests.
+- Never-expiring invite links show a warning.
+
+**Update the Bridge to 0.18.0** for the safer Pull from Planner.

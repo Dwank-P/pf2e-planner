@@ -1,7 +1,7 @@
 import {createHash} from 'node:crypto';
 import {transaction,unix} from '#lib/server/db.js';
 import {input,bridgeAuth,respond,problem} from '#lib/server/api.js';
-import {checkpointIfLarge} from '#lib/server/storage.js';
+import {checkpointIfLarge,freeSpace} from '#lib/server/storage.js';
 export async function POST(event){
   bridgeAuth(event,event.params.integrationId);
   const b=await input(event.request);
@@ -10,31 +10,32 @@ export async function POST(event){
     const i=sql.prepare('SELECT * FROM catalog_imports WHERE id=? AND integration_id=?')
       .get(b.snapshotId,event.params.integrationId);
     if(!i)problem(409,'import_not_found');
-    const rows=sql.prepare(`SELECT item_json FROM catalog_staging
-      WHERE integration_id=? AND snapshot_id=? ORDER BY uuid`)
-      .all(event.params.integrationId,b.snapshotId);
-    if(rows.length!==i.expected_count)problem(409,'import_incomplete');
-    const hash=createHash('sha256');
-    const insert=sql.prepare(`INSERT INTO catalog_entries
-      (integration_id,snapshot_id,uuid,type,pack,level,rarity,name,traits_json,item_json)
-      VALUES(?,?,?,?,?,?,?,?,?,?)`);
-    // Only the complete validated staging set can become a published revision.
-    for(const row of rows){
-      const item=JSON.parse(row.item_json);
-      hash.update(row.item_json).update('\n');
-      insert.run(i.integration_id,i.id,item.uuid,item.type,item.pack,item.level,item.rarity,
-        item.name,JSON.stringify(item.traits),row.item_json);
-    }
-    const sha256=hash.digest('hex');
+    // Counted, copied and hashed inside SQLite / row by row, so a large catalog isn't held in memory.
+    const staged=sql.prepare(`SELECT COUNT(*) AS n,COALESCE(SUM(LENGTH(item_json)),0) AS bytes FROM catalog_staging
+      WHERE integration_id=? AND snapshot_id=?`).get(event.params.integrationId,b.snapshotId);
+    if(staged.n!==i.expected_count)problem(409,'import_incomplete');
+    // Publishing writes the catalog again (plus its WAL); refuse rather than fill the disk.
+    const free=freeSpace();
+    if(free!=null&&free<Number(staged.bytes)*3+64*1024*1024)problem(507,'not_enough_free_space_for_sync');
+    const byPack=new Map(sql.prepare(`SELECT json_extract(item_json,'$.pack') AS pack,COUNT(*) AS n FROM catalog_staging
+      WHERE integration_id=? AND snapshot_id=? GROUP BY pack`).all(i.integration_id,i.id).map(r=>[r.pack,Number(r.n)]));
     const digestRows=sql.prepare('SELECT pack,sha256,count FROM catalog_import_digests WHERE integration_id=? AND import_id=?')
       .all(i.integration_id,i.id);
-    const byPack=new Map();
-    for(const row of rows){
-      const pack=JSON.parse(row.item_json).pack;
-      byPack.set(pack,(byPack.get(pack)||0)+1);
-    }
     if(digestRows.some(d=>(byPack.get(d.pack)||0)!==d.count))
       problem(409,'import_pack_count_mismatch');
+    // Only the complete validated staging set can become a published revision.
+    sql.prepare(`INSERT INTO catalog_entries
+      (integration_id,snapshot_id,uuid,type,pack,level,rarity,name,traits_json,item_json)
+      SELECT integration_id,snapshot_id,uuid,json_extract(item_json,'$.type'),json_extract(item_json,'$.pack'),
+        json_extract(item_json,'$.level'),json_extract(item_json,'$.rarity'),json_extract(item_json,'$.name'),
+        COALESCE(json_extract(item_json,'$.traits'),'[]'),item_json
+      FROM catalog_staging WHERE integration_id=? AND snapshot_id=?`).run(i.integration_id,i.id);
+    const hash=createHash('sha256');
+    for(const row of sql.prepare(`SELECT item_json FROM catalog_staging
+      WHERE integration_id=? AND snapshot_id=? ORDER BY uuid`).iterate(i.integration_id,i.id))
+      hash.update(row.item_json).update('\n');
+    const sha256=hash.digest('hex');
+    const rows={length:Number(staged.n)};
     sql.prepare(`INSERT INTO catalog_publications(integration_id,snapshot_id,sha256,entry_count,variants_json,
       packs_json,sources_json,updated_at) VALUES(?,?,?,?,?,?,?,?)
       ON CONFLICT(integration_id) DO UPDATE SET snapshot_id=excluded.snapshot_id,

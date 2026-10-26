@@ -91,6 +91,11 @@ function cleanupTargets(now = unix()) {
       (SELECT integration_id FROM catalog_imports WHERE created_at<${now - DAY})`],
     ['Abandoned sync records', `DELETE FROM catalog_imports WHERE created_at<${now - DAY}`,
       `SELECT COUNT(*) AS n FROM catalog_imports WHERE created_at<${now - DAY}`],
+    // Runs after the line above, so digests of the imports it removed go too.
+    ['Pack digests of abandoned syncs', `DELETE FROM catalog_import_digests WHERE NOT EXISTS
+      (SELECT 1 FROM catalog_imports i WHERE i.id=catalog_import_digests.import_id)`,
+      `SELECT COUNT(*) AS n FROM catalog_import_digests WHERE NOT EXISTS
+      (SELECT 1 FROM catalog_imports i WHERE i.id=catalog_import_digests.import_id AND i.created_at>=${now - DAY})`],
     ['Icons no world uses', `DELETE FROM icon_blobs WHERE NOT EXISTS (SELECT 1 FROM integration_icons i WHERE i.sha256=icon_blobs.sha256)`,
       `SELECT COUNT(*) AS n FROM icon_blobs WHERE NOT EXISTS (SELECT 1 FROM integration_icons i WHERE i.sha256=icon_blobs.sha256)`],
     ['Old compendium snapshots', `DELETE FROM catalog_entries WHERE NOT EXISTS (SELECT 1 FROM catalog_publications p

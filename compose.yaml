@@ -15,6 +15,9 @@ services:
       PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:-http://localhost:3000}"
       # Database file inside the container. Keep it under /data (the mount below) so it persists.
       DB_PATH: "${PLANNER_DB_PATH:-/data/planner.sqlite}"
+      # Verified database backups in /data/backups: every N hours (0 = off), keeping the newest M.
+      PLANNER_BACKUP_HOURS: "${PLANNER_BACKUP_HOURS:-24}"
+      PLANNER_BACKUP_KEEP: "${PLANNER_BACKUP_KEEP:-7}"
       BOOTSTRAP_TOKEN: "${BOOTSTRAP_TOKEN:?Set a long random bootstrap token in .env}"
       ALLOW_INSECURE_LOCAL_BRIDGE: "${ALLOW_INSECURE_LOCAL_BRIDGE:-false}"
     volumes:

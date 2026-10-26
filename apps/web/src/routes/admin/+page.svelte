@@ -18,7 +18,8 @@
     await refresh();
   });
   async function refresh(){
-    try{[report,users]=await Promise.all([api('/api/v1/admin/storage'),api('/api/v1/admin/users').then(r=>r.users)]);}
+    try{[report,users,backups]=await Promise.all([api('/api/v1/admin/storage'),api('/api/v1/admin/users').then(r=>r.users),
+      api('/api/v1/admin/backups')]);}
     catch(e){error=e.message;}
   }
   const fmt=n=>{
@@ -47,6 +48,13 @@
     catch(e){error=e.message;}finally{busy='';}
   }
   let confirmDelete=$state(null);
+  let backups=$state(null);
+  async function backupNow(){
+    busy='backup';error='';notice='';
+    try{const r=await api('/api/v1/admin/backups',{method:'POST',body:{}});backups={...backups,backups:r.backups};
+      notice=`Backup ${r.backup.name} made and verified (${fmt(r.backup.size)}).`;}
+    catch(e){error=e.message;}finally{busy='';}
+  }
   async function deleteUser(user){
     busy='delete-'+user.id;error='';notice='';
     try{
@@ -125,6 +133,23 @@
           <p class="muted small">Rebuilds the file to give {fmt(report.reclaimable)} back to the disk. Needs about {fmt(report.files.database)} free and pauses saving while it runs; do it when nobody is syncing. Back up the data folder first.</p></div>
       </div>
     </section>
+    {#if backups}
+      <section class="panel block">
+        <div class="head"><h2>Backups</h2>
+          <button class="btn small" disabled={!!busy} onclick={backupNow}>{busy==='backup'?'Backing up…':'Back up now'}</button></div>
+        <p class="muted small">{backups.every>0?`A verified copy is made every ${backups.every} hours`:'Automatic backups are off (PLANNER_BACKUP_HOURS=0)'}; the newest {backups.keep} are kept in <span class="num">{backups.dir}</span>.
+          They're on the same disk as the database, so download one now and then and keep it elsewhere.</p>
+        {#if backups.backups.length}
+          <ul class="backups">{#each backups.backups as b (b.name)}
+            <li><span class="num">{b.name}</span><small class="muted">{fmt(b.size)} · {timeAgo(b.createdAt)}</small>
+              <a class="link" href={'/api/v1/admin/backups/'+encodeURIComponent(b.name)} download>Download</a></li>
+          {/each}</ul>
+        {:else}<p class="muted">No backups yet.</p>{/if}
+        <details class="small"><summary>How to restore</summary>
+          <ol><li>Stop the planner container.</li><li>In the data folder, rename <span class="num">planner.sqlite</span> and delete <span class="num">planner.sqlite-wal</span> and <span class="num">-shm</span> if present.</li>
+            <li>Copy the backup in as <span class="num">planner.sqlite</span>.</li><li>Start the container.</li></ol></details>
+      </section>
+    {/if}
     <section class="panel block">
       <h2>Accounts</h2>
       {#if reset}
@@ -179,6 +204,8 @@
   .warn{color:var(--warn)}
   .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
   .actions p{margin-top:6px}
+  .backups{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+  .backups li{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
   .row-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
   .link.danger{color:var(--bad)}
   .reset{display:grid;gap:8px}

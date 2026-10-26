@@ -19,10 +19,15 @@ export function expiryFor(duration,now=unix()){
   if(!Number.isInteger(amount)||amount<1||amount>max)problem(400,'invalid_invite_duration');
   if(unit==='hours')return now+amount*3600;
   if(unit==='days')return now+amount*86400;
+  // Calendar months/years, keeping the day but clamped to the target month's last day
+  // (31 January + 1 month = 28/29 February, not 3 March).
   const date=new Date(now*1000);
-  if(unit==='months')date.setUTCMonth(date.getUTCMonth()+amount);
-  else date.setUTCFullYear(date.getUTCFullYear()+amount);
-  return Math.floor(date.getTime()/1000);
+  const months=unit==='months'?amount:amount*12;
+  const target=new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth()+months,1,
+    date.getUTCHours(),date.getUTCMinutes(),date.getUTCSeconds()));
+  const lastDay=new Date(Date.UTC(target.getUTCFullYear(),target.getUTCMonth()+1,0)).getUTCDate();
+  target.setUTCDate(Math.min(date.getUTCDate(),lastDay));
+  return Math.floor(target.getTime()/1000);
 }
 /** A usable link by its code, with its campaign, or a 400 for invalid, expired or revoked links. */
 export function usableLink(code,now=unix()){

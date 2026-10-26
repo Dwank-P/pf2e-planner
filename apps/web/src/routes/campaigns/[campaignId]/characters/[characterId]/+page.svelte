@@ -7,6 +7,7 @@
   import WishlistPanel from '../../../../../lib/wizard/WishlistPanel.svelte';
   import ItemDrawer from '../../../../../lib/wizard/ItemDrawer.svelte';
   import SharePanel from '../../../../../lib/ui/SharePanel.svelte';
+  import ExtrasPanel from '../../../../../lib/wizard/ExtrasPanel.svelte';
   import {api,campaignPath} from '../../../../../lib/ui/api.js';
   import {loadCampaign} from '../../../../../lib/ui/session.js';
   import {loadCatalog} from '../../../../../lib/builder/catalog.js';
@@ -107,6 +108,9 @@
   const canManage=$derived(character?.access?.manage===true);
   let sharing=$state(false);
   let confirmDelete=$state(false);
+  // The discreet "+" beside the next-level button: extra feats / skill increases at this level.
+  let addMenu=$state(false);
+  let extraMode=$state(null);
   let deleting=$state(false);
   async function deleteCharacter(){
     deleting=true;clearTimeout(timer);
@@ -143,7 +147,7 @@
     // A level-1 step id opens level 1 at that card.
     if(!sequence.includes(next)){openStep=next;next='level-1';}
     at=next;
-    railOpen=false;
+    railOpen=false;extraMode=null;addMenu=false;
     try{history.replaceState(history.state,'','?at='+encodeURIComponent(next));}catch{}
     document.querySelector('.stage')?.scrollTo?.({top:0});
   }
@@ -241,9 +245,28 @@
       {:else if at==='equipment'}
         <WishlistPanel {planner} {catalog} {updatePlanner} {currentLevel} info={uuid=>detail=uuid}/>
       {/if}
+      {#if atLevel&&(atLevel===1||primary)}
+        {#key atLevel}
+          <ExtrasPanel level={atLevel} {creation} {plan} {catalog} {variants} {updatePlan} info={uuid=>detail=uuid} bind:mode={extraMode}/>
+        {/key}
+      {/if}
       <footer class="stage-foot">
         <button class="btn" disabled={index<=0} onclick={()=>go('prev')}>← {labelOf(sequence[index-1])||'Back'}</button>
-        {#if index<sequence.length-1}<button class="btn primary" onclick={()=>go('next')}>{labelOf(sequence[index+1])} →</button>{/if}
+        <span class="next">
+          {#if atLevel&&canEdit&&(atLevel===1||primary)}
+            <span class="add-wrap">
+              <button class="btn add" aria-haspopup="menu" aria-expanded={addMenu} title="Add an extra feat or skill increase at this level"
+                aria-label="Add an extra at level {atLevel}" onclick={()=>addMenu=!addMenu}>+</button>
+              {#if addMenu}
+                <span class="add-menu" role="menu">
+                  <button role="menuitem" onclick={()=>{extraMode='feat';addMenu=false;}}>Extra feat</button>
+                  <button role="menuitem" onclick={()=>{extraMode='skill';addMenu=false;}}>Extra skill increase</button>
+                </span>
+              {/if}
+            </span>
+          {/if}
+          {#if index<sequence.length-1}<button class="btn primary" onclick={()=>{extraMode=null;addMenu=false;go('next');}}>{labelOf(sequence[index+1])} →</button>{/if}
+        </span>
       </footer>
     </main>
     <div class="side"><SummaryPanel {name} {creation} {plan} lookup={catalog.get} {steps} onStep={go} level={currentLevel}/></div>
@@ -289,6 +312,13 @@
   .stage-head{display:grid;gap:4px}
   h1{font-size:clamp(1.5rem,3vw,2rem);font-weight:800}
   .stage-foot{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:16px;flex-wrap:wrap}
+  .next{display:flex;gap:8px;align-items:center;margin-left:auto}
+  .add-wrap{position:relative}
+  .btn.add{width:38px;padding-inline:0;font:700 1.1rem var(--mono);color:var(--muted)}
+  .add-menu{position:absolute;bottom:calc(100% + 6px);right:0;display:grid;min-width:190px;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:6px;z-index:20}
+  .add-menu button{background:none;border:0;text-align:left;padding:8px;border-radius:6px;font-weight:700;color:var(--text)}
+  .add-menu button:hover{background:var(--panel-2)}
   .side{border-left:1px solid var(--line);background:var(--panel);padding:20px 18px;position:sticky;top:57px;
     max-height:calc(100vh - 57px);overflow:auto;padding-right:max(18px,env(safe-area-inset-right,0px))}
   .mobile-bar,.scrim{display:none}

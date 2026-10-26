@@ -58,8 +58,6 @@
     return (a.ranks[rank]??0)-ranked.filter(s=>Number(s.rank)===rank).length;
   }
   const wishes=$derived(wishlist(planner).filter(w=>w.targetLevel===level));
-  const extras=$derived(P.customFeats(plan,level));
-  const extraIncreases=$derived(P.customSkillIncreases(plan,level));
   const grants=$derived(levelGrantRequirements(creation,plan,lookup,level));
   function toggleGrant(requirement,item){
     updatePlan(p=>{
@@ -218,53 +216,9 @@
   <GrantsPanel requirements={grants} store={plan?.levels?.[level]??{}} {catalog} {level}
     taken={takenFormulas(creation,plan)} onToggle={toggleGrant} {info}/>
 
-  <!-- Extras a GM grants beyond the schedule (Leveler's bonus feats and extra skill increases). -->
-  <section class="slot extras" class:open={open==='extra-feat'||open==='extra-skill'}>
-    <div class="head static"><span class="icon" aria-hidden="true">+</span>
-      <span class="text"><span class="eyebrow">Extras from your GM</span>
-        <span class="muted small">Bonus feats or skill increases beyond the normal schedule. Leveler adds them as bonus feats.</span></span></div>
-    {#if extras.length||extraIncreases.length}
-      <ul class="extra-list">
-        {#each extras as feat,i (feat.uuid+i)}
-          <li><button class="link" onclick={()=>info(feat.uuid)}>{feat.name}</button><small class="muted">bonus feat</small>
-            <button class="link x" aria-label={'Remove '+feat.name} onclick={()=>updatePlan(p=>P.removeCustomFeat(p,level,i))}>×</button></li>
-        {/each}
-        {#each extraIncreases as inc,i (inc.skill+i)}
-          <li><span>{titleCase(String(inc.skill).replace(/-/g,' '))} → {RANKS[inc.toRank]??'+1'}</span><small class="muted">extra skill increase</small>
-            <button class="link x" aria-label={'Remove '+inc.skill} onclick={()=>updatePlan(p=>P.removeCustomSkillIncrease(p,level,i))}>×</button></li>
-        {/each}
-      </ul>
-    {/if}
-    <div class="extra-actions">
-      <button class="btn small" onclick={()=>open=open==='extra-feat'?null:'extra-feat'}>{open==='extra-feat'?'Close':'+ Add extra feat'}</button>
-      <button class="btn small ghost" onclick={()=>open=open==='extra-skill'?null:'extra-skill'}>{open==='extra-skill'?'Close':'+ Add extra skill increase'}</button>
-    </div>
-    {#if open==='extra-feat'}
-      <OptionGrid id={'extra-feat-'+level} items={catalog.ofType('feat')} selected={extras.map(f=>f.uuid)} max={99}
-        check={item=>checkFeat(item,state,{kind:'bonus',featNames:names})}
-        detail={item=>[item.metadata?.category??item.metadata?.featType,item.level!=null?'Level '+item.level:''].filter(Boolean).join(' · ')}
-        onToggle={item=>{const i=extras.findIndex(f=>f.uuid===item.uuid);updatePlan(p=>i>=0?P.removeCustomFeat(p,level,i):P.addCustomFeat(p,level,item));}}
-        onInfo={item=>info(item.uuid)} placeholder="Search any feat or feature"/>
-    {:else if open==='extra-skill'}
-      <div class="skills">
-        {#each [...SKILLS,...lores] as skill}
-          {@const rank=ranksBefore.get(skill)??0}
-          <button class="skill" disabled={rank>=4}
-            onclick={()=>{updatePlan(p=>P.addCustomSkillIncrease(p,level,skill,rank+1));open=null;}}>
-            <span>{titleCase(skill)}</span><RankLadder {rank}/>
-            <small>{rank>=4?'Legendary':RANKS[rank]+' → '+RANKS[rank+1]}</small>
-          </button>
-        {/each}
-      </div>
-    {/if}
-  </section>
 </div>
 <style>
   .level{display:grid;gap:10px}
-  .extras{border-style:dashed}
-  .extra-list{list-style:none;margin:0;padding:0 14px;display:grid;gap:4px}
-  .extra-list li{display:flex;gap:8px;align-items:baseline}
-  .extra-actions{display:flex;gap:8px;flex-wrap:wrap;padding:0 14px 12px}
   .future{font-size:.88rem}
   .gained{border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;background:var(--panel);display:grid;gap:6px}
   .gained ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}

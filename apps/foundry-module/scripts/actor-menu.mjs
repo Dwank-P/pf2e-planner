@@ -156,7 +156,7 @@ export class PlannerPullMenu extends foundry.applications.api.DialogV2 {
         <label><input type="checkbox" class="planner-creation"/> Also replace Leveler
           Character Wizard choices (only for characters not yet created)</label>
         <label class="planner-relink-row" hidden><input type="checkbox" class="planner-relink"/>
-          This build is linked to another Foundry character; move the link here</label>
+          <span class="planner-relink-text">Move the link here</span></label>
         <button type="button" class="planner-pull" disabled><i class="fa-solid fa-cloud-arrow-down"></i>
           Pull into Leveler</button>
         <p class="planner-status" role="status" aria-live="polite"></p>
@@ -190,7 +190,14 @@ export class PlannerPullMenu extends foundry.applications.api.DialogV2 {
       const created=target.items.some(item=>item.type==='class');
       creationBox.checked=!created;
       creationBox.disabled=created;
-      relinkRow.hidden=!(build.linkedActorId&&build.linkedActorId!==target.id);
+      // Either end may already be linked: this build to another actor, or this actor to another build.
+      const buildElsewhere=build.linkedActorId&&build.linkedActorId!==target.id;
+      const actorTaken=builds.find(b=>b.linkedActorId===target.id&&b.id!==build.id);
+      relinkRow.hidden=!(buildElsewhere||actorTaken);
+      relinkRow.querySelector('.planner-relink-text').textContent=[
+        buildElsewhere?'This build is linked to another Foundry character.':'',
+        actorTaken?target.name+' is linked to the build "'+actorTaken.name+'", which will be unlinked.':'',
+        'Move the link here'].filter(Boolean).join(' ');
       relinkBox.checked=false;
       preview.textContent='Loading build…';
       try{
