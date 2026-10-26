@@ -64,12 +64,48 @@ export function setPlanFeat(plan,slot,item){
 export function planBoosts(plan,level){
   return (plan?.levels?.[level]?.abilityBoosts??[]).map(a=>String(a).toLowerCase());
 }
-export function toggleLevelBoost(plan,level,attribute,count){
+/**
+ * Extras a GM grants beyond the schedule: Leveler's customFeats (applied as bonus feats) and
+ * customSkillIncreases at a level.
+ */
+export const customFeats=(plan,level)=>plan?.levels?.[level]?.customFeats??[];
+export function addCustomFeat(plan,level,item){
+  return edit(plan,level,data=>{data.customFeats=[...(data.customFeats??[]),featEntry(item)];});
+}
+export function removeCustomFeat(plan,level,index){
+  return edit(plan,level,data=>{data.customFeats=(data.customFeats??[]).filter((_,i)=>i!==index);});
+}
+export const customSkillIncreases=(plan,level)=>plan?.levels?.[level]?.customSkillIncreases??[];
+export function addCustomSkillIncrease(plan,level,skill,toRank){
+  return edit(plan,level,data=>{data.customSkillIncreases=[...(data.customSkillIncreases??[]),{skill:levelerSkill(skill),toRank}];});
+}
+export function removeCustomSkillIncrease(plan,level,index){
+  return edit(plan,level,data=>{data.customSkillIncreases=(data.customSkillIncreases??[]).filter((_,i)=>i!==index);});
+}
+/**
+ * Gradual Ability Boosts: one boost at each of 2–5, 7–10, 12–15 and 17–20; each set of four
+ * levels boosts four different attributes (Leveler's GRADUAL_BOOST_LEVELS and groups).
+ */
+export const GRADUAL_BOOST_LEVELS=[2,3,4,5,7,8,9,10,12,13,14,15,17,18,19,20];
+export function gradualSet(level){
+  const index=GRADUAL_BOOST_LEVELS.indexOf(level);
+  if(index<0)return [];
+  const start=Math.floor(index/4)*4;
+  return GRADUAL_BOOST_LEVELS.slice(start,start+4);
+}
+/** Attributes boosted at the other levels of this level's gradual set → the level. */
+export function boostsUsedInSet(plan,level){
+  const used=new Map();
+  for(const other of gradualSet(level))if(other!==level)
+    for(const a of planBoosts(plan,other))if(!used.has(a))used.set(a,other);
+  return used;
+}
+export function toggleLevelBoost(plan,level,attribute,count,{gradual=false}={}){
   return edit(plan,level,data=>{
     const picks=[...(data.abilityBoosts??[])];
     const index=picks.indexOf(attribute);
     if(index>=0)picks.splice(index,1);
-    else if(picks.length<count)picks.push(attribute);
+    else if(picks.length<count&&!(gradual&&boostsUsedInSet(plan,level).has(attribute)))picks.push(attribute);
     data.abilityBoosts=picks;
   });
 }

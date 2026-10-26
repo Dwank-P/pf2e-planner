@@ -225,3 +225,31 @@ test('skill picks follow Leveler for dual class; stale picks never block the las
   assert.equal(skillRanks(creation,null,lookup,1).get('warfare lore'),1);
   assert.equal(loreName('underworld'),'Underworld Lore');
 });
+
+test('gradual boosts: one attribute once per set of four levels',()=>{
+  let plan=P.ensurePlan(null,fighter());
+  plan=P.toggleLevelBoost(plan,2,'str',1,{gradual:true});
+  plan=P.toggleLevelBoost(plan,3,'str',1,{gradual:true});
+  assert.deepEqual(P.planBoosts(plan,3),[],'Strength was already boosted at level 2 in this set');
+  plan=P.toggleLevelBoost(plan,3,'dex',1,{gradual:true});
+  assert.deepEqual(P.planBoosts(plan,3),['dex']);
+  assert.deepEqual([...P.boostsUsedInSet(plan,4).keys()].sort(),['dex','str']);
+  plan=P.toggleLevelBoost(plan,7,'str',1,{gradual:true});
+  assert.deepEqual(P.planBoosts(plan,7),['str'],'a new set starts at level 7');
+  assert.deepEqual(P.gradualSet(9),[7,8,9,10]);
+});
+
+test('extra feats and skill increases from the GM count like any other',()=>{
+  const creation=fighter();
+  let plan=P.ensurePlan(null,creation);
+  plan=P.addCustomFeat(plan,4,feat('Power Attack'));
+  plan=P.addCustomSkillIncrease(plan,4,'athletics',2);
+  assert.equal(P.customFeats(plan,4)[0].name,'Power Attack');
+  assert.deepEqual(plan.levels[4].customSkillIncreases,[{skill:'athletics',toRank:2}]);
+  assert.equal(skillRanks(creation,plan,lookup,4).get('athletics'),2);
+  // Brutal Finish needs Power Attack: satisfied by the bonus feat.
+  const state=buildState(creation,plan,lookup,12,{});
+  assert.equal(checkFeat(feat('Brutal Finish'),state,{kind:'class',featNames:names}).blocked,null);
+  plan=P.removeCustomFeat(plan,4,0);
+  assert.deepEqual(P.customFeats(plan,4),[]);
+});

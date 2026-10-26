@@ -33,7 +33,7 @@ test('a Foundry export takes boosts, alternate ancestry boosts and feats from th
   assert.deepEqual(c.boosts.ancestry,['str','con']);
   assert.deepEqual(c.boosts.free,['str','con','int','cha'],'level-1 free boosts are the actor\'s');
   assert.deepEqual(c.boosts.background,['str','cha']);
-  assert.deepEqual(plan.levels[5].abilityBoosts,['str','dex','con','wis']);
+  assert.equal(plan.levels[5]?.abilityBoosts,undefined,'later boosts come only from the Leveler plan, never guessed');
   const {mods}=attributeModifiers(c,catalog.get);
   assert.equal(mods.cha,2,'alternate boosts drop the dwarf\'s Charisma flaw (it would be +1)');
   assert.equal(c.ancestryFeat.name,'Rock Runner');assert.equal(c.classFeat.name,'Sudden Charge');
@@ -43,14 +43,20 @@ test('a Foundry export takes boosts, alternate ancestry boosts and feats from th
   assert.equal(c.featGrants[0].requirementId,'r1');
   assert.equal(plan.levels[3].featGrants[0].requirementId,'r3');
   assert.equal(plan.levels[9].classFeats[0].name,'Future plan','levels above the actor keep the Leveler plan');
-  assert.deepEqual(plan.levels[3].skillIncreases,[{skill:'athletics',toRank:2}],'Leveler\'s increase matches the actor, so it is kept');
+  assert.deepEqual(plan.levels[3].skillIncreases,[{skill:'athletics',toRank:2}],'skill increases come from the Leveler plan');
+  assert.equal(Object.values(plan.levels).flatMap(d=>d.skillIncreases??[]).length,1,'none are made up from skill ranks');
+  assert.deepEqual(c.skills,['athletics','acrobatics'],'level-1 skills from Leveler\'s creation data');
   assert.equal(skillRanks(c,plan,catalog.get,5).get('athletics'),2);
-  assert.ok(report.placed.includes('Skill increases from your Leveler plan'));
+  assert.ok(report.notes.some(n=>/from your Leveler plan/.test(n)));
 });
 
-test('without Leveler data the actor alone builds the character',()=>{
-  const {creation:c,plan}=importFoundryActor(snapshot,{creation:null,plan:null},catalog,{});
+test('without Leveler data only the sheet\'s known choices come across',()=>{
+  const {creation:c,plan,report}=importFoundryActor(snapshot,{creation:null,plan:null},catalog,{});
   assert.equal(c.class.name,'Fighter');
   assert.deepEqual(c.boosts.free,['str','con','int','cha']);
   assert.equal(plan.classSlug,'fighter');
+  assert.equal(plan.levels[2].classFeats[0].name,'Lunge','feats on the sheet keep their slot');
+  assert.deepEqual(c.skills,[],'level-1 skill picks aren\'t guessed for a level-5 character');
+  assert.ok(!Object.values(plan.levels).some(d=>d.skillIncreases?.length||d.abilityBoosts?.length));
+  assert.ok(report.notes.some(n=>/Level-1 skill picks/.test(n)));
 });

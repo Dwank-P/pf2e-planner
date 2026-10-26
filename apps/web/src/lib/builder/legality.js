@@ -8,7 +8,7 @@ import {attributeModifiers,skillTraining,SKILLS,ATTRIBUTES,RANKS,titleCase} from
 import {ancestryFeatBlock} from '../wizard/options.js';
 
 const FEAT_FIELDS=['ancestryFeat','ancestryParagonFeat','classFeat','dualClassFeat','skillFeat','mythicCalling'];
-const FEAT_CATEGORIES=['classFeats','skillFeats','generalFeats','ancestryFeats','archetypeFeats','dualClassFeats','mythicFeats'];
+const FEAT_CATEGORIES=['classFeats','skillFeats','generalFeats','ancestryFeats','archetypeFeats','dualClassFeats','mythicFeats','customFeats'];
 const ATTRIBUTE_WORDS={strength:'str',dexterity:'dex',constitution:'con',intelligence:'int',wisdom:'wis',charisma:'cha'};
 const RANK_WORDS={trained:1,expert:2,master:3,legendary:4};
 const norm=s=>String(s??'').trim().toLowerCase();
@@ -36,7 +36,7 @@ export function skillRanks(creation,plan,lookup,level){
   for(const lore of [...(creation?.lores??[]),...(creation?.selectedLoreSkills??[])])
     ranks.set(norm(lore).replace(/ lore$/,'')+' lore',1);
   for(let l=2;l<=level;l++){
-    for(const inc of plan?.levels?.[l]?.skillIncreases??[]){
+    for(const inc of [...(plan?.levels?.[l]?.skillIncreases??[]),...(plan?.levels?.[l]?.customSkillIncreases??[])]){
       // Leveler stores lores as slugs ("scribing-lore"); ranks use "scribing lore".
       const raw=norm(inc?.skill);
       const skill=/-lore$/.test(raw)?raw.replace(/-/g,' '):raw;

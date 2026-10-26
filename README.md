@@ -526,3 +526,20 @@ Website only; the Bridge stays at 0.14.1.
 - The export dialog lists anything that didn't match your synced compendiums.
 
 **Update the Bridge to 0.16.0** for the new export (0.15 and earlier still use the old export).
+
+### v0.17.0 — Gradual boosts, known-only exports, GM extras
+
+- **Gradual Ability Boosts** follow the rule: one boost at each of levels 2–5, 7–10, 12–15 and
+  17–20, and four different attributes in each set. An attribute already boosted in the set shows
+  the level it was taken at and can't be picked again.
+- **Export to Planner sends only what's known**: the character-creation choices on the sheet
+  (items, ancestry/background/class/level-1 boosts, languages, feats in their slots) and your
+  PF2e Leveler plan (level boosts, skill increases, spells, grants). Later boosts, skill increases
+  and spells aren't worked out from the sheet's final values any more; without a Leveler plan they're
+  left for you to fill in. (PF2e stores a gradual set's boosts together, which is why a level-6
+  character came across with four boosts at level 5.)
+- **Extras from your GM** at every level 2–20: add bonus feats (any feat or feature in your
+  compendiums) and extra skill increases. They count for prerequisites and skill ranks and are saved
+  as Leveler's bonus feats and extra skill increases, so Leveler applies them on level-up.
+
+**Update the Bridge to 0.17.0** for the export change.

@@ -67,5 +67,6 @@ export function levelSummary(level,slots,plan){
     else if(slot.type==='spells'){const n=planSpells(plan,level,slot.entryType).length;if(n)lines.push(n+' spell'+(n===1?'':'s'));}
     else if(slot.type==='signature'){const s=slot.ranks.map(r=>planSignature(plan,level,r,slot.entryType)?.name).filter(Boolean);if(s.length)lines.push('★ '+s.join(', '));}
   }
+  for(const feat of plan?.levels?.[level]?.customFeats??[])if(feat?.name)lines.push('+ '+feat.name);
   return [...new Set(lines)];
 }

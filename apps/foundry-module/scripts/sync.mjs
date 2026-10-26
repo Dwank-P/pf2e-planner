@@ -645,8 +645,9 @@ export function actorSnapshot(actor){
   const ancestry=actor.ancestry,background=actor.background,cls=actor.class;
   const alternate=attrList(ancestry?.system?.alternateAncestryBoosts??ancestry?._source?.system?.alternateAncestryBoosts);
   const levelBoosts=source.build?.attributes?.boosts??system.build?.attributes?.boosts??{};
-  const mapLevelledBoosts={};
-  for(const [level,list] of Object.entries(levelBoosts))if(/^\d+$/.test(level))mapLevelledBoosts[level]=attrList(list);
+  // Only the level-1 boosts: PF2e stores later ones per set (all of a gradual set under 5),
+  // so which level each was taken at isn't known; the Leveler plan supplies those.
+  const mapLevelledBoosts={1:attrList(levelBoosts[1])};
   const key=cls.system?.keyAbility;
   const items=[...actor.items.values()];
   const feats=items.filter(i=>i.type==='feat').map(feat=>{

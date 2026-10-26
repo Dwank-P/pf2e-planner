@@ -1,59 +1,51 @@
 /**
- * Foundry → website export. The actor is the truth for what it has (ancestry,
- * boosts including alternate ancestry boosts, skills, feats in their slots,
- * spells); PF2e Leveler's documents add what the actor doesn't record: wizard
- * choices (class selections, grants, curriculum), the skill increase taken at
- * each level, and the plan for levels above the actor's.
+ * Foundry → website export. Only what is known goes in:
+ *  - from the actor: its ancestry, heritage, background, class and deity items, the boosts chosen
+ *    at character creation (ancestry incl. alternate boosts, background, class key, level-1 free),
+ *    languages and feats in the slots they fill on the sheet;
+ *  - from PF2e Leveler: wizard choices and level-1 skills and spells (when it has a creation
+ *    document), and the plan: level boosts, skill increases, spells and grants per level.
+ * Nothing is inferred from final values (later boosts, skill ranks, known spells); anything the
+ * plan doesn't say is left for the player to fill in.
  */
 import {importPathbuilder} from './pathbuilder.js';
-import {skillRanks} from './legality.js';
-import {SKILLS} from './rules.js';
 
 const clone=value=>JSON.parse(JSON.stringify(value??null));
 /** Creation fields the actor decides. */
 const ACTOR_FIELDS=['ancestry','heritage','background','class','dualClass','boosts','alternateAncestryBoosts','languages',
-  'skills','selectedLoreSkills','ancestryFeat','ancestryParagonFeat','classFeat','dualClassFeat','skillFeat'];
-const spellCount=store=>(store?.cantrips?.length??0)+(store?.rank1?.length??0);
-
-/** Leveler's recorded skill increases, if they reach exactly the actor's skill ranks. */
-function levelerIncreasesMatch(creation,levelerPlan,lookup,level,actorRanks){
-  if(!levelerPlan?.levels)return false;
-  const candidate={levels:Object.fromEntries(Object.entries(levelerPlan.levels)
-    .filter(([l])=>Number(l)<=level).map(([l,d])=>[l,{skillIncreases:d?.skillIncreases??[]}]))};
-  if(!Object.values(candidate.levels).some(d=>d.skillIncreases.length))return false;
-  const ranks=skillRanks(creation,candidate,lookup,level);
-  return SKILLS.every(s=>(ranks.get(s)??0)===(actorRanks[s]??0));
-}
+  'ancestryFeat','ancestryParagonFeat','classFeat','dualClassFeat','skillFeat'];
+/** Per-level data the sheet doesn't record; only Leveler's plan knows it. */
+const PLAN_ONLY=['abilityBoosts','skillIncreases','customSkillIncreases','spells','signatureSpells','featGrants'];
+const hasData=data=>data&&Object.values(data).some(v=>Array.isArray(v)?v.length:v);
 
 export function importFoundryActor(snapshot,leveler,catalog,variants={}){
-  const fromActor=importPathbuilder({build:snapshot},catalog,variants);
+  const fromActor=importPathbuilder({build:{...snapshot,spellCasters:[]}},catalog,variants);
   const level=fromActor.level;
   const lc=leveler?.creation,lp=leveler?.plan;
   let creation=fromActor.creation;
   if(lc&&typeof lc==='object'){
     creation={...clone(lc)};
     for(const field of ACTOR_FIELDS)if(fromActor.creation[field]!=null)creation[field]=clone(fromActor.creation[field]);
-    if(spellCount(fromActor.creation.spells))creation.spells=clone(fromActor.creation.spells);
     if(fromActor.creation.subclass)creation.subclass=clone(fromActor.creation.subclass);
     const deity=fromActor.creation.classSelections?.class?.deity;
     if(deity){creation.classSelections??={};creation.classSelections.class={...(creation.classSelections.class??{}),deity:clone(deity)};}
+  }else if(level>1){
+    // Without Leveler's creation document, which trained skills were level-1 picks isn't known.
+    creation={...creation,skills:[],selectedLoreSkills:[]};
   }
-  const actorRanks=Object.fromEntries(Object.entries(snapshot.proficiencies??{}).map(([s,v])=>[s,Math.round((Number(v)||0)/2)]));
-  const useLevelerIncreases=levelerIncreasesMatch(creation,lp,catalog.get,level,actorRanks);
   const plan={...clone(lp??{}),...clone(fromActor.plan),levels:{}};
   for(let l=2;l<=20;l++){
-    const actorData=fromActor.plan.levels?.[l]??{};
+    const actorData=clone(fromActor.plan.levels?.[l]??{});
+    for(const key of PLAN_ONLY)delete actorData[key];
     const levelerData=clone(lp?.levels?.[l]??null);
-    let data;
-    if(l<=level){
-      // Levels the actor has reached: its feats, boosts and spells, Leveler's grants and
-      // (when they add up to the actor's ranks) Leveler's recorded skill increases.
-      data={...(levelerData??{}),...clone(actorData)};
-      if(useLevelerIncreases)data.skillIncreases=levelerData?.skillIncreases??[];
-    }else data=levelerData??clone(actorData);
-    if(data&&Object.values(data).some(v=>Array.isArray(v)?v.length:v))plan.levels[l]=data;
+    // Levels the actor has reached: its feats by slot, everything else from the plan.
+    const data=l<=level?{...(levelerData??{}),...actorData}:levelerData;
+    if(hasData(data))plan.levels[l]=data;
   }
-  const report=fromActor.report;
-  if(useLevelerIncreases)report.placed=report.placed.filter(p=>!/^Skill increases/.test(p)).concat('Skill increases from your Leveler plan');
+  const report={...fromActor.report,placed:[],
+    notes:fromActor.report.notes.filter(n=>!/didn't fit the skill increases|spells? didn't fit/.test(n))};
+  report.notes.push(lp?'Level boosts, skill increases and spells come from your Leveler plan.'
+    :'Level boosts, skill increases and spells after level 1 aren\'t on the sheet in a form the planner can place; add them in the planner.');
+  if(!lc&&level>1)report.notes.push('Level-1 skill picks aren\'t known without Leveler\'s creation data; choose them in the Skills step.');
   return {name:fromActor.name,level,creation,plan,planner:fromActor.planner,report};
 }
