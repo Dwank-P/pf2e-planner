@@ -9,7 +9,7 @@ import {emptyCreation} from '../leveler-format.js';
 import {levelerChoiceSlots,spellAllowance} from '../leveler-progression.js';
 import * as C from './creation.js';
 import * as P from './plan.js';
-import {skillTraining,attributeModifiers,SKILLS,ATTRIBUTES,RANKS,titleCase,loreName} from './rules.js';
+import {skillTraining,attributeModifiers,ALL_SKILLS,isSkill,ATTRIBUTES,RANKS,titleCase,loreName} from './rules.js';
 import {maxSkillRank} from './legality.js';
 import {addWish,itemOptions} from './equipment.js';
 
@@ -129,11 +129,11 @@ export function importPathbuilder(json,catalog,variants={}){
   const rankOf=v=>Math.max(0,Math.min(4,Math.round((Number(v)||0)/2)));
   const {mods}=attributeModifiers(c,catalog.get);
   const training=skillTraining(c,catalog.get,mods.int);
-  const wanted=new Map(SKILLS.map(s=>[s,rankOf(prof[s])]).filter(([,r])=>r>0));
+  const wanted=new Map(ALL_SKILLS.map(s=>[s,rankOf(prof[s])]).filter(([,r])=>r>0));
   for(const [name,value] of Array.isArray(build.lores)?build.lores:[]){
     const r=rankOf(value);if(r>0)wanted.set(loreSlug(name),r);
   }
-  const free=[...wanted.keys()].filter(s=>SKILLS.includes(s)&&!training.granted.has(s))
+  const free=[...wanted.keys()].filter(s=>isSkill(s)&&!training.granted.has(s))
     .sort((a,b)=>wanted.get(b)-wanted.get(a)||a.localeCompare(b));
   c={...c,skills:free.slice(0,training.choices)};
   // Extra lores share the level-1 skill picks; any beyond them came from feats (Additional Lore).

@@ -7,12 +7,24 @@
 export const ATTRIBUTES=['str','dex','con','int','wis','cha'];
 export const ATTRIBUTE_NAMES={str:'Strength',dex:'Dexterity',con:'Constitution',
   int:'Intelligence',wis:'Wisdom',cha:'Charisma'};
-export const SKILLS=['acrobatics','arcana','athletics','crafting','deception','diplomacy',
+const PF2E_SKILLS=['acrobatics','arcana','athletics','crafting','deception','diplomacy',
   'intimidation','medicine','nature','occultism','performance','religion','society',
   'stealth','survival','thievery'];
-export const SKILL_ATTRIBUTE={acrobatics:'dex',arcana:'int',athletics:'str',crafting:'int',
+/** Every skill either system has: SF2e adds Computers and Piloting. */
+export const ALL_SKILLS=[...PF2E_SKILLS,'computers','piloting'].sort();
+export const isSkill=skill=>ALL_SKILLS.includes(skill);
+/**
+ * The skills shown for the current campaign (PF2e by default). setSkillSet() switches it to
+ * the world's own list from the Bridge sync (variants.skills); the array is updated in place.
+ */
+export const SKILLS=[...PF2E_SKILLS];
+export function setSkillSet(list){
+  const next=Array.isArray(list)?list.filter(isSkill):[];
+  SKILLS.splice(0,SKILLS.length,...(next.length?next:PF2E_SKILLS));
+}
+export const SKILL_ATTRIBUTE={acrobatics:'dex',arcana:'int',athletics:'str',computers:'int',crafting:'int',
   deception:'cha',diplomacy:'cha',intimidation:'cha',medicine:'wis',nature:'wis',
-  occultism:'int',performance:'cha',religion:'wis',society:'int',stealth:'dex',
+  occultism:'int',performance:'cha',piloting:'dex',religion:'wis',society:'int',stealth:'dex',
   survival:'wis',thievery:'dex'};
 export const RANKS=['Untrained','Trained','Expert','Master','Legendary'];
 export const RANK_LETTERS=['U','T','E','M','L'];
@@ -128,7 +140,7 @@ export function skillTraining(creation,lookup,intModifier=0){
   const backgroundRules=rulesOf(lookup(creation?.background?.uuid));
   const deities=[creation?.deity??creation?.classSelections?.class?.deity,creation?.classSelections?.dualClass?.deity].filter(Boolean);
   const granted=new Map();
-  const grant=(skill,source)=>{if(SKILLS.includes(skill)&&!granted.has(skill))granted.set(skill,source);};
+  const grant=(skill,source)=>{if(isSkill(skill)&&!granted.has(skill))granted.set(skill,source);};
   const classSkills=new Set();
   for(const entry of classes)for(const skill of list(rulesOf(lookup(entry.uuid)).trainedSkills?.value)){
     classSkills.add(skill);grant(skill,entry.name??'Class');
@@ -138,7 +150,7 @@ export function skillTraining(creation,lookup,intModifier=0){
   for(const skill of backgroundSkills)grant(skill,creation?.background?.name??'Background');
   const additional=classes.length?Math.max(...classes.map(e=>Number(rulesOf(lookup(e.uuid)).trainedSkills?.additional)||0)):0;
   const duplicates=backgroundSkills.filter(s=>classSkills.has(s)).length;
-  const chosen=(creation?.skills??[]).filter(s=>SKILLS.includes(s)&&!granted.has(s));
+  const chosen=(creation?.skills??[]).filter(s=>isSkill(s)&&!granted.has(s));
   const chosenLores=(creation?.selectedLoreSkills??[]).filter(l=>typeof l==='string'&&l.trim());
   return {granted,chosen,chosenLores,choices:Math.max(0,additional+intModifier+duplicates),duplicates,
     lores:list(backgroundRules.trainedSkills?.lore)};

@@ -562,3 +562,16 @@ Website only; the Bridge stays at 0.14.1.
 
 - Server admin failed to load: the backup API wasn't in 0.18.0's build because a `.gitignore` rule
   for backup folders also matched it. Fixed; CI now checks the backup API.
+
+### v0.19.0 — Starfinder 2e, Runesmith runes
+
+- **SF2e worlds sync**: the Bridge no longer refuses Starfinder 2e. Settings, languages, traits and
+  reference packs come from the world's own system, and the website shows SF2e's Computers and
+  Piloting skills. (PF2e with the Anachronism module already worked.)
+- **Runesmith runes**: a *Runes known* card at every level for Runesmith characters. Each level uses
+  the nearest earlier level's runes until you change it there; change level 1 later and every level
+  you haven't changed follows. Raise *Runes known* at the level you gain one. Runes are planned on
+  the website only (Leveler can't apply them), so add them in Foundry.
+- D&D 5e / 5.5: see the plan in `docs/DND5E_PLAN.md`.
+
+**Update the Bridge to 0.19.0** and run Sync Now in SF2e worlds.

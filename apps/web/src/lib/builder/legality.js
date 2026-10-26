@@ -4,7 +4,7 @@
  * block; anything else is reported as "check with your GM" and never blocks,
  * because this is a planner. Leveler re-validates against the actor in Foundry.
  */
-import {attributeModifiers,skillTraining,SKILLS,ATTRIBUTES,RANKS,titleCase} from './rules.js';
+import {attributeModifiers,skillTraining,isSkill,ATTRIBUTES,RANKS,titleCase} from './rules.js';
 import {ancestryFeatBlock} from '../wizard/options.js';
 
 const FEAT_FIELDS=['ancestryFeat','ancestryParagonFeat','classFeat','dualClassFeat','skillFeat','mythicCalling'];
@@ -90,7 +90,7 @@ function checkPrerequisite(text,state,featNames){
     const names=skill[2].split(/,\s*|\s+or\s+/).map(s=>s.replace(/^(?:a|an|the)\s+/,'').trim()).filter(Boolean);
     if(names.some(n=>/at least one skill|any skill/.test(n)))
       return [...state.skills.values()].some(r=>r>=need)?null:`Needs ${RANKS[need]} in a skill`;
-    const known=names.filter(n=>SKILLS.includes(n)||n.endsWith(' lore'));
+    const known=names.filter(n=>isSkill(n)||n.endsWith(' lore'));
     if(!known.length)return undefined;
     return known.some(n=>(state.skills.get(n)??0)>=need)?null:`Needs ${RANKS[need]} in ${known.map(titleCase).join(' or ')}`;
   }

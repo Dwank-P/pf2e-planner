@@ -23,10 +23,13 @@ export function getRequiredPacks(){
   // can show official defaults. All real syncs refresh the exact Leveler list.
   // Until Leveler's selection has loaded, nothing third-party is assumed.
   const keys=levelerPackCache??getPackOptions()
-    .filter(p=>p.collection.startsWith('pf2e.')).map(p=>p.collection);
+    .filter(p=>p.collection.startsWith(systemId()+'.')).map(p=>p.collection);
   return keys.filter(k=>installed.has(k));
 }
 
+/** 'pf2e' or 'sf2e': settings, CONFIG and pack names follow the world's system. */
+const systemId=()=>game.system?.id==='sf2e'?'sf2e':'pf2e';
+const systemConfig=()=>CONFIG[systemId().toUpperCase()]??CONFIG.PF2E??{};
 function requireGM(){
   if(!game.user?.isGM||!['pf2e','sf2e'].includes(game.system?.id))
     throw Error('Planner synchronization requires a GM in a PF2e or SF2e world.');
@@ -73,23 +76,26 @@ export function getVariants(){
   requireGM();
   const variantRules={};
   for(const [name,key] of Object.entries(variantKeys)){
-    variantRules[name]=optionalSetting('pf2e',key);
+    variantRules[name]=optionalSetting(systemId(),key);
   }
   for(const [name,key] of Object.entries(levelerKeys)){
     variantRules[name]=optionalSetting('pf2e-leveler',key);
   }
   // Record precisely what Foundry provided; null means not configured/available.
   variantRules.languages=languageRarities();
+  // The system's skills (SF2e adds Computers and Piloting); lores excluded.
+  variantRules.system=systemId();
+  variantRules.skills=Object.keys(systemConfig().skills??{}).filter(k=>/^[a-z-]{3,30}$/.test(k)&&k!=='lore').sort();
   return variantRules;
 }
 /** The world's language list and rarities (PF2e homebrew setting), for the web wizard. */
 function languageRarities(){
-  const all=Object.keys(CONFIG.PF2E?.languages??{}).filter(k=>/^[a-z0-9-]{1,40}$/.test(k)).sort();
+  const all=Object.keys(systemConfig().languages??{}).filter(k=>/^[a-z0-9-]{1,40}$/.test(k)).sort();
   if(!all.length)return null;
   const list=value=>[...(value??[])].filter(k=>typeof k==='string').sort();
   let rarities=null;
   try{
-    const stored=game.settings.get('pf2e','homebrew.languageRarities');
+    const stored=game.settings.get(systemId(),'homebrew.languageRarities');
     rarities=stored?.toObject?.()??stored??null;
   }catch{}
   return {all,commonLanguage:rarities?.commonLanguage??'common',
@@ -104,8 +110,9 @@ export function getPackOptions(){
       packageName:p.metadata?.packageName||p.collection.split('.')[0]}))
     .sort((a,b)=>a.label.localeCompare(b.label));
 }
-/** PF2e reference packs that rules text links to (conditions, actions); always synced. */
-const REFERENCE_PACKS=['pf2e.conditionitems','pf2e.actionspf2e'];
+/** The system's reference packs that rules text links to (conditions, actions); always synced. */
+const REFERENCE_PACKS={pf2e:['pf2e.conditionitems','pf2e.actionspf2e'],
+  sf2e:['sf2e.conditions','sf2e.conditionitems','sf2e.actions']};
 /**
  * Exactly the packs assigned in PF2e Leveler's Compendium Manager, plus the PF2e
  * reference packs. Third-party content is synced only when Leveler has it assigned.
@@ -113,7 +120,7 @@ const REFERENCE_PACKS=['pf2e.conditionitems','pf2e.actionspf2e'];
 export function getSelectedPacks(){
   requireGM();
   const available=new Set(getPackOptions().map(p=>p.collection));
-  return [...new Set([...getRequiredPacks(),...REFERENCE_PACKS])].filter(p=>available.has(p));
+  return [...new Set([...getRequiredPacks(),...REFERENCE_PACKS[systemId()]])].filter(p=>available.has(p));
 }
 /** Foundry v13+ has a green success toast; older versions fall back to info. */
 export function notify(kind,message){
@@ -255,8 +262,8 @@ function exportItem(doc,pack){
     if(system.category==='ancestry'){
       // Same ancestry/creature trait classification used by Leveler's
       // feat-filter, including third-party traits registered with the system.
-      const creature=CONFIG.PF2E?.creatureTraits||{};
-      const ancestry=CONFIG.PF2E?.ancestryTraits||{};
+      const creature=systemConfig().creatureTraits||{};
+      const ancestry=systemConfig().ancestryTraits||{};
       const tagged=(system.traits?.value||[])
         .filter(t=>Object.hasOwn(creature,t)||Object.hasOwn(ancestry,t));
       out.ancestryAccess={
@@ -313,7 +320,6 @@ let syncing=false;
 export async function syncNow({auto=false}={}){
   requireGM();
   if(syncing)return {skipped:'already_syncing'};
-  if(game.system.id!=='pf2e')throw Error('SF2e full compendium import is not yet supported.');
   syncing=true;
   try{
     let {base,id,auth}=await authorized();

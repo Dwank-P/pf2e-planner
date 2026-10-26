@@ -8,6 +8,8 @@
   import ItemDrawer from '../../../../../lib/wizard/ItemDrawer.svelte';
   import SharePanel from '../../../../../lib/ui/SharePanel.svelte';
   import ExtrasPanel from '../../../../../lib/wizard/ExtrasPanel.svelte';
+  import RunesPanel from '../../../../../lib/wizard/RunesPanel.svelte';
+  import {isRunesmith} from '../../../../../lib/builder/runes.js';
   import {api,campaignPath} from '../../../../../lib/ui/api.js';
   import {loadCampaign} from '../../../../../lib/ui/session.js';
   import {loadCatalog} from '../../../../../lib/builder/catalog.js';
@@ -17,6 +19,7 @@
   import {wishlist} from '../../../../../lib/builder/equipment.js';
   import {levelerChoiceSlots} from '../../../../../lib/leveler-progression.js';
   import {emptyCreation} from '../../../../../lib/leveler-format.js';
+  import {setSkillSet} from '../../../../../lib/builder/rules.js';
 
   const campaignId=$derived(page.params.campaignId);
   const characterId=$derived(page.params.characterId);
@@ -44,6 +47,8 @@
       try{
         const [loaded,result,cat]=await Promise.all([loadCampaign(cid),
           api('/api/v1/campaigns/'+encodeURIComponent(cid)+'/characters/'+encodeURIComponent(id)),loadCatalog(cid)]);
+        // SF2e worlds add Computers and Piloting; the Bridge sends the world's skill list.
+        setSkillSet(cat.variants?.skills);
         ctx=loaded;catalog=cat;character=result.character;name=character.name;currentLevel=character.level;
         creation={...emptyCreation(),...(character.leveler?.creation??{})};
         plan=character.leveler?.plan??null;
@@ -244,6 +249,9 @@
         {/key}
       {:else if at==='equipment'}
         <WishlistPanel {planner} {catalog} {updatePlanner} {currentLevel} info={uuid=>detail=uuid}/>
+      {/if}
+      {#if atLevel&&isRunesmith(creation)}
+        {#key atLevel}<RunesPanel level={atLevel} {planner} {catalog} {updatePlanner} info={uuid=>detail=uuid} readonly={!canEdit}/>{/key}
       {/if}
       {#if atLevel&&(atLevel===1||primary)}
         {#key atLevel}

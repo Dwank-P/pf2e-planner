@@ -262,6 +262,26 @@ export function documentUuids(value,out=new Set()){
   }
   return out;
 }
+/** Runesmith rune plan: {[level]: {count?, picks?}} (website only, see lib/builder/runes.js). */
+function validateRunes(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))problem(400,'invalid_runes');
+  const out={};
+  for(const [level,entry] of Object.entries(value)){
+    if(!/^([1-9]|1\d|20)$/.test(level)||!entry||typeof entry!=='object'||Array.isArray(entry))problem(400,'invalid_runes');
+    const own={};
+    if(entry.count!==undefined){
+      if(!Number.isInteger(entry.count)||entry.count<0||entry.count>50)problem(400,'invalid_runes');
+      own.count=entry.count;
+    }
+    if(entry.picks!==undefined){
+      if(!Array.isArray(entry.picks)||entry.picks.length>50||!entry.picks.every(u=>typeof u==='string'&&COMPENDIUM_UUID.test(u)))
+        problem(400,'invalid_runes');
+      own.picks=[...new Set(entry.picks)];
+    }
+    if(Object.keys(own).length)out[level]=own;
+  }
+  return out;
+}
 /** Equipment wishlist entries (planner only; never applied to the Foundry actor). */
 function validateWishlist(value){
   if(!Array.isArray(value)||value.length>300)problem(400,'invalid_wishlist');
@@ -301,8 +321,9 @@ export function validateDocument(campaignId,current,value){
      Object.keys(extraFeats).length>40||!Object.values(extraFeats).every(x=>typeof x==='string'&&COMPENDIUM_UUID.test(x)))
     problem(400,'invalid_extra_feats');
   const wishlist=validateWishlist(planner.wishlist??[]);
+  const runes=validateRunes(planner.runes??{});
   const doc={...emptyDocument(),leveler:{creation:leveler.creation,plan:leveler.plan},
-    planner:{modifiers,notes,extraFeats,wishlist}};
+    planner:{modifiers,notes,extraFeats,wishlist,runes}};
   const before=documentUuids(current?.leveler??{});
   const added=[...documentUuids(doc.leveler)].filter(uuid=>!before.has(uuid));
   if(added.length){
