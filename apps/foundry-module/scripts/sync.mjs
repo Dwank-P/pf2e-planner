@@ -287,7 +287,19 @@ function exportItem(doc,pack){
   // ChoiceSets (Order Explorer's druid order, a skill to train…) and the GrantItems that use their
   // picks; the website offers the same choices and stores them as Leveler does (feat.choices).
   if(type!=='class')Object.assign(out,choiceData(system.rules));
+  // Item bonuses an equipped item gives (+1 Athletics, +2 Perception…): plain numeric FlatModifiers.
+  if(['armor','shield','equipment','weapon','backpack','consumable','treasure'].includes(type)){
+    const bonuses=itemBonuses(system.rules);
+    if(bonuses.length)out.itemBonuses=bonuses;
+  }
   return out;
+}
+function itemBonuses(rules){
+  if(!Array.isArray(rules))return [];
+  return rules.filter(r=>r?.key==='FlatModifier'&&r.type==='item'&&Number.isFinite(Number(r.value)))
+    .flatMap(r=>[].concat(r.selector).filter(s=>typeof s==='string').map(selector=>({selector,value:Number(r.value),
+      ...(r.predicate?{predicate:r.predicate}:{})})))
+    .slice(0,20);
 }
 const localize=value=>{
   const text=typeof value==='string'?value:value?.label??value?.name??'';
@@ -342,9 +354,10 @@ const RULE_FIELDS={
   // Targeted defense for spell filters: AC, or a Fortitude/Reflex/Will save.
   spell:['defense'],
   // Equipment wishlist: price, bulk and how it's used.
-  weapon:['price','bulk','usage','category','group'],
-  armor:['price','bulk','usage','category','group'],
-  shield:['price','bulk','usage'],
+  weapon:['price','bulk','usage','category','group','runes'],
+  // Worn armor and shields: what the website's AC needs when a player equips them.
+  armor:['price','bulk','usage','category','group','acBonus','dexCap','checkPenalty','speedPenalty','strength','runes'],
+  shield:['price','bulk','usage','acBonus','hardness','hp'],
   equipment:['price','bulk','usage'],
   consumable:['price','bulk','usage','category'],
   backpack:['price','bulk','usage'],

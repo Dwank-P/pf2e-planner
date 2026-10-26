@@ -47,6 +47,22 @@ export function updateWish(planner,id,change){
   next.wishlist=wishlist(next).map(w=>w.id===id?{...w,...change}:w);
   return next;
 }
+/**
+ * Put an item on (or take it off). Only one armor and one shield are worn at a time: equipping
+ * another of the same kind takes the old one off.
+ */
+export function setEquipped(planner,id,on,lookup=()=>null){
+  const next=clone(planner??{});
+  const list=wishlist(next);
+  const target=list.find(w=>w.id===id);
+  if(!target)return next;
+  const kind=w=>{const item=lookup(w.uuid);return item?.type==='armor'||item?.type==='shield'?item.type
+    :item?.metadata?.armor?.type==='shield'?'shield5e':item?.metadata?.armor?'armor5e':null;};
+  const exclusive=kind(target);
+  next.wishlist=list.map(w=>w.id===id?{...w,equipped:!!on}
+    :on&&exclusive&&w.equipped&&kind(w)===exclusive?{...w,equipped:false}:w);
+  return next;
+}
 export function removeWish(planner,id){
   const next=clone(planner??{});
   next.wishlist=wishlist(next).filter(w=>w.id!==id);

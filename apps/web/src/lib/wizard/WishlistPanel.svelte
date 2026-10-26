@@ -1,7 +1,8 @@
 <script>
   import Traits from '../ui/Traits.svelte';
   import Icon from '../ui/Icon.svelte';
-  import {itemOptions,priceGp,formatPrice,isConsumable,TYPE_LABELS,wishlist,wishesByLevel,addWish,updateWish,removeWish}
+  import {canEquip} from '../builder/gear.js';
+  import {itemOptions,priceGp,formatPrice,isConsumable,TYPE_LABELS,wishlist,wishesByLevel,addWish,updateWish,removeWish,setEquipped}
     from '../builder/equipment.js';
   /** Equipment plan: browse synced items, then park them on the level you want them at. */
   let {planner,catalog,updatePlanner,currentLevel=1,info}=$props();
@@ -48,6 +49,12 @@
               <button class="link name" onclick={()=>info(w.uuid)}>{w.name}</button>
               <small class="muted">{TYPE_LABELS[w.type]??w.type}{w.level!=null?' · L'+w.level:''} · {formatPrice(w.price)}</small>
               <span class="controls">
+                {#if canEquip(catalog.get(w.uuid))}
+                  <button class="equip" class:on={w.equipped} aria-pressed={!!w.equipped}
+                    title={w.equipped?'Equipped from level '+w.targetLevel+' — counts in the summary (AC, item bonuses). Click to take off.':'Equip: count it in the summary from level '+w.targetLevel}
+                    onclick={()=>updatePlanner(p=>setEquipped(p,w.id,!w.equipped,catalog.get))}>
+                    <span aria-hidden="true">⛨</span><span class="sr">{w.equipped?'Unequip':'Equip'} {w.name}</span></button>
+                {/if}
                 <label>Qty <input class="qty" type="number" min="1" max="999" value={w.quantity}
                   onchange={e=>set(w.id,{quantity:Math.max(1,Math.min(999,Number(e.currentTarget.value)||1))})}/></label>
                 <label>At <select value={w.targetLevel} onchange={e=>set(w.id,{targetLevel:Number(e.currentTarget.value)})}>
@@ -131,4 +138,7 @@
     li{grid-template-columns:auto minmax(0,1fr)}
     li .controls{grid-column:2;grid-row:auto}
   }
+  .equip{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);font-size:.95rem;line-height:1}
+  .equip.on{background:var(--good-soft);border-color:var(--good);color:var(--good)}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 </style>

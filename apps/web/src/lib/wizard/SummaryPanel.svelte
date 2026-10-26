@@ -6,8 +6,9 @@
   import {skillRanks} from '../builder/legality.js';
   import {classTitle} from '../builder/summaries.js';
   import Icon from '../ui/Icon.svelte';
+  import {equipped,itemBonuses,skillBonus,armorClass} from '../builder/gear.js';
   /** The character at its current `level`: level-1 creation plus planned boosts, increases and class features. */
-  let {name,creation,plan=null,lookup,steps=[],onStep,level=1,variants={}}=$props();
+  let {name,creation,plan=null,lookup,steps=[],onStep,level=1,variants={},planner={}}=$props();
   const pwl=$derived(variants?.proficiencyWithoutLevel===true);
   const result=$derived(attributeModifiers(creation,lookup,plan?.levels??{},level));
   const mods=$derived(result.mods);
@@ -27,7 +28,14 @@
     creation.class?{label:classTitle(creation.class,creation.subclass),img:img(creation.class)}:null,
     creation.dualClass?{label:classTitle(creation.dualClass,creation.dualSubclass),img:img(creation.dualClass)}:null
   ].filter(Boolean));
-  const total=(attribute,rank)=>formatModifier((mods[attribute]??0)+proficiencyBonus(rank,level,pwl));
+  // Equipped gear from the equipment plan: AC, item bonuses, armor check penalty.
+  const gear=$derived(equipped(planner,lookup,level));
+  const bonuses=$derived(itemBonuses(gear,{level,variants}));
+  const ac=$derived(armorClass({gear,mods,ranks:prof,level,proficiency:(r,l)=>proficiencyBonus(r,l,pwl),bonuses}));
+  const total=(attribute,rank,extra=0)=>formatModifier((mods[attribute]??0)+proficiencyBonus(rank,level,pwl)+extra);
+  const defenseBonus=label=>bonuses.get(label.toLowerCase())?.value??0;
+  const skillExtra=skill=>skillBonus(bonuses,skill)+(['str','dex'].includes(SKILL_ATTRIBUTE[skill])?ac.checkPenalty:0);
+  const acTitle=$derived(`10 + Dex ${formatModifier(ac.parts.dex)} + proficiency ${formatModifier(ac.parts.prof)} (${ac.category}) + item ${formatModifier(ac.parts.item)}`);
   const defenses=$derived([['Perception','wis',prof.perception],['Fortitude','con',prof.fortitude],
     ['Reflex','dex',prof.reflex],['Will','wis',prof.will]]);
   const classDC=$derived(creation.class&&key?10+mods[key]+proficiencyBonus(Math.max(1,prof.classDC),level,pwl):null);
@@ -51,6 +59,7 @@
     {/each}
   </div>
   <dl class="stats">
+    <div title={acTitle}><dt>Armor Class</dt><dd class="num">{creation.class?ac.total:'—'}{#if ac.raised}<small class="raised">&nbsp;/ {ac.raised} with shield raised</small>{/if}</dd></div>
     <div><dt>Hit Points</dt><dd class="num">{hp??'—'}</dd></div>
     <div><dt>Class DC</dt><dd class="num">{classDC??'—'}</dd></div>
   </dl>
@@ -58,7 +67,8 @@
     <div class="block"><span class="eyebrow">Perception &amp; saves</span>
       <div class="ranks">
         {#each defenses as [label,attribute,rank]}
-          <div><span>{label}</span><span class="right"><b class="num">{total(attribute,rank)}</b><RankLadder {rank}/></span></div>
+          <div><span>{label}{#if defenseBonus(label)}<small class="bonus" title={'Item bonus from '+bonuses.get(label.toLowerCase()).source}> +{defenseBonus(label)} item</small>{/if}</span>
+            <span class="right"><b class="num">{total(attribute,rank,defenseBonus(label))}</b><RankLadder {rank}/></span></div>
         {/each}
       </div>
     </div>
@@ -66,8 +76,16 @@
   {#if skills.length}
     <div class="block"><span class="eyebrow">Skills</span>
       <div class="ranks">{#each skills as [skill,rank]}
-        <div><span>{titleCase(skill)}</span><span class="right"><b class="num">{total(SKILL_ATTRIBUTE[skill]??'int',rank)}</b><RankLadder {rank}/></span></div>
+        <div><span>{titleCase(skill)}{#if skillExtra(skill)}<small class="bonus">{skillExtra(skill)>0?' +':' '}{skillExtra(skill)}</small>{/if}</span>
+          <span class="right"><b class="num">{total(SKILL_ATTRIBUTE[skill]??'int',rank,skillExtra(skill))}</b><RankLadder {rank}/></span></div>
       {/each}</div></div>
+  {/if}
+  {#if gear.length}
+    <div class="block"><span class="eyebrow">Equipped</span>
+      <ul class="gear">{#each gear as g (g.entry.id)}<li><Icon src={g.item.img} size={20}/><span>{g.item.name}</span></li>{/each}</ul>
+      {#if ac.checkPenalty}<p class="muted small">Not strong enough for {ac.armor.name}: {ac.checkPenalty} to Strength and Dexterity skills.</p>{/if}
+      {#if ac.speedPenalty}<p class="muted small">{ac.armor.name}: {ac.speedPenalty} ft. Speed.</p>{/if}
+    </div>
   {/if}
   {#if todo.length}
     <div class="block"><span class="eyebrow">Still to choose at level 1</span>
@@ -96,4 +114,8 @@
   .right{display:flex;align-items:center;gap:8px}
   .right b{min-width:2.4em;text-align:right;color:var(--text)}
   .todo{margin:0;padding-left:1rem;display:grid;gap:3px}
+  .bonus{color:var(--good);font-size:.72rem;font-weight:700}
+  .gear{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:.88rem}
+  .gear li{display:flex;gap:6px;align-items:center}
+  .raised{font-size:.72rem;color:var(--text-2);font-weight:600}
 </style>

@@ -200,6 +200,10 @@ function exportItem(doc){
       break;
     default:
       out.price=price(s);
+      // Armor and shields: what the website's AC needs when a player equips them.
+      if(s.armor&&typeof s.armor==='object'&&Number.isFinite(Number(s.armor.value)))
+        out.armor={value:Number(s.armor.value),dex:Number.isFinite(Number(s.armor.dex))&&s.armor.dex!==null&&s.armor.dex!==''?Number(s.armor.dex):null,
+          type:s.type?.value??null,magicalBonus:Number(s.armor.magicalBonus)||0};
       out.itemType=s.type?.value??null;
       out.properties=values(s.properties).slice(0,20);
       out.traits=out.properties;

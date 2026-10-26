@@ -237,7 +237,7 @@
         {#if index<sequence.length-1}<button class="btn primary" onclick={()=>go('next')}>{labelOf(sequence[index+1])} →</button>{/if}
       </footer>
     </main>
-    <div class="side" class:open={summaryOpen} id="builder-summary"><Summary5e {name} {sheet} {catalog} {variants}/></div>
+    <div class="side" class:open={summaryOpen} id="builder-summary"><Summary5e {name} {sheet} {catalog} {variants} {planner}/></div>
   </div>
   <ItemDrawer campaignId={scope.campaignId} catalogBase={scope.campaignId?null:scope.catalogBase} linksDisabled={!!scope.publicView} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
 {:else if !error}

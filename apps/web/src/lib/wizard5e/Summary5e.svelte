@@ -1,9 +1,15 @@
 <script>
   import Icon from '../ui/Icon.svelte';
-  import {ABILITIES,ABILITY_NAMES,modifier,signed,multiclassRequirement} from '../systems/dnd5e/rules.js';
+  import {ABILITIES,ABILITY_NAMES,modifier,signed,multiclassRequirement,armorClass5e} from '../systems/dnd5e/rules.js';
+  import {equipped} from '../builder/gear.js';
   import {traitLabel} from '../systems/dnd5e/build.js';
   /** At-a-glance sheet for the planned character at its last planned level. */
-  let {name,sheet,catalog,variants}=$props();
+  let {name,sheet,catalog,variants,planner={}}=$props();
+  // Worn armor and shield from the equipment plan, from the level they're planned for.
+  const gear=$derived(equipped(planner,catalog.get,Math.max(1,sheet.level)));
+  const armor=$derived(gear.find(g=>g.item.metadata?.armor&&g.item.metadata.armor.type!=='shield')?.item??null);
+  const shield=$derived(gear.find(g=>g.item.metadata?.armor?.type==='shield')?.item??null);
+  const ac=$derived(armorClass5e(sheet.scores.dex,armor,shield));
   const p=$derived(sheet.proficiencies);
   const skills=$derived(Object.entries(variants?.skills??{}).map(([key,s])=>{
     const rank=p.skills.get(key)??0;
@@ -35,6 +41,7 @@
     {#if sheet.background}<p class="muted">{sheet.background.name}</p>{/if}
   </header>
   <div class="stats">
+    <span title={ac.parts}><small>AC</small><b class="num">{ac.total}</b></span>
     <span><small>HP</small><b class="num">{sheet.hp||'—'}</b></span>
     <span><small>Prof.</small><b class="num">{signed(sheet.proficiencyBonus)}</b></span>
     <span><small>Init.</small><b class="num">{signed(modifier(sheet.scores.dex))}</b></span>
@@ -78,7 +85,7 @@
   .identity{display:flex;gap:8px;align-items:center;font-weight:700;color:var(--text)!important}
   .key{font-style:normal;color:var(--brass);margin-left:3px;font-size:.65rem}
   .legend{margin:0;font-size:.78rem}
-  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
   .stats span,.scores span{display:grid;justify-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 4px;background:var(--panel-2)}
   small{color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}
   .stats b{font-size:1.1rem}

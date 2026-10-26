@@ -62,6 +62,25 @@ export function identifier(item){
   return item?.metadata?.identifier||String(item?.name??'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 }
 
+/**
+ * AC from worn armor and a shield (synced metadata.armor {value, dex, type, magicalBonus}):
+ * light armor adds Dex, medium caps it (at 2 unless the armor says otherwise), heavy ignores it;
+ * no armor is 10 + Dex. Class features like Unarmored Defense aren't included.
+ */
+export function armorClass5e(dexScore,armor,shield){
+  const dex=modifier(dexScore);
+  const a=armor?.metadata?.armor;
+  let base=10+dex,parts='10 + Dex';
+  if(a){
+    const cap=a.type==='heavy'?0:a.type==='medium'?(a.dex??2):(a.dex??Infinity);
+    base=a.value+(a.magicalBonus||0)+(a.type==='heavy'?0:Math.min(dex,cap));
+    parts=armor.name+(a.type==='heavy'?'':' + Dex'+(Number.isFinite(cap)&&a.type!=='heavy'?' (max '+cap+')':''));
+  }
+  const s=shield?.metadata?.armor;
+  const shieldBonus=s?(s.value||0)+(s.magicalBonus||0):0;
+  return {total:base+shieldBonus,parts:parts+(shieldBonus?' + '+shield.name:'')};
+}
+
 // Spell slots by caster level (rows 1–20; columns = spell levels 1–9).
 const FULL=[
   [2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2],

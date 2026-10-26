@@ -666,3 +666,18 @@ Website only; the Bridge stays at 0.14.1.
   an unmade pick shows its level as partly done.
 
 **Update the PF2e Bridge to 0.24.0 and run Sync Now** — it now sends each item's ChoiceSets.
+
+### v0.25.0 — Equip gear
+
+- **Equip button** (⛨) on armor, shields and items that give item bonuses in the equipment plan.
+  One armor and one shield at a time; an item counts from the level it's planned for.
+- **PF2e summary**: Armor Class (10 + Dex up to the armor's cap + armor proficiency + armor and
+  potency rune bonus), and with a shield raised; item bonuses on Perception, saves (resilient runes)
+  and skills — the highest bonus counts, conditional ones ("when climbing") aren't added; the armor
+  check penalty when Strength is too low, and its Speed penalty. Automatic Bonus Progression's
+  defense and save potency replace runes when that rule is on. Armor proficiency follows the class
+  (Armor Expertise and similar raise it).
+- **D&D 5e summary**: AC from worn armor (light adds Dex, medium caps it, heavy ignores it) and a
+  shield; class features like Unarmored Defense aren't included.
+
+**Update both Bridges to 0.25.0 and run Sync Now** — they now send armor, shield and item-bonus data.

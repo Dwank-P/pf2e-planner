@@ -95,6 +95,8 @@ export const dnd5eCatalog=[
     ['counterspell','Counterspell',3,'abj',['wizard','sorcerer','warlock']]]
     .map(([id,name,level,school,lists])=>entry('spell',id,name,{level,school,spellLists:lists.map(l=>'class:'+l)},{level})),
   entry('weapon','longsword','Longsword',{price:{value:15,denomination:'gp'},itemType:'martialM'}),
-  entry('equipment','chain-mail','Chain Mail',{price:{value:75,denomination:'gp'},itemType:'heavy'}),
+  entry('equipment','chain-mail','Chain Mail',{price:{value:75,denomination:'gp'},itemType:'heavy',armor:{value:16,dex:0,type:'heavy',magicalBonus:0}}),
+  entry('equipment','studded-leather','Studded Leather',{price:{value:45,denomination:'gp'},itemType:'light',armor:{value:12,dex:null,type:'light',magicalBonus:0}}),
+  entry('equipment','shield','Shield',{price:{value:10,denomination:'gp'},itemType:'shield',armor:{value:2,dex:null,type:'shield',magicalBonus:0}}),
   entry('consumable','healing-potion','Potion of Healing',{price:{value:50,denomination:'gp'},itemType:'potion'})
 ];

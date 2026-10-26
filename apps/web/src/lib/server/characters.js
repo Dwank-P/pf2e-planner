@@ -287,7 +287,8 @@ function validateWishlist(value){
        !Number.isInteger(w.quantity)||w.quantity<1||w.quantity>999||
        !['wanted','bought'].includes(w.status)||!text(w.notes??'',500))problem(400,'invalid_wishlist_entry');
     return {id:w.id,uuid:w.uuid,name:w.name,type:w.type??'',level:w.level??null,price:w.price??null,
-      consumable:w.consumable===true,targetLevel:w.targetLevel,quantity:w.quantity,status:w.status,notes:w.notes??''};
+      consumable:w.consumable===true,targetLevel:w.targetLevel,quantity:w.quantity,status:w.status,notes:w.notes??'',
+      ...(w.equipped===true?{equipped:true}:{})};
   });
 }
 /**

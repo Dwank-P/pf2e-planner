@@ -190,13 +190,22 @@ const FEATURE_RANKS=[
   [/^(evasion|reflex mastery)$/i,'reflex',3],[/^(juggernaut|fortitude mastery)$/i,'fortitude',3],
   [/^(resolve|will mastery)$/i,'will',3],[/^(perception mastery|vigilant senses|battlefield surveyor)$/i,'perception',3],
   [/^(improved evasion|greater evasion|reflex legend)$/i,'reflex',4],[/^(greater juggernaut|fortitude legend)$/i,'fortitude',4],
-  [/^(greater resolve|will legend)$/i,'will',4],[/^(perception legend|incredible senses)$/i,'perception',4]
+  [/^(greater resolve|will legend)$/i,'will',4],[/^(perception legend|incredible senses)$/i,'perception',4],
+  // Armor: "armor" raises every armor category the class is already trained in.
+  [/^(armor expertise|medium armor expertise|light armor expertise|sentinel's expertise)$/i,'armor',2],
+  [/^(armor mastery|medium armor mastery|light armor mastery)$/i,'armor',3],[/^(armor legend|versatile legend)$/i,'armor',4],
+  [/^(defensive robes|unarmored expertise)$/i,'unarmored',2],[/^(graceful mastery|unarmored mastery)$/i,'unarmored',3],
+  [/^(graceful legend|unarmored legend)$/i,'unarmored',4]
 ];
+const ARMOR_KEYS=['unarmored','light','medium','heavy'];
 /** Perception, save and class DC ranks at `level`, from the class Item and its features. */
 export function proficienciesAt(creation,lookup,level=1){
   const item=lookup(creation?.class?.uuid);
   const ranks={...classProficiencies(creation,lookup)};
-  const raise=(key,rank)=>{if(key in ranks)ranks[key]=Math.max(ranks[key],Number(rank)||0);};
+  const raise=(key,rank)=>{
+    if(key==='armor'){for(const k of ARMOR_KEYS)if(ranks[k]>0)ranks[k]=Math.max(ranks[k],Number(rank)||0);return;}
+    if(key in ranks)ranks[key]=Math.max(ranks[key],Number(rank)||0);
+  };
   for(const f of item?.metadata?.levelerProgression?.classFeatures??[]){
     if(Number(f.level)>level||!f.proficiencies)continue;
     for(const [key,rank] of Object.entries(f.proficiencies))raise(key==='classdc'?'classDC':key,rank);
@@ -214,6 +223,10 @@ export const proficiencyBonus=(rank,level,withoutLevel=false)=>withoutLevel?(ran
 export function classProficiencies(creation,lookup){
   const rules=rulesOf(lookup(creation?.class?.uuid));
   const saves=rules.savingThrows??{};
+  // Armor proficiencies (unarmored, light, medium, heavy) for AC; class features raise them by key.
+  const defenses=rules.defenses??{};
+  const rank=v=>Number(v?.rank??v)||0;
   return {perception:Number(rules.perception)||0,fortitude:Number(saves.fortitude)||0,
-    reflex:Number(saves.reflex)||0,will:Number(saves.will)||0,classDC:Number(rules.classDC)||0};
+    reflex:Number(saves.reflex)||0,will:Number(saves.will)||0,classDC:Number(rules.classDC)||0,
+    unarmored:rank(defenses.unarmored),light:rank(defenses.light),medium:rank(defenses.medium),heavy:rank(defenses.heavy)};
 }

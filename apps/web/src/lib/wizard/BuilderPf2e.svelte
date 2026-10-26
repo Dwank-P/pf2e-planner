@@ -290,7 +290,7 @@
         </span>
       </footer>
     </main>
-    <div class="side" class:open={summaryOpen} id="builder-summary"><SummaryPanel {name} {creation} {plan} lookup={catalog.get} {steps} onStep={go} level={currentLevel} {variants}/></div>
+    <div class="side" class:open={summaryOpen} id="builder-summary"><SummaryPanel {name} {creation} {plan} lookup={catalog.get} {steps} onStep={go} level={currentLevel} {variants} {planner}/></div>
   </div>
   <ItemDrawer campaignId={scope.campaignId} catalogBase={scope.campaignId?null:scope.catalogBase} linksDisabled={!!scope.publicView} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
 {:else if !error}
