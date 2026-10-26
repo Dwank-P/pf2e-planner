@@ -419,6 +419,34 @@ export function toggleSpell(build,classUuid,uuid){
   return {...build,spells:{...build.spells,[classUuid]:list.includes(uuid)?list.filter(x=>x!==uuid):[...list,uuid]}};
 }
 
+/**
+ * Unarmored Defense and similar: features that set AC without armor. Barbarian (Con), Monk (Wis,
+ * no shield), Draconic Resilience (13 + Dex); a feature's class decides which ability.
+ */
+export function unarmoredDefenses(sheet){
+  const out=[];
+  for(const page of sheet.pages)for(const f of page.features){
+    const name=String(f.name??'');
+    if(/draconic resilience/i.test(name))out.push({base:13,label:'13 + Dex (Draconic Resilience)'});
+    else if(/unarmored defen[cs]e/i.test(name)){
+      const cls=sheet.classes.find(c=>c.item?.name===f.from||c.subclass?.name===f.from)??sheet.classes.find(c=>c.uuid===page.classUuid);
+      const monk=identifier(cls?.item)==='monk';
+      out.push({ability:monk?'wis':'con',noShield:monk,label:'10 + Dex + '+(monk?'Wis':'Con')+' (Unarmored Defense)'});
+    }
+  }
+  return out;
+}
+/** Is the character proficient with this weapon (its category, or the weapon itself)? */
+export function weaponProficient(sheet,item){
+  const w=item.metadata?.weapon??{};
+  const category=/^simple/.test(String(w.classification??''))?'sim':'mar';
+  const id=item.metadata?.identifier??'';
+  for(const key of sheet.proficiencies.weapon){
+    if(key==='weapon:'+category||(id&&key.endsWith(':'+id)))return true;
+  }
+  return false;
+}
+
 /** Names saved alongside the plan so the party roster shows them without the catalog. */
 export function summaryLabels(derived){
   const classes=derived.classes.map(c=>(c.item?.name??'?')+' '+c.levels+(c.subclass?' ('+c.subclass.name+')':'')).join(' / ');

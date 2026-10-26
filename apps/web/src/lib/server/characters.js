@@ -274,6 +274,22 @@ export function documentUuids(value,out=new Set()){
   }
   return out;
 }
+/** Runes a player plans on a weapon or armor (PF2e), or a D&D magic bonus (+1 to +3). */
+function runesOf(w){
+  const out={};
+  if(w.runes!==undefined&&w.runes!==null){
+    const r=w.runes,level=(v,max)=>v===undefined||(Number.isInteger(v)&&v>=0&&v<=max);
+    if(typeof r!=='object'||Array.isArray(r)||!level(r.potency,4)||!level(r.striking,3)||!level(r.resilient,3)||
+       (r.property!==undefined&&(!Array.isArray(r.property)||r.property.length>4||!r.property.every(u=>typeof u==='string'&&COMPENDIUM_UUID.test(u)))))
+      problem(400,'invalid_wishlist_entry');
+    out.runes={potency:r.potency??0,striking:r.striking??0,resilient:r.resilient??0,property:[...new Set(r.property??[])]};
+  }
+  if(w.bonus!==undefined&&w.bonus!==null){
+    if(!Number.isInteger(w.bonus)||w.bonus<0||w.bonus>3)problem(400,'invalid_wishlist_entry');
+    out.bonus=w.bonus;
+  }
+  return out;
+}
 /** Equipment wishlist entries (planner only; never applied to the Foundry actor). */
 function validateWishlist(value){
   if(!Array.isArray(value)||value.length>300)problem(400,'invalid_wishlist');
@@ -288,7 +304,7 @@ function validateWishlist(value){
        !['wanted','bought'].includes(w.status)||!text(w.notes??'',500))problem(400,'invalid_wishlist_entry');
     return {id:w.id,uuid:w.uuid,name:w.name,type:w.type??'',level:w.level??null,price:w.price??null,
       consumable:w.consumable===true,targetLevel:w.targetLevel,quantity:w.quantity,status:w.status,notes:w.notes??'',
-      ...(w.equipped===true?{equipped:true}:{})};
+      ...(w.equipped===true?{equipped:true}:{}),...runesOf(w)};
   });
 }
 /**

@@ -200,10 +200,18 @@ function exportItem(doc){
       break;
     default:
       out.price=price(s);
+      // Weapons: damage die and classification for the website's attacks.
+      if(doc.type==='weapon'){
+        const base=s.damage?.base;
+        const part=!base?.denomination&&Array.isArray(s.damage?.parts)?/(\d+)d(\d+)/.exec(String(s.damage.parts[0]?.[0]??'')):null;
+        out.weapon={number:Number(base?.number)||Number(part?.[1])||1,denomination:Number(base?.denomination)||Number(part?.[2])||null,
+          types:values(base?.types).slice(0,3).length?values(base.types).slice(0,3):(s.damage?.parts?.[0]?.[1]?[s.damage.parts[0][1]]:[]),
+          classification:s.type?.value??null,magicalBonus:Number(s.magicalBonus)||0};
+      }
       // Armor and shields: what the website's AC needs when a player equips them.
       if(s.armor&&typeof s.armor==='object'&&Number.isFinite(Number(s.armor.value)))
         out.armor={value:Number(s.armor.value),dex:Number.isFinite(Number(s.armor.dex))&&s.armor.dex!==null&&s.armor.dex!==''?Number(s.armor.dex):null,
-          type:s.type?.value??null,magicalBonus:Number(s.armor.magicalBonus)||0};
+          type:s.type?.value??null,magicalBonus:Number(s.armor.magicalBonus??s.magicalBonus)||0};
       out.itemType=s.type?.value??null;
       out.properties=values(s.properties).slice(0,20);
       out.traits=out.properties;

@@ -94,7 +94,10 @@ export const dnd5eCatalog=[
     ['misty-step','Misty Step',2,'con',['wizard','sorcerer','warlock']],['fireball','Fireball',3,'evo',['wizard','sorcerer']],
     ['counterspell','Counterspell',3,'abj',['wizard','sorcerer','warlock']]]
     .map(([id,name,level,school,lists])=>entry('spell',id,name,{level,school,spellLists:lists.map(l=>'class:'+l)},{level})),
-  entry('weapon','longsword','Longsword',{price:{value:15,denomination:'gp'},itemType:'martialM'}),
+  entry('weapon','longsword','Longsword',{price:{value:15,denomination:'gp'},itemType:'martialM',properties:['ver'],
+    weapon:{number:1,denomination:8,types:['slashing'],classification:'martialM',magicalBonus:0}}),
+  entry('weapon','shortbow','Shortbow',{price:{value:25,denomination:'gp'},itemType:'simpleR',properties:['amm','two'],
+    weapon:{number:1,denomination:6,types:['piercing'],classification:'simpleR',magicalBonus:0}}),
   entry('equipment','chain-mail','Chain Mail',{price:{value:75,denomination:'gp'},itemType:'heavy',armor:{value:16,dex:0,type:'heavy',magicalBonus:0}}),
   entry('equipment','studded-leather','Studded Leather',{price:{value:45,denomination:'gp'},itemType:'light',armor:{value:12,dex:null,type:'light',magicalBonus:0}}),
   entry('equipment','shield','Shield',{price:{value:10,denomination:'gp'},itemType:'shield',armor:{value:2,dex:null,type:'shield',magicalBonus:0}}),

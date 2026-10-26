@@ -62,23 +62,49 @@ export function identifier(item){
   return item?.metadata?.identifier||String(item?.name??'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 }
 
+/** A worn or wielded item's magic bonus: what the player planned on the entry, else the item's own. */
+const magic=(g,data)=>Number(g?.entry?.bonus??data?.magicalBonus)||0;
+
 /**
- * AC from worn armor and a shield (synced metadata.armor {value, dex, type, magicalBonus}):
- * light armor adds Dex, medium caps it (at 2 unless the armor says otherwise), heavy ignores it;
- * no armor is 10 + Dex. Class features like Unarmored Defense aren't included.
+ * AC from worn armor and a shield (entries {entry,item}; item.metadata.armor {value, dex, type}):
+ * light armor adds Dex, medium caps it (at 2 unless the armor says otherwise), heavy ignores it.
+ * Without armor it's 10 + Dex, or the best Unarmored Defense the character has:
+ * {ability:'con'|'wis', noShield} (Barbarian, Monk) or {base:13} (Draconic Resilience).
  */
-export function armorClass5e(dexScore,armor,shield){
-  const dex=modifier(dexScore);
-  const a=armor?.metadata?.armor;
+export function armorClass5e(scores,armorG,shieldG,unarmored=[]){
+  const dex=modifier(scores.dex);
+  const a=armorG?.item?.metadata?.armor;
   let base=10+dex,parts='10 + Dex';
   if(a){
     const cap=a.type==='heavy'?0:a.type==='medium'?(a.dex??2):(a.dex??Infinity);
-    base=a.value+(a.magicalBonus||0)+(a.type==='heavy'?0:Math.min(dex,cap));
-    parts=armor.name+(a.type==='heavy'?'':' + Dex'+(Number.isFinite(cap)&&a.type!=='heavy'?' (max '+cap+')':''));
+    base=a.value+magic(armorG,a)+(a.type==='heavy'?0:Math.min(dex,cap));
+    parts=armorG.item.name+(a.type==='heavy'?'':' + Dex'+(Number.isFinite(cap)?' (max '+cap+')':''));
+  }else{
+    for(const u of unarmored){
+      if(u.noShield&&shieldG)continue;
+      const value=u.base?u.base+dex:10+dex+modifier(scores[u.ability]);
+      if(value>base){base=value;parts=u.label;}
+    }
   }
-  const s=shield?.metadata?.armor;
-  const shieldBonus=s?(s.value||0)+(s.magicalBonus||0):0;
-  return {total:base+shieldBonus,parts:parts+(shieldBonus?' + '+shield.name:'')};
+  const s=shieldG?.item?.metadata?.armor;
+  const shieldBonus=s?(s.value||0)+magic(shieldG,s):0;
+  return {total:base+shieldBonus,parts:parts+(shieldBonus?' + '+shieldG.item.name:'')};
+}
+
+/**
+ * An attack with an equipped weapon: Str (Dex for ranged; the better with finesse) + proficiency
+ * if proficient + magic bonus; damage die + the same ability + magic bonus.
+ */
+export function weaponAttack5e(g,{scores,proficiencyBonus:pb,proficient}){
+  const w=g.item.metadata?.weapon??{};
+  const props=g.item.traits??g.item.metadata?.properties??[];
+  const ranged=/R$/.test(String(w.classification??''));
+  const str=modifier(scores.str),dex=modifier(scores.dex);
+  const mod=ranged?dex:props.includes('fin')?Math.max(str,dex):str;
+  const bonus=magic(g,w);
+  const plus=n=>n?(n>0?'+':'')+n:'';
+  return {name:(bonus?'+'+bonus+' ':'')+g.item.name,attack:mod+(proficient?pb:0)+bonus,proficient,
+    damage:(w.denomination?`${w.number??1}d${w.denomination}`:'—')+plus(mod+bonus)+(w.types?.[0]?' '+w.types[0]:'')};
 }
 
 // Spell slots by caster level (rows 1–20; columns = spell levels 1–9).

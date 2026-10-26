@@ -354,7 +354,8 @@ const RULE_FIELDS={
   // Targeted defense for spell filters: AC, or a Fortitude/Reflex/Will save.
   spell:['defense'],
   // Equipment wishlist: price, bulk and how it's used.
-  weapon:['price','bulk','usage','category','group','runes'],
+  // Weapons: what the website's Strikes need (attack bonus and damage) when equipped.
+  weapon:['price','bulk','usage','category','group','runes','damage','range','bonusDamage','splashDamage'],
   // Worn armor and shields: what the website's AC needs when a player equips them.
   armor:['price','bulk','usage','category','group','acBonus','dexCap','checkPenalty','speedPenalty','strength','runes'],
   shield:['price','bulk','usage','acBonus','hardness','hp'],

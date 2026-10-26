@@ -681,3 +681,19 @@ Website only; the Bridge stays at 0.14.1.
   shield; class features like Unarmored Defense aren't included.
 
 **Update both Bridges to 0.25.0 and run Sync Now** — they now send armor, shield and item-bonus data.
+
+### v0.26.0 — Weapons, runes and the AC badge
+
+- **AC badge** beside the character's name, in a shield like Pathbuilder's: the worn armor's AC
+  (a PF2e shield only counts when raised, so it isn't included). Hover for how it's made up.
+- **Weapons**: equip any number; the summary shows up to three with their attack modifier and damage
+  (PF2e: Str, or Dex for ranged and the better with finesse; proficiency in the weapon's category;
+  potency; striking dice; Strength damage, half for propulsive. D&D: ability + proficiency if
+  proficient + magic bonus). Hand rules aren't enforced.
+- **Runes** on weapons and armor in the equipment plan: potency, striking or resilient, and property
+  runes from the synced compendiums (up to the potency). The name shows them, e.g. "+1 Striking
+  Flaming Longsword". D&D weapons and armor take a +1 to +3 magic bonus instead.
+- **D&D Unarmored Defense**: without armor, a Barbarian's AC is 10 + Dex + Con and a Monk's
+  10 + Dex + Wis (not with a shield); Draconic Resilience gives 13 + Dex.
+
+**Update both Bridges to 0.26.0 and run Sync Now** — they now send weapon damage and range.

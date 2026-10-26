@@ -1,15 +1,20 @@
 <script>
   import Icon from '../ui/Icon.svelte';
-  import {ABILITIES,ABILITY_NAMES,modifier,signed,multiclassRequirement,armorClass5e} from '../systems/dnd5e/rules.js';
+  import AcBadge from '../ui/AcBadge.svelte';
+  import {ABILITIES,ABILITY_NAMES,modifier,signed,multiclassRequirement,armorClass5e,weaponAttack5e} from '../systems/dnd5e/rules.js';
+  import {unarmoredDefenses,weaponProficient} from '../systems/dnd5e/build.js';
   import {equipped} from '../builder/gear.js';
   import {traitLabel} from '../systems/dnd5e/build.js';
   /** At-a-glance sheet for the planned character at its last planned level. */
   let {name,sheet,catalog,variants,planner={}}=$props();
   // Worn armor and shield from the equipment plan, from the level they're planned for.
   const gear=$derived(equipped(planner,catalog.get,Math.max(1,sheet.level)));
-  const armor=$derived(gear.find(g=>g.item.metadata?.armor&&g.item.metadata.armor.type!=='shield')?.item??null);
-  const shield=$derived(gear.find(g=>g.item.metadata?.armor?.type==='shield')?.item??null);
-  const ac=$derived(armorClass5e(sheet.scores.dex,armor,shield));
+  const armor=$derived(gear.find(g=>g.item.metadata?.armor&&!['shield','clothing','trinket'].includes(g.item.metadata.armor.type))??null);
+  const shield=$derived(gear.find(g=>g.item.metadata?.armor?.type==='shield')??null);
+  const ac=$derived(armorClass5e(sheet.scores,armor,shield,unarmoredDefenses(sheet)));
+  // Up to three equipped weapons, with attack bonus and damage.
+  const attacks=$derived(gear.filter(g=>g.item.metadata?.weapon).slice(0,3).map(g=>weaponAttack5e(g,{scores:sheet.scores,
+    proficiencyBonus:sheet.proficiencyBonus,proficient:weaponProficient(sheet,g.item)})));
   const p=$derived(sheet.proficiencies);
   const skills=$derived(Object.entries(variants?.skills??{}).map(([key,s])=>{
     const rank=p.skills.get(key)??0;
@@ -35,13 +40,12 @@
 <div class="sheet">
   <header>
     <span class="eyebrow">Planned to level {sheet.level||0}</span>
-    <h2>{name||'Character'}</h2>
+    <div class="title"><h2>{name||'Character'}</h2><AcBadge value={ac.total} title={ac.parts}/></div>
     {#each identity as row}<p class="identity"><Icon src={row.img} size={26}/><span>{row.label}</span></p>{/each}
     {#if !identity.length}<p>No origin or class yet</p>{/if}
     {#if sheet.background}<p class="muted">{sheet.background.name}</p>{/if}
   </header>
   <div class="stats">
-    <span title={ac.parts}><small>AC</small><b class="num">{ac.total}</b></span>
     <span><small>HP</small><b class="num">{sheet.hp||'—'}</b></span>
     <span><small>Prof.</small><b class="num">{signed(sheet.proficiencyBonus)}</b></span>
     <span><small>Init.</small><b class="num">{signed(modifier(sheet.scores.dex))}</b></span>
@@ -54,6 +58,11 @@
         <em class="num">{signed(modifier(sheet.scores[a]))}</em></span>
     {/each}
   </div>
+  {#if attacks.length}
+    <div class="attacks"><b class="eyebrow">Attacks</b>
+      {#each attacks as a}<div><span>{a.name}{#if !a.proficient}<small class="muted"> · not proficient</small>{/if}</span>
+        <span><b class="num">{signed(a.attack)}</b> <small class="num">{a.damage}</small></span></div>{/each}</div>
+  {/if}
   {#if p.saves.size}<p class="line"><b>Saves</b> {[...p.saves].map(a=>a.toUpperCase()).join(', ')}</p>{/if}
   {#if primary.size}<p class="legend muted">Outlined: saving throws (from the starting class). ◆ primary ability:
     {[...primary.entries()].map(([a,names])=>ABILITY_NAMES[a]+' ('+names.join(', ')+')').join(', ')}.</p>{/if}
@@ -85,7 +94,11 @@
   .identity{display:flex;gap:8px;align-items:center;font-weight:700;color:var(--text)!important}
   .key{font-style:normal;color:var(--brass);margin-left:3px;font-size:.65rem}
   .legend{margin:0;font-size:.78rem}
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .title{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .attacks{display:grid;gap:4px}
+  .attacks div{display:flex;justify-content:space-between;gap:8px}
+  .attacks small{color:var(--text-2)}
   .stats span,.scores span{display:grid;justify-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 4px;background:var(--panel-2)}
   small{color:var(--muted);font-size:.7rem;text-transform:uppercase;letter-spacing:.04em}
   .stats b{font-size:1.1rem}

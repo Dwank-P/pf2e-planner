@@ -195,15 +195,23 @@ const FEATURE_RANKS=[
   [/^(armor expertise|medium armor expertise|light armor expertise|sentinel's expertise)$/i,'armor',2],
   [/^(armor mastery|medium armor mastery|light armor mastery)$/i,'armor',3],[/^(armor legend|versatile legend)$/i,'armor',4],
   [/^(defensive robes|unarmored expertise)$/i,'unarmored',2],[/^(graceful mastery|unarmored mastery)$/i,'unarmored',3],
-  [/^(graceful legend|unarmored legend)$/i,'unarmored',4]
+  [/^(graceful legend|unarmored legend)$/i,'unarmored',4],
+  // Weapons: "weapons" raises every weapon category the class is already trained in.
+  [/^(weapon expertise|expert strikes|ranger weapon expertise|rogue weapon expertise|monk weapon expertise)$/i,'weapons',2],
+  [/^(weapon mastery|fighter weapon mastery|master strikes|weapon specialist)$/i,'weapons',3],
+  [/^(weapon legend|legendary strikes|versatile legend)$/i,'weapons',4]
 ];
 const ARMOR_KEYS=['unarmored','light','medium','heavy'];
+const WEAPON_KEYS=['unarmed','simple','martial','advanced'];
 /** Perception, save and class DC ranks at `level`, from the class Item and its features. */
 export function proficienciesAt(creation,lookup,level=1){
   const item=lookup(creation?.class?.uuid);
   const ranks={...classProficiencies(creation,lookup)};
   const raise=(key,rank)=>{
-    if(key==='armor'){for(const k of ARMOR_KEYS)if(ranks[k]>0)ranks[k]=Math.max(ranks[k],Number(rank)||0);return;}
+    if(key==='armor'||key==='weapons'){
+      for(const k of key==='armor'?ARMOR_KEYS:WEAPON_KEYS)if(ranks[k]>0)ranks[k]=Math.max(ranks[k],Number(rank)||0);
+      return;
+    }
     if(key in ranks)ranks[key]=Math.max(ranks[key],Number(rank)||0);
   };
   for(const f of item?.metadata?.levelerProgression?.classFeatures??[]){
@@ -224,9 +232,10 @@ export function classProficiencies(creation,lookup){
   const rules=rulesOf(lookup(creation?.class?.uuid));
   const saves=rules.savingThrows??{};
   // Armor proficiencies (unarmored, light, medium, heavy) for AC; class features raise them by key.
-  const defenses=rules.defenses??{};
+  const defenses=rules.defenses??{},attacks=rules.attacks??{};
   const rank=v=>Number(v?.rank??v)||0;
   return {perception:Number(rules.perception)||0,fortitude:Number(saves.fortitude)||0,
     reflex:Number(saves.reflex)||0,will:Number(saves.will)||0,classDC:Number(rules.classDC)||0,
-    unarmored:rank(defenses.unarmored),light:rank(defenses.light),medium:rank(defenses.medium),heavy:rank(defenses.heavy)};
+    unarmored:rank(defenses.unarmored),light:rank(defenses.light),medium:rank(defenses.medium),heavy:rank(defenses.heavy),
+    unarmed:rank(attacks.unarmed),simple:rank(attacks.simple),martial:rank(attacks.martial),advanced:rank(attacks.advanced)};
 }

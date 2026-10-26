@@ -6,7 +6,8 @@
   import {skillRanks} from '../builder/legality.js';
   import {classTitle} from '../builder/summaries.js';
   import Icon from '../ui/Icon.svelte';
-  import {equipped,itemBonuses,skillBonus,armorClass} from '../builder/gear.js';
+  import AcBadge from '../ui/AcBadge.svelte';
+  import {equipped,itemBonuses,skillBonus,armorClass,strike,runedName} from '../builder/gear.js';
   /** The character at its current `level`: level-1 creation plus planned boosts, increases and class features. */
   let {name,creation,plan=null,lookup,steps=[],onStep,level=1,variants={},planner={}}=$props();
   const pwl=$derived(variants?.proficiencyWithoutLevel===true);
@@ -36,6 +37,9 @@
   const defenseBonus=label=>bonuses.get(label.toLowerCase())?.value??0;
   const skillExtra=skill=>skillBonus(bonuses,skill)+(['str','dex'].includes(SKILL_ATTRIBUTE[skill])?ac.checkPenalty:0);
   const acTitle=$derived(`10 + Dex ${formatModifier(ac.parts.dex)} + proficiency ${formatModifier(ac.parts.prof)} (${ac.category}) + item ${formatModifier(ac.parts.item)}`);
+  // Up to three equipped weapons, with attack modifier and damage.
+  const strikes=$derived(gear.filter(g=>g.item.type==='weapon').slice(0,3)
+    .map(g=>strike(g,{mods,ranks:prof,level,proficiency:(r,l)=>proficiencyBonus(r,l,pwl),variants,lookup})));
   const defenses=$derived([['Perception','wis',prof.perception],['Fortitude','con',prof.fortitude],
     ['Reflex','dex',prof.reflex],['Will','wis',prof.will]]);
   const classDC=$derived(creation.class&&key?10+mods[key]+proficiencyBonus(Math.max(1,prof.classDC),level,pwl):null);
@@ -43,7 +47,7 @@
 <aside class="summary" aria-label="Character summary">
   <div class="who">
     <span class="eyebrow">Level {level}</span>
-    <h2>{name}</h2>
+    <div class="title"><h2>{name}</h2>{#if creation.class}<AcBadge value={ac.total} title={acTitle}/>{/if}</div>
     {#if identity.length}
       <ul class="identity">
         {#each identity as part}<li><Icon src={part.img} size={28}/><span>{part.label}</span></li>{/each}
@@ -59,7 +63,6 @@
     {/each}
   </div>
   <dl class="stats">
-    <div title={acTitle}><dt>Armor Class</dt><dd class="num">{creation.class?ac.total:'—'}{#if ac.raised}<small class="raised">&nbsp;/ {ac.raised} with shield raised</small>{/if}</dd></div>
     <div><dt>Hit Points</dt><dd class="num">{hp??'—'}</dd></div>
     <div><dt>Class DC</dt><dd class="num">{classDC??'—'}</dd></div>
   </dl>
@@ -80,9 +83,16 @@
           <span class="right"><b class="num">{total(SKILL_ATTRIBUTE[skill]??'int',rank,skillExtra(skill))}</b><RankLadder {rank}/></span></div>
       {/each}</div></div>
   {/if}
+  {#if strikes.length&&creation.class}
+    <div class="block"><span class="eyebrow">Strikes</span>
+      <div class="ranks">{#each strikes as s}
+        <div><span>{s.name}</span>
+          <span class="right strike"><b class="num">{formatModifier(s.attack)}</b><small class="num">{s.damage}</small></span></div>
+      {/each}</div></div>
+  {/if}
   {#if gear.length}
     <div class="block"><span class="eyebrow">Equipped</span>
-      <ul class="gear">{#each gear as g (g.entry.id)}<li><Icon src={g.item.img} size={20}/><span>{g.item.name}</span></li>{/each}</ul>
+      <ul class="gear">{#each gear as g (g.entry.id)}<li><Icon src={g.item.img} size={20}/><span>{runedName(g,lookup)}</span></li>{/each}</ul>
       {#if ac.checkPenalty}<p class="muted small">Not strong enough for {ac.armor.name}: {ac.checkPenalty} to Strength and Dexterity skills.</p>{/if}
       {#if ac.speedPenalty}<p class="muted small">{ac.armor.name}: {ac.speedPenalty} ft. Speed.</p>{/if}
     </div>
@@ -117,5 +127,7 @@
   .bonus{color:var(--good);font-size:.72rem;font-weight:700}
   .gear{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:.88rem}
   .gear li{display:flex;gap:6px;align-items:center}
-  .raised{font-size:.72rem;color:var(--text-2);font-weight:600}
+  .title{display:flex;justify-content:space-between;align-items:center;gap:10px}
+  .strike{display:grid!important;justify-items:end;gap:0}
+  .strike small{color:var(--text-2);font-size:.75rem}
 </style>

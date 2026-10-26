@@ -1,7 +1,7 @@
 <script>
   import Traits from '../ui/Traits.svelte';
   import Icon from '../ui/Icon.svelte';
-  import {canEquip} from '../builder/gear.js';
+  import {canEquip,takesRunes,takesMagicBonus,runesOf,runedName} from '../builder/gear.js';
   import {itemOptions,priceGp,formatPrice,isConsumable,TYPE_LABELS,wishlist,wishesByLevel,addWish,updateWish,removeWish,setEquipped}
     from '../builder/equipment.js';
   /** Equipment plan: browse synced items, then park them on the level you want them at. */
@@ -32,6 +32,21 @@
   const groups=$derived(wishesByLevel(planner));
   const grand=$derived(groups.reduce((n,g)=>n+g.total,0));
   const set=(id,change)=>updatePlanner(p=>updateWish(p,id,change));
+  // Runes (PF2e weapons and armor) or a magic bonus (D&D) planned on an item; one editor open at a time.
+  let runesFor=$state(null);
+  const STRIKING=['None','Striking','Greater striking','Major striking'];
+  const RESILIENT=['None','Resilient','Greater resilient','Major resilient'];
+  const propertyRunes=$derived.by(()=>{
+    const usage=i=>String(i.metadata?.rules?.usage?.value??i.metadata?.rules?.usage??'');
+    const runes=catalog.types().flatMap(t=>catalog.ofType(t)).filter(i=>/^etched-onto/.test(usage(i))&&!/potency|striking|resilient/i.test(i.name));
+    return {weapon:runes.filter(i=>/weapon/.test(usage(i))),armor:runes.filter(i=>/armor/.test(usage(i)))};
+  });
+  function setRunes(w,change){
+    const current=runesOf({entry:w,item:catalog.get(w.uuid)});
+    const next={...current,...change};
+    next.property=next.property.slice(0,Math.max(0,next.potency));
+    set(w.id,{runes:next});
+  }
 </script>
 <div class="wish">
   <section class="plan">
@@ -43,12 +58,16 @@
         <h3>Level {group.level}{group.level===currentLevel?' · now':''}<small class="num">{formatPrice(group.total)}</small></h3>
         <ul>
           {#each group.items as w (w.id)}
+            {@const it=catalog.get(w.uuid)}
             <li class:bought={w.status==='bought'}>
               <input type="checkbox" checked={w.status==='bought'} aria-label={'Bought '+w.name}
                 onchange={e=>set(w.id,{status:e.currentTarget.checked?'bought':'wanted'})}/>
-              <button class="link name" onclick={()=>info(w.uuid)}>{w.name}</button>
+              <button class="link name" onclick={()=>info(w.uuid)}>{it&&w.runes?runedName({entry:w,item:it},catalog.get):w.bonus?'+'+w.bonus+' '+w.name:w.name}</button>
               <small class="muted">{TYPE_LABELS[w.type]??w.type}{w.level!=null?' · L'+w.level:''} · {formatPrice(w.price)}</small>
               <span class="controls">
+                {#if takesRunes(it)||takesMagicBonus(it)}
+                  <button class="link" aria-expanded={runesFor===w.id} onclick={()=>runesFor=runesFor===w.id?null:w.id}>{takesRunes(it)?'Runes':'Magic'}</button>
+                {/if}
                 {#if canEquip(catalog.get(w.uuid))}
                   <button class="equip" class:on={w.equipped} aria-pressed={!!w.equipped}
                     title={w.equipped?'Equipped from level '+w.targetLevel+' — counts in the summary (AC, item bonuses). Click to take off.':'Equip: count it in the summary from level '+w.targetLevel}
@@ -61,6 +80,33 @@
                   {#each Array.from({length:20},(_,i)=>i+1) as l}<option value={l}>{l}</option>{/each}</select></label>
                 <button class="link x" aria-label={'Remove '+w.name} onclick={()=>updatePlanner(p=>removeWish(p,w.id))}>×</button>
               </span>
+              {#if runesFor===w.id&&takesRunes(it)}
+                {@const r=runesOf({entry:w,item:it})}
+                {@const kind=it.type==='armor'?'armor':'weapon'}
+                <div class="runes">
+                  <label>Potency <select value={r.potency} onchange={e=>setRunes(w,{potency:Number(e.currentTarget.value)})}>
+                    {#each [0,1,2,3] as n}<option value={n}>{n?'+'+n:'None'}</option>{/each}</select></label>
+                  {#if kind==='weapon'}
+                    <label>Striking <select value={r.striking} onchange={e=>setRunes(w,{striking:Number(e.currentTarget.value)})}>
+                      {#each STRIKING as label,n}<option value={n}>{label}</option>{/each}</select></label>
+                  {:else}
+                    <label>Resilient <select value={r.resilient} onchange={e=>setRunes(w,{resilient:Number(e.currentTarget.value)})}>
+                      {#each RESILIENT as label,n}<option value={n}>{label}</option>{/each}</select></label>
+                  {/if}
+                  {#if propertyRunes[kind].length}
+                    <span class="props">Property runes ({r.property.length}/{r.potency}):
+                      {#each propertyRunes[kind] as rune (rune.uuid)}
+                        {@const on=r.property.includes(rune.uuid)}
+                        <button class="chip" class:on disabled={!on&&r.property.length>=r.potency}
+                          onclick={()=>setRunes(w,{property:on?r.property.filter(u=>u!==rune.uuid):[...r.property,rune.uuid]})}>{rune.name}</button>
+                      {/each}</span>
+                  {:else}<small class="muted">No property runes in the synced compendiums.</small>{/if}
+                </div>
+              {:else if runesFor===w.id&&takesMagicBonus(it)}
+                <div class="runes"><label>Magic bonus <select value={w.bonus??it.metadata?.weapon?.magicalBonus??it.metadata?.armor?.magicalBonus??0}
+                  onchange={e=>set(w.id,{bonus:Number(e.currentTarget.value)})}>
+                  {#each [0,1,2,3] as n}<option value={n}>{n?'+'+n:'None'}</option>{/each}</select></label></div>
+              {/if}
               <input class="notes" placeholder="Notes" value={w.notes} maxlength="500"
                 onchange={e=>set(w.id,{notes:e.currentTarget.value})}/>
             </li>
@@ -141,4 +187,10 @@
   .equip{width:28px;height:28px;border-radius:6px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);font-size:.95rem;line-height:1}
   .equip.on{background:var(--good-soft);border-color:var(--good);color:var(--good)}
   .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  li .runes{grid-column:2/4;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:.82rem;
+    background:var(--panel-2);border-radius:8px;padding:8px 10px}
+  .props{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 9px;font-size:.78rem;color:var(--text)}
+  .chip.on{background:var(--brass);border-color:var(--brass);color:var(--on-brass)}
+  .chip:disabled:not(.on){opacity:.45}
 </style>

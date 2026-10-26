@@ -66,7 +66,8 @@ export const classes=[
     keyAbility:['str','dex'],grantedFeatures:features([[1,'Reactive Strike','ReactiveStrike'],[1,'Shield Block','ShieldBlock'],
       [3,'Bravery','Bravery'],[5,'Fighter Weapon Mastery','FWM'],[7,'Battlefield Surveyor','BS'],[7,'Weapon Specialization','WS']]),
     rules:{hp:10,keyAbility:{value:['str','dex']},trainedSkills:{value:[],additional:3},perception:2,
-      savingThrows:{fortitude:2,reflex:2,will:1},classDC:1,defenses:{unarmored:{rank:1},light:{rank:1},medium:{rank:1},heavy:{rank:1}}},
+      savingThrows:{fortitude:2,reflex:2,will:1},classDC:1,defenses:{unarmored:{rank:1},light:{rank:1},medium:{rank:1},heavy:{rank:1}},
+      attacks:{unarmed:{rank:2},simple:{rank:2},martial:{rank:2},advanced:{rank:1}}},
     levelerProgression:{provider:'pf2e-leveler',version:'3.12.3',slug:'fighter',keyAbility:['str','dex'],
       levels:levels(),spellcasting:null,subclassTag:null,creationSteps:[],
       classFeatures:[{level:3,name:'Bravery'},{level:5,name:'Fighter Weapon Mastery'}]}},
@@ -203,7 +204,12 @@ export const spells=[
   'ReadAura','Message','TelekineticProjectile','Guidance','DivineLance'].includes(s.uuid.split('.').pop())
   ?{...s,traits:['cantrip',...s.traits]}:s);
 export const equipment=[
-  item('equipment-srd','Longsword','weapon','Longsword',0,{rules:{price:{value:{gp:1}}}}),
+  item('equipment-srd','Longsword','weapon','Longsword',0,{rules:{price:{value:{gp:1}},category:'martial',group:'sword',
+    damage:{dice:1,die:'d8',damageType:'slashing'}}},{traits:['versatile-p']}),
+  item('equipment-srd','Shortbow','weapon','Shortbow',0,{rules:{price:{value:{gp:3}},category:'martial',group:'bow',range:60,
+    damage:{dice:1,die:'d6',damageType:'piercing'}}},{traits:['deadly-d10','propulsive']}),
+  item('equipment-srd','FlamingRune','equipment','Flaming',8,{rules:{price:{value:{gp:500}},usage:{value:'etched-onto-a-weapon'}}},{traits:['magical','rune']}),
+  item('equipment-srd','ShadowRune','equipment','Shadow',5,{rules:{price:{value:{gp:55}},usage:{value:'etched-onto-armor'}}},{traits:['magical','rune']}),
   item('equipment-srd','SteelShield','shield','Steel Shield',0,{rules:{price:{value:{gp:2}},acBonus:2,hardness:5,hp:20}}),
   item('equipment-srd','LeatherArmor','armor','Leather Armor',0,{rules:{price:{value:{gp:2}},category:'light',acBonus:1,dexCap:4,checkPenalty:-1}}),
   item('equipment-srd','ChainMail','armor','Chain Mail',0,{rules:{price:{value:{gp:6}},category:'medium',acBonus:4,dexCap:1,checkPenalty:-2,speedPenalty:-5,strength:3}}),
