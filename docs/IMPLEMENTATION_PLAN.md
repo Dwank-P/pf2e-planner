@@ -269,3 +269,8 @@ Engineering rule: **no unpaired network sync; no public unauthenticated endpoint
 - [ ] G01 automated Foundry v14 + Leveler round trip (needs a Foundry test world in CI).
 - [ ] B05 server-side pack hashes (low risk: only a faulty Bridge could mislabel a pack).
 - [ ] G04 test the published ZIP from foundry-release; G06 optional icon directory on disk.
+
+## Next update
+- [ ] Server admin → Accounts: align the table columns. Each row is its own grid with an `auto`
+      actions column, so rows with Delete and without it size their columns differently; use one
+      shared grid (or fixed column widths) for the header and every row.
