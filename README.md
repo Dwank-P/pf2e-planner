@@ -697,3 +697,11 @@ Website only; the Bridge stays at 0.14.1.
   10 + Dex + Wis (not with a shield); Draconic Resilience gives 13 + Dex.
 
 **Update both Bridges to 0.26.0 and run Sync Now** — they now send weapon damage and range.
+
+### v0.26.1 — Sync Now without a window
+
+- **Sync Now** (both Bridges) no longer opens a window that couldn't be closed. It starts the sync
+  straight away; "Sync started", the result and any error appear as notifications, and clicking it
+  again while a sync runs says one is already in progress.
+
+**Update both Bridges to 0.26.1.**

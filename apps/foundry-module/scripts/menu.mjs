@@ -87,30 +87,14 @@ export class PlannerConnectionMenu extends foundry.applications.api.DialogV2 {
   }
 }
 
-/** Launches a manual catalog synchronization from Foundry module settings. */
-export class PlannerSyncMenu extends foundry.applications.api.DialogV2 {
-  constructor(options={}){
-    super({...options,
-      window:{...options.window,title:'PF2e Planner — Sync Now'},
-      content:`<div class="planner-sync-status"><p id="planner-sync-status" role="status"
-        aria-live="polite">Preparing compendium synchronization…</p>
-        <p class="hint">The previously saved compendium collections are used.
-        No new pairing code is needed on an already authorized GM browser.</p></div>`,
-      rejectClose:false,
-      buttons:[{action:'close',label:'Close',icon:'fa-solid fa-xmark'}]});
-  }
-  async _onRender(context,options){
-    await super._onRender(context,options);
-    const status=this.element?.querySelector('#planner-sync-status');
-    if(!status||this._syncLaunched)return;
-    this._syncLaunched=true;
-    try{
-      const result=await syncNow();
-      status.textContent=result.skipped
-        ? 'Already synchronizing, or no changes detected: '+result.skipped
-        : 'Synchronized '+result.accepted+' items successfully. Refresh the website to view them.';
-      // syncNow already showed its own syncing and success toasts.
-    }catch(e){status.textContent='Sync failed: '+e.message;notifyError(e);}
+/**
+ * Settings → Sync Now. Starts a sync without opening a window: progress, results and errors
+ * arrive as notifications (and a second click while one runs says so).
+ */
+export class PlannerSyncMenu extends foundry.applications.api.ApplicationV2 {
+  async render(){
+    syncNow().catch(notifyError);
+    return this;
   }
 }
 

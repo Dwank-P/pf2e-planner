@@ -125,7 +125,7 @@ export function getSelectedPacks(){
 /** Foundry v13+ has a green success toast; older versions fall back to info. */
 export function notify(kind,message){
   const n=ui.notifications;
-  (kind==='success'?(n.success??n.info):kind==='error'?n.error:n.info).call(n,'PF2e Planner: '+message);
+  (kind==='success'?(n.success??n.info):kind==='error'?n.error:kind==='warn'?n.warn:n.info).call(n,'PF2e Planner: '+message);
 }
 export async function savePackSelection(packs){
   requireGM();
@@ -379,11 +379,11 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let syncing=false;
 export async function syncNow({auto=false}={}){
   requireGM();
-  if(syncing)return {skipped:'already_syncing'};
+  if(syncing){if(!auto)notify('warn','A sync is already in progress.');return {skipped:'already_syncing'};}
   syncing=true;
   try{
     let {base,id,auth}=await authorized();
-    notify('info','Syncing compendiums…');
+    notify('info','Sync started…');
     await refreshLevelerPacks();
     const packs=getSelectedPacks();
     const available=packs.map(name=>game.packs.get(name)).filter(Boolean);

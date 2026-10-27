@@ -1,4 +1,4 @@
-import {MODULE_ID,pairWebsite,testWebsite,syncNow,getSyncedPacks} from './sync.mjs';
+import {MODULE_ID,pairWebsite,testWebsite,syncNow} from './sync.mjs';
 import {normalizeWebsiteUrl} from './url.mjs';
 
 const escapeText=value=>String(value??'').replaceAll('&','&amp;').replaceAll('"','&quot;')
@@ -48,24 +48,14 @@ export class PairMenu extends foundry.applications.api.DialogV2 {
   }
 }
 
-/** Sync every installed Item compendium (minus any excluded ones) now. */
-export class SyncMenu extends foundry.applications.api.DialogV2 {
-  constructor(options={}){
-    super({...options,window:{...options.window,title:'Planner (D&D 5e) — Sync Now'},
-      content:`<div class="planner-sync"><p class="planner-status" role="status" aria-live="polite">Preparing…</p>
-        <p class="hint">${getSyncedPacks().length} compendiums are sent. Exclude any under <i>Choose compendiums</i>.</p></div>`,
-      rejectClose:false,buttons:[{action:'close',label:'Close'}]});
-  }
-  async _onRender(context,options){
-    await super._onRender(context,options);
-    const scope=this.element?.querySelector('.planner-sync');
-    if(!scope||this._started)return;
-    this._started=true;
-    const status=scope.querySelector('.planner-status');
-    try{
-      const r=await syncNow();
-      status.textContent=r.skipped?'Nothing changed ('+r.skipped+').':'Synced '+r.accepted+' items.';
-    }catch(e){fail(scope,e);}
+/**
+ * Settings → Sync Now. Starts a sync without opening a window: progress, results and errors
+ * arrive as notifications (and a second click while one runs says so).
+ */
+export class SyncMenu extends foundry.applications.api.ApplicationV2 {
+  async render(){
+    syncNow().catch(e=>ui.notifications.error('Planner (5e): '+(e?.message??e)));
+    return this;
   }
 }
 

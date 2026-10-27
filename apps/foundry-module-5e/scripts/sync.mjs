@@ -33,7 +33,7 @@ async function post(base,path,data,bearer=null){
 }
 export function notify(kind,message){
   const n=ui.notifications;
-  (kind==='success'?(n.success??n.info):kind==='error'?n.error:n.info).call(n,'Planner (5e): '+message);
+  (kind==='success'?(n.success??n.info):kind==='error'?n.error:kind==='warn'?n.warn:n.info).call(n,'Planner (5e): '+message);
 }
 
 export async function testWebsite(url){
@@ -246,11 +246,11 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 let syncing=false;
 export async function syncNow(){
   requireGM();
-  if(syncing)return {skipped:'already_syncing'};
+  if(syncing){notify('warn','A sync is already in progress.');return {skipped:'already_syncing'};}
   syncing=true;
   try{
     let {base,id,auth}=await authorized();
-    notify('info','Syncing compendiums…');
+    notify('info','Sync started…');
     const packs=getSyncedPacks();
     const variants=await getVariants();
     const sources={worldId:game.world.id,systemId:'dnd5e',systemVersion:game.system.version,levelerVersion:null};
