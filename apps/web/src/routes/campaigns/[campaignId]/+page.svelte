@@ -1,6 +1,7 @@
 <script>
   import {page} from '$app/state';
   import ImportCharacter from '../../../lib/ui/ImportCharacter.svelte';
+  import ConnectFoundry from '../../../lib/ui/ConnectFoundry.svelte';
   import AppBar from '../../../lib/ui/AppBar.svelte';
   import Traits from '../../../lib/ui/Traits.svelte';
   import {api,campaignPath,timeAgo} from '../../../lib/ui/api.js';
@@ -50,6 +51,8 @@
   let importing=$state(false);
   // Import a character exported from a planner (this one or another), by public link or file.
   let importingPlanner=$state(false);
+  // One "Import a character" card; it asks where from.
+  let choosingImport=$state(false);
   let pbId=$state('');
   let pbJson=$state('');
   let imported=$state(null);
@@ -85,6 +88,7 @@
 {#if ctx}
   <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync}>
     {#snippet actions()}
+      {#if !dnd5e&&ctx.sync}<ConnectFoundry {campaignId}/>{/if}
       {#if ctx.isGm}<a class="btn ghost" href={campaignPath(campaignId,'/settings')}>Campaign settings</a>{/if}
     {/snippet}
   </AppBar>
@@ -136,14 +140,19 @@
           <span class="plus" aria-hidden="true">+</span><b>New character</b>
           <small>{dnd5e?'Starts the D&D 5e planner':'Starts the Character Wizard'}</small>
         </button>
-        {#if !dnd5e}<button class="card new" onclick={()=>{importing=true;imported=null;}}>
-          <span class="plus" aria-hidden="true">⇩</span><b>Import from Pathbuilder</b>
-          <small>From a Pathbuilder 2e JSON export</small>
-        </button>{/if}
-        <button class="card new" onclick={()=>importingPlanner=true}>
-          <span class="plus" aria-hidden="true">⇄</span><b>Import from another planner</b>
-          <small>A public character link or an exported file</small>
-        </button>
+        {#if choosingImport}
+          <div class="card new-form import-choice" role="group" aria-label="Import from">
+            <b>Import a character from…</b>
+            {#if !dnd5e}<button class="btn" onclick={()=>{choosingImport=false;importing=true;imported=null;}}>Pathbuilder 2e</button>{/if}
+            <button class="btn" onclick={()=>{choosingImport=false;importingPlanner=true;}}>Another planner (link or file)</button>
+            <button class="btn ghost" onclick={()=>choosingImport=false}>Cancel</button>
+          </div>
+        {:else}
+          <button class="card new" onclick={()=>choosingImport=true}>
+            <span class="plus" aria-hidden="true">⇩</span><b>Import a character</b>
+            <small>{dnd5e?'From another planner':'From Pathbuilder or another planner'}</small>
+          </button>
+        {/if}
       {/if}
     </section>
     {#if imported}
@@ -221,4 +230,5 @@
   .report .notes{color:var(--text-2)}
   .small{font-size:.84rem}
   .row{display:flex;justify-content:flex-end;gap:8px}
+  .import-choice{display:grid;gap:8px;align-content:start}
 </style>

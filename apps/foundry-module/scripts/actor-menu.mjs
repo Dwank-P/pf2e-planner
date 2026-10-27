@@ -271,7 +271,6 @@ export class PlannerPullMenu extends foundry.applications.api.DialogV2 {
 /** Non-invasive integration with Leveler's existing ApplicationV2 dialogs. */
 export function registerLevelerButtons(){
   Hooks.on('renderApplicationV2',(app)=>{
-    if(!game.user?.isGM)return;
     const id=String(app?.id||app?.options?.id||'');
     if(!['pf2e-leveler-wizard','pf2e-leveler-planner'].includes(id))return;
     const root=app.element;

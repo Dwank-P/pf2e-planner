@@ -1,6 +1,6 @@
 import { getWorldMetadata, previewItemPack } from './snapshot.mjs';
 import { openPairingDialog, pairWebsite, testWebsite, syncNow, status } from './sync.mjs';
-import { PlannerConnectionMenu, PlannerSyncMenu } from './menu.mjs';
+import { PlannerConnectionMenu, PlannerSyncMenu, PlannerPlayerConnectMenu } from './menu.mjs';
 import {registerLevelerButtons} from './actor-menu.mjs';
 import {refreshLevelerPacks,notify} from './sync.mjs';
 
@@ -36,16 +36,24 @@ Hooks.once('init', () => {
     icon:'fa-solid fa-arrows-rotate',
     type:PlannerSyncMenu, restricted:true
   });
+  game.settings.registerMenu(MODULE_ID, 'connectPlayer', {
+    name:'Connect my account', label:'Connect my account',
+    hint:'Players: connect your own website account (a code from the campaign page) to send and pull your characters.',
+    icon:'fa-solid fa-user-plus',
+    type:PlannerPlayerConnectMenu, restricted:false
+  });
   // Packs are chosen in PF2e Leveler's Compendium Manager; the Bridge syncs exactly those.
 });
 
 Hooks.once('ready', () => {
-  if (!game.user?.isGM || !['pf2e','sf2e'].includes(game.system?.id)) return;
+  if (!['pf2e','sf2e'].includes(game.system?.id)) return;
+  // Everyone gets the Export / Pull buttons on Leveler's windows (players use their own connection).
+  registerLevelerButtons();
+  if (!game.user?.isGM) return;
   globalThis.PF2ePlannerBridge = Object.freeze({
     getWorldMetadata, previewItemPack, openPairingDialog,
     pairWebsite, testWebsite, syncNow, status
   });
-  registerLevelerButtons();
   refreshLevelerPacks().catch(error=>
     console.warn('[PF2e Planner Bridge] Leveler catalog selection:',error.message));
   console.info('[PF2e Planner Bridge] v' +

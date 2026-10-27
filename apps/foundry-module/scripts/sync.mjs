@@ -35,7 +35,19 @@ function requireGM(){
     throw Error('Planner synchronization requires a GM in a PF2e or SF2e world.');
   if(!game.modules.get('pf2e-leveler')?.active)throw Error('PF2e Leveler must be active.');
 }
+/**
+ * Sending and pulling characters: any user with a PF2e Leveler world. A GM uses the world's
+ * pairing; a player uses their own connection (Settings → Connect my account).
+ */
+function requireUser(){
+  if(!['pf2e','sf2e'].includes(game.system?.id))throw Error('The PF2e Planner Bridge needs a PF2e or SF2e world.');
+  if(!game.modules.get('pf2e-leveler')?.active)throw Error('PF2e Leveler must be active.');
+}
 const API_MESSAGES={
+  gm_only_bridge_action:'Only a GM can do that.',
+  invalid_connect_code:'That code is not valid or has expired. Make a new one on the website.',
+  character_view_only:'You can only pull characters you can edit on the website.',
+  actor_linked_to_a_character_you_cannot_edit:'This Foundry character is linked to someone else’s website character.',
   character_linked_to_other_actor:'This website build is linked to another Foundry character. Tick "Move the link here" to move it.',
   actor_linked_to_other_character:'This Foundry character is linked to another website build. Tick "Move the link here" to replace that link.'
 };
@@ -191,7 +203,8 @@ async function authorized(){
     id=game.settings.get(MODULE_ID,'integrationId');
   if(!base||!id)throw Error('Pair this world first.');
   let auth=await credentials.load(base,id);
-  if(!auth)throw Error('This GM browser needs a fresh pairing code to authorize it.');
+  if(!auth)throw Error(game.user?.isGM?'This GM browser needs a fresh pairing code to authorize it.'
+    :'Connect your website account first: Settings → PF2e Planner Bridge → Connect my account.');
   if(auth.accessExpiresAt<Math.floor(Date.now()/1000)+120){
     auth={...auth,...await post(base,'/api/v1/bridge/'+id+'/refresh',
       {refreshToken:auth.refreshToken})};
@@ -562,6 +575,26 @@ async function uploadIcons(base,id){
   if(failed)console.warn('[PF2e Planner Bridge]',failed,'icons could not be uploaded');
   return {uploaded,linked,failed,missing:missing.length};
 }
+/**
+ * Connect this player's own browser to the website with a code from the website (campaign page →
+ * Connect Foundry). The world must already be paired by a GM.
+ */
+export async function connectPlayer(code){
+  requireUser();
+  const base=game.settings.get(MODULE_ID,'websiteUrl'),id=game.settings.get(MODULE_ID,'integrationId');
+  if(!base||!id)throw Error('A GM has to pair this world with the website first.');
+  const value=String(code??'').trim();
+  if(!/^[A-Za-z0-9_-]{40,70}$/.test(value))throw Error('Paste the code from the website.');
+  const result=await post(base,'/api/v1/bridge/'+id+'/connect-player',{code:value});
+  await credentials.save(base,id,{accessToken:result.accessToken,accessExpiresAt:result.accessExpiresAt,
+    refreshToken:result.refreshToken,refreshExpiresAt:result.refreshExpiresAt});
+  notify('success','Connected as '+(result.displayName??'your website account')+'.');
+  return result;
+}
+export async function isConnected(){
+  const base=game.settings.get(MODULE_ID,'websiteUrl'),id=game.settings.get(MODULE_ID,'integrationId');
+  return !!(base&&id&&await credentials.load(base,id));
+}
 export async function openPairingDialog(){
   requireGM();
   const {PlannerConnectionMenu}=await import('./menu.mjs');
@@ -692,14 +725,14 @@ export function exportCharacterActor(actor,plan=null,creation=null){
   };
 }
 export async function getSiteCharacterOwners(){
-  requireGM();
+  requireUser();
   const {base,id,auth}=await authorized();
   const result=await post(base,'/api/v1/bridge/'+id+'/characters/owners',{},
     auth.accessToken);
   return result.members||[];
 }
 export async function importActorToPlanner(actor,{plan=null,creation=null,overwrite=false,ownerUserId=null}={}){
-  requireGM();
+  requireUser();
   const {base,id,auth}=await authorized();
   const body={...exportCharacterActor(actor,plan,creation),overwrite,ownerUserId,
     leveler:levelerDocuments(actor,plan,creation),actor:actorSnapshot(actor)};
@@ -779,14 +812,14 @@ function levelerDocuments(actor,plan=null,creation=null){
   return out;
 }
 export async function listPlannerCharacters(){
-  requireGM();
+  requireUser();
   const {base,id,auth}=await authorized();
   const result=await post(base,'/api/v1/bridge/'+id+'/characters/list',{},auth.accessToken);
   return result.characters||[];
 }
 /** Website build as Leveler documents, plus warnings for the target actor. */
 export async function fetchPlannerCharacter(actor,characterId){
-  requireGM();
+  requireUser();
   if(!actor||actor.type!=='character')throw Error('Select a character Actor.');
   const {base,id,auth}=await authorized();
   const result=await post(base,'/api/v1/bridge/'+id+'/characters/export',
@@ -843,7 +876,7 @@ function bindClassGrants(actor,plan,unbind=false){
  * website build and link them. Leveler applies plan levels on level-up as usual.
  */
 export async function pullCharacterFromPlanner(actor,characterId,{writeCreation=false,relink=false}={}){
-  requireGM();
+  requireUser();
   if(!actor?.testUserPermission(game.user,'OWNER'))throw Error('Character access denied.');
   let {base,id,auth}=await authorized();
   // 1. Fetch the build and check the link is allowed, without recording it yet.

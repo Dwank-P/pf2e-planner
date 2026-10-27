@@ -1,6 +1,6 @@
 import {transaction} from '#lib/server/db.js';
 import {bridgeAuth,input,respond,problem} from '#lib/server/api.js';
-import {readDocument,mergeView,catalogFor} from '#lib/server/characters.js';
+import {readDocument,mergeView,catalogFor,characterRights} from '#lib/server/characters.js';
 import {withStartingEquipment} from '#lib/leveler-format.js';
 
 /**
@@ -10,7 +10,7 @@ import {withStartingEquipment} from '#lib/leveler-format.js';
  * only after the GM confirms in Foundry.
  */
 export async function POST(event){
-  const auth=bridgeAuth(event,event.params.integrationId);
+  const auth=bridgeAuth(event,event.params.integrationId,{allowPlayer:true});
   const b=await input(event.request,2000);
   const characterId=String(b.characterId||'');
   const actorId=b.actorId==null?null:String(b.actorId);
@@ -24,6 +24,8 @@ export async function POST(event){
     if(!row)problem(404,'character_not_found');
     const current=readDocument(row);
     if(current.dnd5e)problem(400,'dnd5e_plans_are_not_exported');
+    // A player's own connection pulls only characters they can edit.
+    if(auth.player&&!characterRights({id:auth.user_id,site_role:auth.site_role},row).edit)problem(403,'character_view_only');
     // Pre-v2 builds are converted on the fly; the stored row is left unchanged.
     const doc=current.doc??mergeView(row.campaign_id,null,current.view);
     // The equipment plan's level-1 items become Leveler's starting gear.
@@ -39,6 +41,11 @@ export async function POST(event){
         WHERE integration_id=? AND actor_id=?`).get(integrationId,actorId);
       if(occupant&&occupant.character_id!==row.id&&b.relink!==true)
         problem(409,'actor_linked_to_other_character');
+      if(occupant&&occupant.character_id!==row.id&&auth.player){
+        const other=sql.prepare('SELECT * FROM character_builds WHERE id=?').get(occupant.character_id);
+        if(other&&!characterRights({id:auth.user_id,site_role:auth.site_role},other).edit)
+          problem(403,'actor_linked_to_a_character_you_cannot_edit');
+      }
       // commit:false only checks the link (the Bridge writes Foundry's flags, then commits).
       if(b.commit===false)return {character:{id:row.id,name:row.name,level:row.level,revision:row.revision},
         leveler:{creation:startingCreation,plan:doc.leveler.plan??null},linked:false,linkAllowed:true};

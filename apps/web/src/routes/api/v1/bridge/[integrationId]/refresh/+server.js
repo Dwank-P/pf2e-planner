@@ -35,7 +35,8 @@ export async function POST(event) {
 
     if (credential.revoked_at || credential.integration_revoked ||
         credential.credential_origin!==origin || credential.user_status!=='active' ||
-        (credential.site_role!=='owner' && credential.member_role!=='gm')) problem(401,'invalid_refresh');
+        (credential.site_role!=='owner' && !(credential.scope==='player'?credential.member_role:credential.member_role==='gm')))
+      problem(401,'invalid_refresh');
     if (credential.refresh_expires_at<=unix()) problem(401,'refresh_expired');
 
     const accessToken=token(), refreshToken=token(), now=unix();

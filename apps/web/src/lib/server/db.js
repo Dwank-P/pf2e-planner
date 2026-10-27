@@ -199,6 +199,13 @@ function migrate(sql) {
     "TEXT NOT NULL DEFAULT 'private' CHECK(visibility IN ('private','campaign-view','campaign-edit','custom'))");
   // GMs opt a world in before members may use its compendiums for personal characters.
   addColumn('campaigns', 'share_compendiums', 'INTEGER NOT NULL DEFAULT 0');
+  // 'gm' credentials pair and sync a world; 'player' ones (a player's own Foundry browser, connected
+  // with a code from the website) may only send and pull that player's characters.
+  addColumn('bridge_credentials', 'scope', "TEXT NOT NULL DEFAULT 'gm'");
+  sql.exec(`CREATE TABLE IF NOT EXISTS player_link_codes (
+    code_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    expires_at INTEGER NOT NULL, consumed_at INTEGER)`);
   // Read-only public view links for campaign characters (personal ones have their own column).
   addColumn('character_builds', 'public_token', 'TEXT');
   sql.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_builds_public_token ON character_builds(public_token) WHERE public_token IS NOT NULL');

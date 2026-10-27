@@ -729,3 +729,19 @@ Website only; the Bridge stays at 0.14.1.
   prices) go into Leveler's Character Wizard as starting gear, so it adds them to the actor and
   returns the unspent starting gold. Items from later levels stay in the plan. Runes planned on
   them aren't applied by Leveler; add those in Foundry.
+
+### v0.28.0 — Players in Foundry, Leveler plan files
+
+- **Players can export and pull their own characters from Foundry**, without a GM online. On the
+  website, the campaign page's **Connect Foundry** gives a one-time code; in Foundry, players paste
+  it under *Settings → PF2e Planner Bridge → Connect my account*. The *Export to Planner* and *Pull
+  from Planner* buttons on Leveler's windows then work for them: exports go to their own website
+  account, and they can only pull characters they can edit onto actors they own. Players can't
+  sync or change the world.
+- **PF2e Leveler plan files**: a character's **Files** menu exports the level plan as a file for
+  Leveler's *Import plan*, and imports one saved by Leveler's *Export plan* (replacing levels
+  2–20; items are matched by ID, then by name, and any not in the compendiums are listed).
+- **One "Import a character" card** on the party page; it asks whether it's from Pathbuilder or
+  another planner.
+
+**Update the PF2e Bridge to 0.28.0.**

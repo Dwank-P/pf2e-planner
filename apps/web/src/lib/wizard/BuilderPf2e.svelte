@@ -36,6 +36,39 @@
   let name=$state('');
   let currentLevel=$state(1);
   let error=$state('');
+  // Files menu: planner export, and PF2e Leveler plan files both ways.
+  let filesMenu=$state(false);
+  let planFile=$state(null);
+  let planNotice=$state('');
+  function exportLevelerPlan(){
+    filesMenu=false;
+    const data=plan||creation?.class?ensurePlan(plan,creation):null;
+    if(!data){error='Choose a class first: a Leveler plan belongs to a class.';return;}
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=(name||'character').replace(/[^\w .-]+/g,'').trim()+'-level-plan.json';
+    document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }
+  async function importLevelerPlan(event){
+    const file=event.currentTarget.files?.[0];
+    event.currentTarget.value='';
+    if(!file)return;
+    try{
+      let data;
+      try{data=JSON.parse(await file.text());}catch{throw Error('That file isn’t a Leveler plan.');}
+      if(saveState==='unsaved'||saveState==='saving'){clearTimeout(timer);await save();}
+      const r=await api(scope.characterUrl+'/leveler-plan',{method:'PUT',body:{plan:data,revision:character.revision}});
+      plan=r.character.leveler?.plan??null;
+      character={...character,revision:r.character.revision};
+      const lost=r.report.missing;
+      planNotice='Imported the Leveler plan'+(data.classSlug&&creation?.class?.slug&&data.classSlug!==creation.class.slug
+        ?' (it was made for '+data.classSlug+', not '+creation.class.slug+'; Leveler only uses a plan for its own class)':'')+'.'
+        +(lost.length?' Not in these compendiums, left out: '+lost.join(', ')+'.':'');
+      error='';
+    }catch(e){error=e.message;}
+  }
   let saveState=$state('saved');
   let conflict=$state(false);
   // Where the planner is: 'level-N' or 'equipment'; openStep is the open level-1 card.
@@ -176,7 +209,19 @@
   <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name}>
     {#snippet actions()}
       {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">View only</span>{/if}
-      {#if scope.exportUrl}<button class="btn small ghost" title="Download the build to import into another planner" onclick={()=>downloadJson(scope.exportUrl,name).catch(e=>error=e.message)}>Export</button>{/if}
+      <span class="files-wrap">
+        <button class="btn small ghost" aria-haspopup="menu" aria-expanded={filesMenu} onclick={()=>filesMenu=!filesMenu}>Files ▾</button>
+        {#if filesMenu}
+          <span class="files-menu" role="menu">
+            {#if scope.exportUrl}<button role="menuitem" onclick={()=>{filesMenu=false;downloadJson(scope.exportUrl,name).catch(e=>error=e.message);}}>
+              Export for another planner<small>A .planner.json file any planner can import</small></button>{/if}
+            <button role="menuitem" onclick={exportLevelerPlan}>Export Leveler plan<small>For PF2e Leveler's “Import plan”</small></button>
+            {#if canEdit}<button role="menuitem" onclick={()=>{filesMenu=false;planFile.click();}}>Import Leveler plan…
+              <small>From PF2e Leveler's “Export plan”; replaces levels 2–20</small></button>{/if}
+          </span>
+        {/if}
+        <input bind:this={planFile} type="file" accept=".json,application/json" hidden onchange={importLevelerPlan}/>
+      </span>
       {@render extraActions?.()}
       {#if canManage}<button class="btn small ghost" onclick={()=>scope.onShare?scope.onShare():sharing=true}>Share</button>
         <button class="btn small ghost danger" onclick={()=>confirmDelete=true}>Delete</button>{/if}
@@ -202,6 +247,7 @@
     :`${character.ownerName??'Its owner'} shared this character with you to view. Changes you make here aren’t saved.`}</p></div>
 {/if}
 {@render banner?.()}
+{#if planNotice}<div class="banner"><p class="notice">{planNotice} <button class="link" onclick={()=>planNotice=''}>Dismiss</button></p></div>{/if}
 {#if error}
   <div class="banner" role="alert"><p class="notice bad">{error}
     {#if conflict}<button class="link" onclick={()=>location.reload()}>Reload</button>{/if}</p></div>
@@ -382,4 +428,10 @@
     .stage{padding:18px max(16px,env(safe-area-inset-right,0px)) 32px max(16px,env(safe-area-inset-left,0px))}
   }
   @media(max-width:640px){.save{display:none}}
+  .files-wrap{position:relative}
+  .files-menu{position:absolute;top:calc(100% + 6px);right:0;display:grid;min-width:260px;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:6px;z-index:40}
+  .files-menu button{display:grid;gap:2px;background:none;border:0;text-align:left;padding:8px;border-radius:6px;font-weight:700;color:var(--text)}
+  .files-menu button:hover{background:var(--panel-2)}
+  .files-menu small{font-weight:400;color:var(--muted);font-size:.78rem}
 </style>

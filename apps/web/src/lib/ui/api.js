@@ -50,7 +50,9 @@ const MESSAGES={
   not_a_planner_character_export:'That isn’t a planner character export.',
   campaign_uses_other_rules_system:'That character is for a different game system than this campaign.',
   no_synced_world_for_this_system:'None of your worlds has synced compendiums for that game system yet.',
-  source_not_shared_with_you:'That world isn’t available to you any more; reopen Rules & sources.'
+  source_not_shared_with_you:'That world isn’t available to you any more; reopen Rules & sources.',
+  not_a_leveler_plan:'That file isn’t a PF2e Leveler plan (use Leveler’s “Export plan”).',
+  no_foundry_world_paired:'A GM has to pair the Foundry world first.'
 };
 export class ApiError extends Error{
   constructor(code,status){super(MESSAGES[code]??code??'Request failed (HTTP '+status+')');this.code=code;this.status=status;}

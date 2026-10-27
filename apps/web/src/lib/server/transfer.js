@@ -95,7 +95,30 @@ export function campaignByName(integrationId){
   const pub=db().prepare('SELECT snapshot_id FROM catalog_publications WHERE integration_id=?').get(integrationId);
   const find=db().prepare(`SELECT uuid FROM catalog_entries WHERE integration_id=? AND snapshot_id=?
     AND type=? AND name=? COLLATE NOCASE LIMIT 1`);
-  return (type,name)=>pub&&type&&name?find.get(integrationId,pub.snapshot_id,type,name)?.uuid??null:null;
+  const anyType=db().prepare(`SELECT uuid FROM catalog_entries WHERE integration_id=? AND snapshot_id=?
+    AND name=? COLLATE NOCASE AND type NOT IN ('condition','effect','action') LIMIT 1`);
+  // Without a type (Leveler plan files only name their items), any item of that name.
+  return (type,name)=>!pub||!name?null:type?find.get(integrationId,pub.snapshot_id,type,name)?.uuid??null
+    :anyType.get(integrationId,pub.snapshot_id,name)?.uuid??null;
+}
+
+/**
+ * A PF2e Leveler plan file (what Leveler's "Export plan" saves) brought into a character: items
+ * are matched by uuid, then by the name stored beside each uuid; the rest are left out.
+ */
+export function readLevelerPlan(value){
+  if(!value||typeof value!=='object'||Array.isArray(value)||!value.levels||typeof value.levels!=='object'||
+     !value.version||JSON.stringify(value).length>500000)problem(400,'not_a_leveler_plan');
+  const names=new Map();
+  const walk=v=>{
+    if(Array.isArray(v))v.forEach(walk);
+    else if(v&&typeof v==='object'){
+      if(typeof v.uuid==='string'&&typeof v.name==='string')names.set(v.uuid,v.name.slice(0,240));
+      Object.values(v).forEach(walk);
+    }
+  };
+  walk(value);
+  return {plan:value,nameOf:uuid=>names.has(uuid)?{name:names.get(uuid),type:null}:null};
 }
 
 /** The portable export: the document plus each item's name and type, for matching elsewhere. */

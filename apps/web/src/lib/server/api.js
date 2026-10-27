@@ -70,7 +70,11 @@ export function throttle(event, purpose, max = 8, seconds = 600) {
   const ip = event.getClientAddress?.() || 'unknown';
   if (!limit(purpose + ':' + digest(ip), max, seconds)) problem(429, 'too_many_attempts');
 }
-export function bridgeAuth(event, integrationId) {
+/**
+ * A Bridge request's credential. GM credentials (paired by a GM) may do everything; player
+ * credentials only reach the endpoints that pass allowPlayer, and act as that player.
+ */
+export function bridgeAuth(event, integrationId, { allowPlayer = false } = {}) {
   const header = event.request.headers.get('authorization') || '';
   if (!/^Bearer [A-Za-z0-9_-]{40,70}$/.test(header)) problem(401, 'token_required');
   const hash = digest(header.slice(7));
@@ -86,7 +90,11 @@ export function bridgeAuth(event, integrationId) {
     .get(integrationId, hash);
   if (!row || row.revoked_at || row.integration_revoked ||
       row.access_expires_at <= Math.floor(Date.now() / 1000) ||
-      row.user_status !== 'active' || (row.site_role !== 'owner' && row.member_role !== 'gm') ||
-      !origin || origin !== row.credential_origin) problem(401, 'invalid_bridge_authorization');
-  return row;
+      row.user_status !== 'active' || !origin || origin !== row.credential_origin) problem(401, 'invalid_bridge_authorization');
+  const gm = row.site_role === 'owner' || row.member_role === 'gm';
+  if (row.scope === 'player') {
+    if (!allowPlayer) problem(403, 'gm_only_bridge_action');
+    if (!gm && !row.member_role) problem(401, 'invalid_bridge_authorization');
+  } else if (!gm) problem(401, 'invalid_bridge_authorization');
+  return { ...row, player: row.scope === 'player' };
 }

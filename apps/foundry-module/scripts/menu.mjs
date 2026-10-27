@@ -1,6 +1,6 @@
 import {
   pairWebsite, testWebsite, syncNow, getPackOptions, getSelectedPacks,
-  getRequiredPacks, savePackSelection
+  getRequiredPacks, savePackSelection, connectPlayer
 } from './sync.mjs';
 import {normalizeWebsiteUrl} from './url.mjs';
 
@@ -180,5 +180,23 @@ export class PlannerPackMenu extends foundry.applications.api.DialogV2 {
         ui.notifications.info('PF2e Planner: Compendium collection selections saved.');
       }catch(e){status.textContent='Save failed: '+e.message;notifyError(e);}
     });
+  }
+}
+
+/** A player connects their own Foundry browser to their website account with a one-time code. */
+export class PlannerPlayerConnectMenu extends foundry.applications.api.DialogV2 {
+  constructor(options={}){
+    super({...options,window:{...options.window,title:'PF2e Planner — Connect my account'},
+      content:`<div class="planner-connect">
+        <p>On the planner website, open your campaign and choose <i>Connect Foundry</i>, then paste the code here.
+          This lets you send your characters to the website and pull website plans onto them.</p>
+        <div class="form-group"><label>Code</label><input name="code" type="text" autocomplete="off" spellcheck="false"/></div>
+        <p class="hint planner-status" role="status" aria-live="polite"></p></div>`,
+      rejectClose:false,
+      buttons:[{action:'connect',label:'Connect',default:true,callback:async(event,button,dialog)=>{
+        const status=dialog.element.querySelector('.planner-status');
+        try{await connectPlayer(dialog.element.querySelector('input[name="code"]').value);}
+        catch(error){status.textContent=error.message;notifyError(error);throw error;}
+      }},{action:'close',label:'Close'}]});
   }
 }

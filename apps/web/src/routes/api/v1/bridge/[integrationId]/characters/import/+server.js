@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {db,unix,transaction} from '#lib/server/db.js';
 import {bridgeAuth,input,respond,problem} from '#lib/server/api.js';
-import {validateBuild,validateLevelerDocuments,mergeView} from '#lib/server/characters.js';
+import {validateBuild,validateLevelerDocuments,mergeView,characterRights} from '#lib/server/characters.js';
 import {combineViews,documentFromLeveler,projectView,viewUuids} from '#lib/leveler-format.js';
 import {importCatalog} from '#lib/server/import-catalog.js';
 import {importFoundryActor} from '#lib/builder/foundry-import.js';
@@ -18,8 +18,10 @@ import {importFoundryActor} from '#lib/builder/foundry-import.js';
  * `build` (choices read from the actor's Items) only fills gaps Leveler lacks.
  */
 export async function POST(event) {
-  const auth=bridgeAuth(event,event.params.integrationId);
+  const auth=bridgeAuth(event,event.params.integrationId,{allowPlayer:true});
   const b=await input(event.request,1000000);
+  // A player's own connection sends to their own account, and only updates builds they can edit.
+  if(auth.player)b.ownerUserId=auth.user_id;
   const actorId=String(b.actorId||'');
   const name=String(b.name||'').trim();
   if(!/^[a-zA-Z0-9_-]{8,32}$/.test(actorId)||!name||name.length>80||
@@ -78,6 +80,8 @@ export async function POST(event) {
       WHERE integration_id=? AND actor_id=?`).get(integrationId,actorId);
     if(link){
       const old=sql.prepare('SELECT * FROM character_builds WHERE id=?').get(link.character_id);
+      if(old&&auth.player&&!characterRights({id:auth.user_id,site_role:auth.site_role},old).edit)
+        problem(403,'actor_linked_to_a_character_you_cannot_edit');
       if(old && !b.overwrite)
         return {characterId:old.id,existing:true,updated:false,skipped,report,
           message:'Already linked; website changes were preserved.'};

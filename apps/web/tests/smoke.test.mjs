@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.27\.1/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.28\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.27.1');
+    assert.equal(health.body.version,'0.28.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.27.1');
+    assert.equal(check.body.version,'0.28.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -941,6 +941,39 @@ test('production API: bootstrap → pair world → create player → sync → re
     const exportFile=await fetch(origin+cRoute+'/export',{headers:{cookie:playerCookie}});
     assert.equal(exportFile.status,200);
     assert.match(exportFile.headers.get('content-disposition')??'',/attachment; filename="Sandbox Kyra\.planner\.json"/);
+
+    // Players connect their own Foundry browser with a code and act only on their characters.
+    const playerCode=await send('/api/v1/campaigns/'+campaignId+'/foundry-code',{},playerCookie);
+    assert.equal(playerCode.status,201,JSON.stringify(playerCode));
+    const connected=await send('/api/v1/bridge/'+integrationId+'/connect-player',{code:playerCode.body.code},'',gmOrigin);
+    assert.equal(connected.status,201,JSON.stringify(connected));
+    assert.equal(connected.body.scope,'player');
+    assert.equal((await send('/api/v1/bridge/'+integrationId+'/connect-player',{code:playerCode.body.code},'',gmOrigin)).status,400,'Codes work once');
+    const playerToken=connected.body.accessToken;
+    const bridge=(path,body)=>send('/api/v1/bridge/'+integrationId+path,body,'',gmOrigin,'POST',playerToken);
+    assert.equal((await bridge('/catalog-import/status',{})).status,403,'Players cannot sync the world');
+    const ownersForPlayer=await bridge('/characters/owners',{});
+    assert.deepEqual(ownersForPlayer.body.members.map(m=>m.id),[newPlayer.body.userId],'Players send to their own account');
+    const gmPrivate=await send('/api/v1/campaigns/'+campaignId+'/characters',{name:'GM Secret'},ownerCookie);
+    const playerList=await bridge('/characters/list',{});
+    assert.equal(playerList.status,200,JSON.stringify(playerList));
+    assert.ok(playerList.body.characters.some(c=>c.id===pCopy.body.character.id),'Own characters are listed');
+    assert.ok(!playerList.body.characters.some(c=>c.id===gmPrivate.body.character.id),'Others\u2019 private ones are not');
+    assert.equal((await bridge('/characters/export',{characterId:gmPrivate.body.character.id,actorId:'actorPlayer1'})).status,403);
+    assert.equal((await bridge('/characters/export',{characterId:pCopy.body.character.id,actorId:'actorPlayer1'})).status,200);
+    const playerRefresh=await send('/api/v1/bridge/'+integrationId+'/refresh',{refreshToken:connected.body.refreshToken},'',gmOrigin);
+    assert.equal(playerRefresh.status,200,'Player connections refresh like GM ones');
+    // A PF2e Leveler plan file replaces the level plan; items are matched by name when uuids differ.
+    const planChar=(await send(cRoute,undefined,playerCookie,origin,'GET')).body.character;
+    const levelerPlan={version:1,classSlug:'fighter',dualClassSlug:null,levels:{
+      2:{classFeats:[{uuid:'Compendium.other.feats.Item.Demo',name:'Demonstration Feat'}]},
+      4:{classFeats:[{uuid:'Compendium.other.feats.Item.Gone',name:'Not Synced Feat'}]}}};
+    const planImport=await send(cRoute+'/leveler-plan',{plan:levelerPlan,revision:planChar.revision},playerCookie,origin,'PUT');
+    assert.equal(planImport.status,200,JSON.stringify(planImport));
+    assert.equal(planImport.body.report.renamed,1);
+    assert.deepEqual(planImport.body.report.missing,['Not Synced Feat']);
+    assert.equal(planImport.body.character.leveler.plan.levels[2].classFeats[0].uuid,'Compendium.pf2e.feats-srd.Item.Demo');
+    assert.equal((await send(cRoute+'/leveler-plan',{plan:{nope:1},revision:planImport.body.character.revision},playerCookie,origin,'PUT')).status,400);
 
     const wrongOrigin=await send('/api/v1/bridge/'+integrationId+'/refresh',
       {refreshToken:paired.body.refreshToken},'','https://untrusted.test.invalid');
