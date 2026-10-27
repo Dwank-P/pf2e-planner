@@ -1,6 +1,7 @@
 <script>
   import Icon from '../ui/Icon.svelte';
   import AcBadge from '../ui/AcBadge.svelte';
+  import Portrait from '../ui/Portrait.svelte';
   import Glyph from '../ui/Glyph.svelte';
   import {SKILL_GLYPHS_5E} from '../ui/glyph-names.js';
   import {ABILITIES,ABILITY_NAMES,modifier,signed,multiclassRequirement,armorClass5e,weaponAttack5e} from '../systems/dnd5e/rules.js';
@@ -8,7 +9,7 @@
   import {equipped} from '../builder/gear.js';
   import {traitLabel} from '../systems/dnd5e/build.js';
   /** At-a-glance sheet for the planned character at its last planned level. */
-  let {name,sheet,catalog,variants,planner={}}=$props();
+  let {name,sheet,catalog,variants,planner={},portrait=null,onPortrait=null}=$props();
   // Worn armor and shield from the equipment plan, from the level they're planned for.
   const gear=$derived(equipped(planner,catalog.get,Math.max(1,sheet.level)));
   const armor=$derived(gear.find(g=>g.item.metadata?.armor&&!['shield','clothing','trinket'].includes(g.item.metadata.armor.type))??null);
@@ -42,12 +43,13 @@
 <div class="sheet">
   <header>
     <span class="eyebrow">Planned to level {sheet.level||0}</span>
-    <div class="title"><h2>{name||'Character'}</h2><AcBadge value={ac.total} title={ac.parts}/></div>
+    <div class="title"><h2>{name||'Character'}</h2><Portrait src={portrait} {name} size={64} onEdit={onPortrait}/></div>
     {#each identity as row}<p class="identity"><Icon src={row.img} size={26}/><span>{row.label}</span></p>{/each}
     {#if !identity.length}<p>No origin or class yet</p>{/if}
     {#if sheet.background}<p class="muted">{sheet.background.name}</p>{/if}
   </header>
   <div class="stats">
+    <span class="ac"><AcBadge value={ac.total} title={ac.parts}/></span>
     <span><small>HP</small><b class="num">{sheet.hp||'—'}</b></span>
     <span><small>Prof.</small><b class="num">{signed(sheet.proficiencyBonus)}</b></span>
     <span><small>Init.</small><b class="num">{signed(modifier(sheet.scores.dex))}</b></span>
@@ -96,7 +98,8 @@
   .identity{display:flex;gap:8px;align-items:center;font-weight:700;color:var(--text)!important}
   .key{font-style:normal;color:var(--brass);margin-left:3px;font-size:.65rem}
   .legend{margin:0;font-size:.78rem}
-  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .stats{display:grid;grid-template-columns:auto repeat(3,1fr);gap:6px}
+  .stats span.ac{border:0;background:none;padding:0;place-items:center}
   .title{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .attacks{display:grid;gap:4px}
   .attacks div{display:flex;justify-content:space-between;gap:8px}

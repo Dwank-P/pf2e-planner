@@ -1,3 +1,4 @@
+import {portraitUrl} from './portraits.js';
 import { db } from './db.js';
 import {problem} from './api.js';
 import {levelerChoiceSlots} from '../leveler-progression.js';
@@ -229,7 +230,7 @@ export function toCharacter(row,{includeLeveler=true}={}) {
   if(stored.dnd5e){
     const s=stored.doc.summary??{},b=stored.doc.build??{};
     return {id:row.id,campaignId:row.campaign_id,ownerUserId:row.owner_user_id,name:row.name,level:row.level,
-      visibility:row.visibility??'private',format:'dnd5e',
+      visibility:row.visibility??'private',format:'dnd5e',portrait:portraitUrl(row.portrait_id),
       summary:{ancestry:s.species??null,heritage:null,background:s.background??null,className:s.classes??null,
         dualClassName:null,subclass:null,plannedTo:b.levels?.length||null,
         created:!!(b.speciesUuid&&b.backgroundUuid&&b.levels?.length)},
@@ -242,7 +243,7 @@ export function toCharacter(row,{includeLeveler=true}={}) {
   const doc=stored.doc??converted;
   const view=converted?projectView(converted):stored.view;
   return {id:row.id,campaignId:row.campaign_id,ownerUserId:row.owner_user_id,
-    name:row.name,level:row.level,build:view,visibility:row.visibility??'private',
+    name:row.name,level:row.level,build:view,visibility:row.visibility??'private',portrait:portraitUrl(row.portrait_id),
     format:stored.doc?'leveler':'legacy',
     summary:characterSummary(stored.doc,stored.view),
     ...(includeLeveler?{leveler:doc?.leveler??null,planner:doc?.planner??null}:{}),

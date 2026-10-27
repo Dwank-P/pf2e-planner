@@ -3,7 +3,7 @@
   import {api} from '../ui/api.js';
   /** Side drawer with an item's full rules text; follows inline links with a back history. */
   // catalogBase overrides the campaign's catalog (personal characters, public links).
-  let {campaignId=null,catalogBase=null,linksDisabled=false,uuid=null,level=1,onClose}=$props();
+  let {campaignId=null,catalogBase=null,linksDisabled=false,uuid=null,level=1,variants={},onClose}=$props();
   const itemBase=$derived(catalogBase??'/api/v1/campaigns/'+encodeURIComponent(campaignId));
   let stack=$state([]);
   let error=$state('');
@@ -26,7 +26,7 @@
     {#if error}
       <div class="pad"><p class="notice bad">{error}</p><button class="btn" onclick={onClose}>Close</button></div>
     {:else if current}
-      <ItemInspector item={current} {level} campaignId={campaignId??''} {catalogBase} {linksDisabled} canBack={stack.length>1}
+      <ItemInspector item={current} {level} campaignId={campaignId??''} {catalogBase} {linksDisabled} {variants} canBack={stack.length>1}
         onOpen={item=>stack=[...stack,item]} onBack={()=>stack=stack.slice(0,-1)} onClose={onClose}/>
     {:else}
       <div class="pad muted">Loading…</div>

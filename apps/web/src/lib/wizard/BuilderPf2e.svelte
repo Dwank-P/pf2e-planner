@@ -1,6 +1,7 @@
 <script>
   import {setContext} from 'svelte';
   import AppBar from '../ui/AppBar.svelte';
+  import PortraitEditor from '../ui/PortraitEditor.svelte';
   import Level1Panel from '../wizard/Level1Panel.svelte';
   import LevelPanel from '../wizard/LevelPanel.svelte';
   import SummaryPanel from '../wizard/SummaryPanel.svelte';
@@ -154,6 +155,12 @@
 
   // Characters shared for viewing open read-only: edits are ignored and nothing is saved.
   const canEdit=$derived(character?.access?.edit!==false);
+  // The character's picture, shown beside its name; the old one is deleted on the server when it changes.
+  let portraitOpen=$state(false);
+  async function setPortrait(image){
+    const r=await api(scope.characterUrl+'/portrait',{method:image?'PUT':'DELETE',body:image?{image}:undefined});
+    character={...character,portrait:r.portrait};
+  }
   const canManage=$derived(character?.access?.manage===true);
   let sharing=$state(false);
   let confirmDelete=$state(false);
@@ -340,8 +347,9 @@
         </span>
       </footer>
     </main>
-    <div class="side" class:open={summaryOpen} id="builder-summary"><SummaryPanel {name} {creation} {plan} lookup={catalog.get} {steps} onStep={go} level={currentLevel} {variants} {planner}/></div>
+    <div class="side" class:open={summaryOpen} id="builder-summary"><SummaryPanel {name} {creation} {plan} lookup={catalog.get} {steps} onStep={go} level={currentLevel} {variants} {planner} portrait={character.portrait} onPortrait={canEdit&&!scope.publicView?()=>portraitOpen=true:null}/></div>
   </div>
+  {#if portraitOpen}<PortraitEditor current={character.portrait} onSave={setPortrait} onRemove={()=>setPortrait(null)} onClose={()=>portraitOpen=false}/>{/if}
   <ItemDrawer campaignId={scope.campaignId} catalogBase={scope.campaignId?null:scope.catalogBase} linksDisabled={!!scope.publicView} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
 {:else if !error}
   <p class="loading muted">Loading the character…</p>

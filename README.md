@@ -773,3 +773,21 @@ Website only; the Bridge stays at 0.14.1.
 - **Imports** from another planner or a Leveler plan appear in the list straight away.
 - A friendly page for broken links and errors; red "Delete"-style links everywhere; the
   "My characters" breadcrumb only on personal-character pages.
+
+### v0.30.0 — Pictures, origin summaries, item filters
+
+- **Character pictures**: click the square beside a character's name in the summary to add a
+  picture. A simple crop tool lets you drag and zoom to frame it; the website shrinks it to
+  320×320 and compresses it (WebP, about 2–60 KB) before uploading. Pictures show on the summary
+  and on character cards (party page and My characters). Changing or removing a picture, or
+  deleting the character, deletes the old image from the server.
+- The **AC shield** moved down beside Hit Points and Class DC to make room for the picture.
+- **Details for ancestries, heritages, backgrounds and classes** now show the item's icon and a
+  short summary: Hit Points, size, speed, vision, boosts and flaws, languages; for classes the key
+  attribute, perception, saves, armor and weapon training, spellcasting tradition, trained skills,
+  level-1 features and feat levels. D&D 5e species, backgrounds, classes and subclasses get the
+  same (hit die, primary ability, saves, proficiencies, spellcasting, features).
+- **Equipment filters**: picking Weapon in the equipment plan adds filters for category, damage
+  type (versatile weapons count for both), damage die, hands, melee or ranged, group and trait;
+  Armor adds category, AC bonus, Dex cap, Strength and group; Shield adds AC bonus and hardness.
+  D&D armor and shields are now listed under Armor and Shield.

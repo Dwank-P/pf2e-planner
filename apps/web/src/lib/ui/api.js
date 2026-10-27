@@ -52,7 +52,9 @@ const MESSAGES={
   no_synced_world_for_this_system:'None of your worlds has synced compendiums for that game system yet.',
   source_not_shared_with_you:'That world isn’t available to you any more; reopen Rules & sources.',
   not_a_leveler_plan:'That file isn’t a PF2e Leveler plan (use Leveler’s “Export plan”).',
-  no_foundry_world_paired:'A GM has to pair the Foundry world first.'
+  no_foundry_world_paired:'A GM has to pair the Foundry world first.',
+  invalid_picture:'That picture couldn’t be read. Try a PNG, JPEG or WebP image.',
+  picture_too_large:'That picture is too large even after compressing. Try a simpler image.'
 };
 export class ApiError extends Error{
   constructor(code,status){super(MESSAGES[code]??code??'Request failed (HTTP '+status+')');this.code=code;this.status=status;}

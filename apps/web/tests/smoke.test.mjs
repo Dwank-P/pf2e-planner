@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.29\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.30\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.29.0');
+    assert.equal(health.body.version,'0.30.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.29.0');
+    assert.equal(check.body.version,'0.30.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -997,6 +997,28 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.deepEqual(planImport.body.report.missing,['Not Synced Feat']);
     assert.equal(planImport.body.character.leveler.plan.levels[2].classFeats[0].uuid,'Compendium.pf2e.feats-srd.Item.Demo');
     assert.equal((await send(cRoute+'/leveler-plan',{plan:{nope:1},revision:planImport.body.character.revision},playerCookie,origin,'PUT')).status,400);
+    // Character pictures: the old one is deleted when it changes; anyone with the address can load it.
+    const png='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const jpeg='data:image/jpeg;base64,'+Buffer.from([0xff,0xd8,0xff,0xe0,0,0,0,0]).toString('base64');
+    assert.equal((await send(cRoute+'/portrait',{image:'data:image/png;base64,'+Buffer.from('<svg/>').toString('base64')},playerCookie,origin,'PUT')).status,400,'Only real images');
+    assert.equal((await send(cRoute+'/portrait',{image:png},outsiderCookie,origin,'PUT')).status,403,'Only editors');
+    const firstPicture=await send(cRoute+'/portrait',{image:png},playerCookie,origin,'PUT');
+    assert.equal(firstPicture.status,200,JSON.stringify(firstPicture));
+    const firstImage=await fetch(origin+firstPicture.body.portrait);
+    assert.equal(firstImage.headers.get('content-type'),'image/png');
+    assert.match(firstImage.headers.get('cache-control'),/immutable/);
+    const secondPicture=await send(cRoute+'/portrait',{image:jpeg},playerCookie,origin,'PUT');
+    assert.notEqual(secondPicture.body.portrait,firstPicture.body.portrait);
+    assert.equal((await fetch(origin+firstPicture.body.portrait)).status,404,'The previous picture is deleted');
+    assert.equal((await send(cRoute,undefined,playerCookie,origin,'GET')).body.character.portrait,secondPicture.body.portrait);
+    assert.equal((await send(cRoute+'/portrait',{},playerCookie,origin,'DELETE')).body.portrait,null);
+    assert.equal((await fetch(origin+secondPicture.body.portrait)).status,404,'Removing deletes it too');
+    const doomed=await send('/api/v1/personal',{name:'Short-lived',system:'pf2e'},playerCookie);
+    const doomedPicture=await send('/api/v1/personal/'+doomed.body.character.id+'/portrait',{image:png},playerCookie,origin,'PUT');
+    assert.equal(doomedPicture.status,200,JSON.stringify(doomedPicture));
+    assert.equal((await fetch(origin+doomedPicture.body.portrait)).status,200);
+    assert.equal((await send('/api/v1/personal/'+doomed.body.character.id,{},playerCookie,origin,'DELETE')).status,200);
+    assert.equal((await fetch(origin+doomedPicture.body.portrait)).status,404,'A deleted character’s picture goes too');
 
     const wrongOrigin=await send('/api/v1/bridge/'+integrationId+'/refresh',
       {refreshToken:paired.body.refreshToken},'','https://untrusted.test.invalid');

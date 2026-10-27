@@ -211,6 +211,18 @@ function migrate(sql) {
   // Read-only public view links for campaign characters (personal ones have their own column).
   addColumn('character_builds', 'public_token', 'TEXT');
   sql.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_builds_public_token ON character_builds(public_token) WHERE public_token IS NOT NULL');
+  // Character pictures: one small image per character. Replacing it or deleting the character
+  // (or its campaign) deletes the old image, so only current pictures take space.
+  sql.exec('CREATE TABLE IF NOT EXISTS portraits (id TEXT PRIMARY KEY, content_type TEXT NOT NULL, bytes BLOB NOT NULL, created_at INTEGER NOT NULL)');
+  addColumn('character_builds', 'portrait_id', 'TEXT');
+  addColumn('personal_characters', 'portrait_id', 'TEXT');
+  for (const table of ['character_builds', 'personal_characters']) sql.exec(`
+    CREATE TRIGGER IF NOT EXISTS ${table}_portrait_replaced AFTER UPDATE OF portrait_id ON ${table}
+      WHEN OLD.portrait_id IS NOT NULL AND OLD.portrait_id IS NOT NEW.portrait_id
+      BEGIN DELETE FROM portraits WHERE id=OLD.portrait_id; END;
+    CREATE TRIGGER IF NOT EXISTS ${table}_portrait_deleted AFTER DELETE ON ${table}
+      WHEN OLD.portrait_id IS NOT NULL
+      BEGIN DELETE FROM portraits WHERE id=OLD.portrait_id; END;`);
   sql.exec(`INSERT OR IGNORE INTO integration_origins(integration_id,origin,created_at)
     SELECT id,foundry_origin,created_at FROM integrations`);
   // v0.12 kept a copy of every icon per world; v0.14 shares identical images.

@@ -185,7 +185,7 @@
 {#snippet card(c)}
   <a class="card" href={campaignPath(campaignId,'/characters/'+c.id)}>
     <div class="who">
-      <span class="portrait" aria-hidden="true">{c.name.slice(0,1).toUpperCase()}</span>
+      <span class="portrait" aria-hidden="true">{#if c.portrait}<img src={c.portrait} alt=""/>{:else}{c.name.slice(0,1).toUpperCase()}{/if}</span>
       <div class="names"><h3>{c.name}</h3><small>{describe(c)} · level {c.level}</small></div>
     </div>
     <Traits traits={[c.summary?.ancestry,c.summary?.className,c.summary?.subclass].filter(Boolean).map(x=>x.toLowerCase())}/>
@@ -211,6 +211,8 @@
   .who{display:flex;gap:12px;align-items:center;min-width:0}
   .portrait{width:46px;height:46px;flex:none;border-radius:11px;display:grid;place-items:center;font:800 18px var(--display);
     color:var(--brass);background:linear-gradient(160deg,var(--brass-soft),var(--panel-3))}
+  .portrait{overflow:hidden}
+  .portrait img{width:100%;height:100%;object-fit:cover;display:block}
   .names{min-width:0}
   h3{font-size:1.05rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .names small{color:var(--muted)}

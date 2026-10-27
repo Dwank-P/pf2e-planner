@@ -1,5 +1,6 @@
 <script>
   import AppBar from '../../lib/ui/AppBar.svelte';
+  import Portrait from '../../lib/ui/Portrait.svelte';
   import ImportCharacter from '../../lib/ui/ImportCharacter.svelte';
   import {api,timeAgo} from '../../lib/ui/api.js';
   import {requireSession} from '../../lib/ui/session.js';
@@ -49,7 +50,7 @@
     <section class="grid" aria-label="Your personal characters">
       {#each mine as c (c.id)}
         <a class="card" href={'/characters/'+encodeURIComponent(c.id)}>
-          <span class="top"><b>{c.name}</b><span class="badge">{SYSTEM[c.system]}</span></span>
+          <span class="top"><span class="who"><Portrait src={c.portrait} name={c.name} size={44}/><b>{c.name}</b></span><span class="badge">{SYSTEM[c.system]}</span></span>
           <span class="muted">{line(c)||'Not started'}</span>
           <small class="muted">Level {c.level} · updated {timeAgo(c.updatedAt)}</small>
         </a>
@@ -81,7 +82,7 @@
       <section class="grid" aria-label="Shared with me">
         {#each shared as c (c.id)}
           <a class="card" href={'/characters/'+encodeURIComponent(c.id)}>
-            <span class="top"><b>{c.name}</b><span class="badge">{SYSTEM[c.system]}</span></span>
+            <span class="top"><span class="who"><Portrait src={c.portrait} name={c.name} size={44}/><b>{c.name}</b></span><span class="badge">{SYSTEM[c.system]}</span></span>
             <span class="muted">{line(c)||'Not started'}</span>
             <small class="muted">{c.ownerName} · {c.access.edit?'can edit':'view only'}</small>
           </a>
@@ -103,6 +104,8 @@
     background:var(--panel);color:var(--text);text-decoration:none;text-align:left}
   a.card:hover{border-color:var(--brass)}
   .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .who{display:flex;gap:10px;align-items:center;min-width:0}
+  .who b{overflow-wrap:anywhere}
   .badge{font:600 .68rem var(--mono);text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:4px;padding:1px 5px;white-space:nowrap}
   .card.new{border-style:dashed;justify-items:center;text-align:center;color:var(--text-2);cursor:pointer;min-height:110px;align-content:center}
   .plus{font-size:1.4rem;color:var(--brass)}

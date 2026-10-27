@@ -55,8 +55,8 @@ export async function handle({ event, resolve }) {
     return new Response('Origin required', { status: 403 });
   }
   const response = await resolve(event);
-  // Item icons carry their own private cache headers.
-  if (!/^\/api\/v1\/(campaigns|personal|public)\/[^/]+\/icons\//.test(path) || !response.ok)
+  // Item icons and character pictures carry their own cache headers.
+  if (!/^\/api\/v1\/((campaigns|personal|public)\/[^/]+\/icons|portraits)\//.test(path) || !response.ok)
     response.headers.set('cache-control', 'no-store');
   response.headers.set('x-content-type-options', 'nosniff');
   response.headers.set('referrer-policy', 'no-referrer');

@@ -4,6 +4,7 @@
   import {canEquip,takesRunes,takesMagicBonus,runesOf,runedName} from '../builder/gear.js';
   import {itemOptions,priceGp,formatPrice,isConsumable,TYPE_LABELS,wishlist,wishesByLevel,addWish,updateWish,removeWish,setEquipped,unitPrice,runeCost}
     from '../builder/equipment.js';
+  import {itemKind,facetsFor,matchesFacets} from '../builder/item-filters.js';
   /** Equipment plan: browse synced items, then park them on the level you want them at. */
   // startLevel: open with items going to this level (level 1's Equipment card opens it at 1).
   let {planner,catalog,updatePlanner,currentLevel=1,info,startLevel=null}=$props();
@@ -16,7 +17,11 @@
   let target=$state(startLevel);
   const forLevel=$derived(target??currentLevel);
   const items=$derived(itemOptions(catalog));
-  const types=$derived(Object.keys(TYPE_LABELS).filter(t=>items.some(i=>i.type===t)));
+  const types=$derived(Object.keys(TYPE_LABELS).filter(t=>items.some(i=>itemKind(i)===t)));
+  // Weapon, armor and shield filters (damage type, hands, AC bonus, Dex cap…) for the chosen type.
+  let facet=$state({});
+  const facets=$derived(type?facetsFor(type,items.filter(i=>itemKind(i)===type)):[]);
+  $effect(()=>{type;facet={};});
   const hasPrices=$derived(items.some(i=>priceGp(i)!=null));
   const planned=$derived(new Set(wishlist(planner).map(w=>w.uuid)));
   const SORTS={level:(a,b)=>(a.level??0)-(b.level??0)||a.name.localeCompare(b.name),
@@ -24,7 +29,7 @@
     name:(a,b)=>a.name.localeCompare(b.name)};
   const shown=$derived.by(()=>{
     const q=query.trim().toLowerCase();
-    return items.filter(i=>(!type||i.type===type)&&(!use||(use==='consumable')===isConsumable(i))
+    return items.filter(i=>(!type||itemKind(i)===type&&matchesFacets(type,i,facet))&&(!use||(use==='consumable')===isConsumable(i))
       &&(i.level??0)>=minLevel&&(i.level??0)<=maxLevel
       &&(!q||i.name.toLowerCase().includes(q)||(i.traits??[]).some(t=>t.includes(q))))
       .sort(SORTS[sort]);
@@ -132,6 +137,15 @@
       <select bind:value={sort} aria-label="Sort"><option value="level">Sort: level</option>
         <option value="price">Sort: price</option><option value="name">Sort: name</option></select>
     </div>
+    {#if facets.length}
+      <div class="facets" role="group" aria-label={TYPE_LABELS[type]+' filters'}>
+        {#each facets as f (f.key)}
+          <label>{f.label} <select value={facet[f.key]??''} onchange={e=>facet={...facet,[f.key]:e.currentTarget.value}}>
+            <option value="">Any</option>{#each f.options as [value,label]}<option {value}>{label}</option>{/each}</select></label>
+        {/each}
+        {#if Object.values(facet).some(Boolean)}<button class="link" onclick={()=>facet={}}>Clear</button>{/if}
+      </div>
+    {/if}
     {#if !hasPrices&&items.length}<p class="notice">Prices appear after the GM runs Sync Now with Bridge 0.11.</p>{/if}
     <div class="table" role="table">
       <div class="row head" role="row"><span>Item</span><span>Level</span><span>Price</span><span>Type</span><span></span></div>
@@ -141,7 +155,7 @@
             <Traits traits={item.traits??[]} rarity={item.rarity} max={3}/></span>
           <span class="num">{item.level??0}</span>
           <span class="num">{formatPrice(priceGp(item))}</span>
-          <span class="muted">{TYPE_LABELS[item.type]}{isConsumable(item)&&item.type!=='consumable'?' · consumable':''}</span>
+          <span class="muted">{TYPE_LABELS[itemKind(item)]??TYPE_LABELS[item.type]}{isConsumable(item)&&item.type!=='consumable'?' · consumable':''}</span>
           <span><button class="btn small" class:ghost={planned.has(item.uuid)}
             onclick={()=>updatePlanner(p=>addWish(p,item,forLevel))}>{planned.has(item.uuid)?'+ Again':'+ Level '+forLevel}</button></span>
         </div>
@@ -171,6 +185,10 @@
   .filters{display:flex;gap:8px;flex-wrap:wrap}
   .filters input[type=search]{flex:1 1 200px}
   .range{display:flex;gap:4px;align-items:center;font-size:.85rem}
+  .facets{display:flex;gap:6px 12px;flex-wrap:wrap;align-items:center;font-size:.82rem;color:var(--text-2);
+    background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px}
+  .facets label{display:flex;gap:5px;align-items:center}
+  .facets select{font-size:.82rem;padding:3px 6px}
   .range input{width:4em}
   .table{display:grid;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
   .row{display:grid;grid-template-columns:minmax(0,1fr) 3.5em 6em 9em 7.5em;gap:10px;align-items:center;padding:7px 12px;border-top:1px solid var(--line)}

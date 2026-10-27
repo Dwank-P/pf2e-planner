@@ -7,6 +7,7 @@
   import ItemDrawer from '../wizard/ItemDrawer.svelte';
   import SharePanel from '../ui/SharePanel.svelte';
   import AppBar from '../ui/AppBar.svelte';
+  import PortraitEditor from '../ui/PortraitEditor.svelte';
   import {api} from '../ui/api.js';
   import {downloadJson} from '../ui/download.js';
   import {loadCatalogAt} from '../builder/catalog.js';
@@ -64,6 +65,12 @@
   const sequence=$derived(['origin',...Array.from({length:Math.min(20,planned+1)},(_,i)=>'level-'+(i+1)),'spells','equipment','notes']);
   const index=$derived(sequence.indexOf(at));
   const canEdit=$derived(character?.access?.edit!==false);
+  // The character's picture, shown beside its name; the old one is deleted on the server when it changes.
+  let portraitOpen=$state(false);
+  async function setPortrait(image){
+    const r=await api(scope.characterUrl+'/portrait',{method:image?'PUT':'DELETE',body:image?{image}:undefined});
+    character={...character,portrait:r.portrait};
+  }
   const canManage=$derived(character?.access?.manage===true);
 
   function update(change){if(!canEdit)return;build=change(build);schedule();}
@@ -237,9 +244,10 @@
         {#if index<sequence.length-1}<button class="btn primary" onclick={()=>go('next')}>{labelOf(sequence[index+1])} →</button>{/if}
       </footer>
     </main>
-    <div class="side" class:open={summaryOpen} id="builder-summary"><Summary5e {name} {sheet} {catalog} {variants} {planner}/></div>
+    <div class="side" class:open={summaryOpen} id="builder-summary"><Summary5e {name} {sheet} {catalog} {variants} {planner} portrait={character.portrait} onPortrait={canEdit&&!scope.publicView?()=>portraitOpen=true:null}/></div>
   </div>
-  <ItemDrawer campaignId={scope.campaignId} catalogBase={scope.campaignId?null:scope.catalogBase} linksDisabled={!!scope.publicView} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
+  {#if portraitOpen}<PortraitEditor current={character.portrait} onSave={setPortrait} onRemove={()=>setPortrait(null)} onClose={()=>portraitOpen=false}/>{/if}
+  <ItemDrawer campaignId={scope.campaignId} catalogBase={scope.campaignId?null:scope.catalogBase} linksDisabled={!!scope.publicView} {variants} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
 {:else if !error}
   <p class="loading muted">Loading the character…</p>
 {/if}

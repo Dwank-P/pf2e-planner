@@ -7,11 +7,12 @@
   import {classTitle} from '../builder/summaries.js';
   import Icon from '../ui/Icon.svelte';
   import AcBadge from '../ui/AcBadge.svelte';
+  import Portrait from '../ui/Portrait.svelte';
   import Glyph from '../ui/Glyph.svelte';
   import {SAVE_GLYPHS,skillGlyph} from '../ui/glyph-names.js';
   import {equipped,itemBonuses,skillBonus,armorClass,strike,runedName} from '../builder/gear.js';
   /** The character at its current `level`: level-1 creation plus planned boosts, increases and class features. */
-  let {name,creation,plan=null,lookup,steps=[],onStep,level=1,variants={},planner={}}=$props();
+  let {name,creation,plan=null,lookup,steps=[],onStep,level=1,variants={},planner={},portrait=null,onPortrait=null}=$props();
   const pwl=$derived(variants?.proficiencyWithoutLevel===true);
   const result=$derived(attributeModifiers(creation,lookup,plan?.levels??{},level));
   const mods=$derived(result.mods);
@@ -55,7 +56,7 @@
 <aside class="summary" aria-label="Character summary">
   <div class="who">
     <span class="eyebrow">Level {level}</span>
-    <div class="title"><h2>{name}</h2>{#if creation.class}<AcBadge value={ac.total} title={acTitle}/>{/if}</div>
+    <div class="title"><h2>{name}</h2><Portrait src={portrait} {name} size={64} onEdit={onPortrait}/></div>
     {#if identity.length}
       <ul class="identity">
         {#each identity as part}<li><Icon src={part.img} size={28}/><span>{part.label}</span></li>{/each}
@@ -70,7 +71,8 @@
         <span>{a.toUpperCase()}</span><b class="num">{formatModifier(mods[a])}{result.partial[a]?'½':''}</b></div>
     {/each}
   </div>
-  <dl class="stats">
+  <dl class="stats" class:with-ac={!!creation.class}>
+    {#if creation.class}<div class="ac"><AcBadge value={ac.total} title={acTitle}/></div>{/if}
     <div><dt>Hit Points</dt><dd class="num">{hp??'—'}</dd></div>
     <div><dt>Class DC</dt><dd class="num">{classDC??'—'}</dd></div>
   </dl>
@@ -131,6 +133,8 @@
   .attr span{display:block;font:600 .66rem var(--mono);color:var(--muted)}
   .attr b{font:800 1.15rem var(--display)}
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0}
+  .stats.with-ac{grid-template-columns:auto 1fr 1fr}
+  .stats div.ac{background:none;padding:0;display:grid;place-items:center}
   .stats div{background:var(--panel-2);border-radius:8px;padding:8px 10px}
   dt{font-size:.75rem;color:var(--muted)}dd{margin:0;font:700 1.1rem var(--mono)}
   .block{display:grid;gap:6px;font-size:.9rem}

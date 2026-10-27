@@ -2,11 +2,13 @@
   import { renderLevelDescription } from './level-formulas.js';
   import Traits from './ui/Traits.svelte';
   import {itemStats} from './builder/item-stats.js';
+  import {originSummary} from './builder/origin-summary.js';
+  import Icon from './ui/Icon.svelte';
 
   // catalogBase: where catalog-item lives (a campaign, personal character or public link);
   // popout: open items in the campaign's item window; linksDisabled: public links can't follow references.
   let {item=null, level=1, campaignId='', catalogBase=null, popout=true, linksDisabled=false,
-    onOpen=()=>{}, onBack=()=>{}, onClose=()=>{}, canBack=false, compact=false} = $props();
+    variants={}, onOpen=()=>{}, onBack=()=>{}, onClose=()=>{}, canBack=false, compact=false} = $props();
 
   let hoverItem=$state(null);
   let hoverState=$state('');
@@ -16,6 +18,9 @@
   const cache=new Map();
   const html=$derived(renderLevelDescription(item?.description||'',level));
   const stats=$derived(itemStats(item));
+  // Ancestries, classes and other origins: HP, size, key attribute, skills, features…
+  const origin=$derived(originSummary(item,variants));
+  const ORIGINS=['ancestry','heritage','background','class','race','subclass'];
   const base=$derived((catalogBase??'/api/v1/campaigns/'+encodeURIComponent(campaignId))+'/catalog-item');
   const canPop=$derived(popout&&!!campaignId&&!catalogBase);
   function getRef(target) {
@@ -102,11 +107,17 @@
       <button type="button" class="ghost" onclick={onClose} aria-label="Close details">✕</button>
     </div>
     <div class="inspector-main">
-      <div class="eyebrow">{item.type||'Item'} <span>·</span> Level {item.level??'—'}</div>
-      <h2>{item.name}</h2>
+      <div class="eyebrow">{item.type==='race'?'species':item.type||'Item'}{#if item.level!=null&&!ORIGINS.includes(item.type)} <span>·</span> Level {item.level}{/if}</div>
+      <div class="heading"><Icon src={item.img} size={56}/><h2>{item.name}</h2></div>
       <div class="inspector-tags"><Traits traits={item.traits||[]} rarity={item.rarity||'common'} max={20}/></div>
       {#if stats.length}
         <dl class="stats">{#each stats as [label,value]}<div><dt>{label}</dt><dd>{value}</dd></div>{/each}</dl>
+      {/if}
+      {#if origin.facts.length}
+        <dl class="stats">{#each origin.facts as [label,value]}<div><dt>{label}</dt><dd>{value}</dd></div>{/each}</dl>
+      {/if}
+      {#if origin.notes.length}
+        <dl class="notes">{#each origin.notes as [label,value]}<div><dt>{label}</dt><dd>{value}</dd></div>{/each}</dl>
       {/if}
       {#if item.metadata?.prerequisites?.length}
         <p class="prereq"><strong>Prerequisites</strong> {item.metadata.prerequisites.join(', ')}</p>
@@ -182,4 +193,10 @@
   .stats div{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 9px}
   .stats dt{font:600 .68rem var(--mono);text-transform:uppercase;color:var(--muted)}
   .stats dd{margin:2px 0 0;font-weight:700}
+  .heading{display:flex;align-items:center;gap:12px;margin:.4rem 0 1rem}
+  .heading h2{margin:0}
+  .notes{display:grid;gap:4px;margin:.6rem 0 1rem;font-size:.88rem}
+  .notes div{display:grid;grid-template-columns:8.5em minmax(0,1fr);gap:8px}
+  .notes dt{font:600 .7rem var(--mono);text-transform:uppercase;color:var(--muted);padding-top:.2em}
+  .notes dd{margin:0;color:var(--text)}
 </style>
