@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.30\.0/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.31\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.30.0');
+    assert.equal(health.body.version,'0.31.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.30.0');
+    assert.equal(check.body.version,'0.31.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -1013,6 +1013,22 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal((await send(cRoute,undefined,playerCookie,origin,'GET')).body.character.portrait,secondPicture.body.portrait);
     assert.equal((await send(cRoute+'/portrait',{},playerCookie,origin,'DELETE')).body.portrait,null);
     assert.equal((await fetch(origin+secondPicture.body.portrait)).status,404,'Removing deletes it too');
+    // The GM hides a synced pack from the website: it leaves the bundle's lists and the feat browser.
+    const packsUrl='/api/v1/campaigns/'+campaignId+'/compendium-packs';
+    assert.equal((await send(packsUrl,undefined,playerCookie,origin,'GET')).status,403);
+    const packView=await send(packsUrl,undefined,ownerCookie,origin,'GET');
+    assert.ok(packView.body.packs.some(p=>p.pack==='pf2e.feats-srd'&&!p.hidden),JSON.stringify(packView.body));
+    const featCount=async()=>(await send('/api/v1/campaigns/'+campaignId+'/catalog-items?type=feat',undefined,playerCookie,origin,'GET')).body;
+    const before=await featCount();
+    const hid=await send(packsUrl,{hidden:['pf2e.feats-srd','not.a-pack']},ownerCookie,origin,'PUT');
+    assert.equal(hid.status,200,JSON.stringify(hid));
+    assert.deepEqual(hid.body.packs.filter(p=>p.hidden).map(p=>p.pack),['pf2e.feats-srd']);
+    const after=await featCount();
+    assert.ok(JSON.stringify(after).length<JSON.stringify(before).length,'Hidden feats leave the feat browser');
+    const hiddenBundle=await send('/api/v1/campaigns/'+campaignId+'/catalog-bundle',undefined,playerCookie,origin,'GET');
+    assert.ok(hiddenBundle.body.items.some(i=>i.uuid.startsWith('Compendium.pf2e.feats-srd.')&&i.hidden),'Marked hidden, still resolvable');
+    assert.ok(hiddenBundle.body.items.filter(i=>!i.uuid.startsWith('Compendium.pf2e.feats-srd.')).every(i=>!i.hidden));
+    assert.equal((await send(packsUrl,{hidden:[]},ownerCookie,origin,'PUT')).body.packs.filter(p=>p.hidden).length,0);
     const doomed=await send('/api/v1/personal',{name:'Short-lived',system:'pf2e'},playerCookie);
     const doomedPicture=await send('/api/v1/personal/'+doomed.body.character.id+'/portrait',{image:png},playerCookie,origin,'PUT');
     assert.equal(doomedPicture.status,200,JSON.stringify(doomedPicture));

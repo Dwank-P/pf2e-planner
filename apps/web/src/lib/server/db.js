@@ -211,6 +211,10 @@ function migrate(sql) {
   // Read-only public view links for campaign characters (personal ones have their own column).
   addColumn('character_builds', 'public_token', 'TEXT');
   sql.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_builds_public_token ON character_builds(public_token) WHERE public_token IS NOT NULL');
+  // Packs a world's GM hid from the website (even though Leveler offers them): they drop out of
+  // option lists and searches; characters that already picked their items keep them.
+  sql.exec(`CREATE TABLE IF NOT EXISTS hidden_packs (integration_id TEXT NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
+    pack TEXT NOT NULL, PRIMARY KEY(integration_id,pack))`);
   // Character pictures: one small image per character. Replacing it or deleting the character
   // (or its campaign) deletes the old image, so only current pictures take space.
   sql.exec('CREATE TABLE IF NOT EXISTS portraits (id TEXT PRIMARY KEY, content_type TEXT NOT NULL, bytes BLOB NOT NULL, created_at INTEGER NOT NULL)');
@@ -237,6 +241,13 @@ function migrate(sql) {
       sql.exec('COMMIT');
     } catch (error) { sql.exec('ROLLBACK'); throw error; }
   }
+}
+
+/** SQL true for a catalog_entries row from a pack its world's GM hid (use the table name, not an alias). */
+export const HIDDEN_PACK = 'EXISTS(SELECT 1 FROM hidden_packs h WHERE h.integration_id=catalog_entries.integration_id AND h.pack=catalog_entries.pack)';
+/** A world's hidden packs as a stable string (bundle versions change when it does). */
+export function hiddenKey(integrationId) {
+  return db().prepare('SELECT pack FROM hidden_packs WHERE integration_id=? ORDER BY pack').all(integrationId).map(r => r.pack).join(',');
 }
 
 export function unix() { return Math.floor(Date.now() / 1000); }

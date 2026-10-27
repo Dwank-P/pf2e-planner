@@ -33,10 +33,35 @@
         ctx=loaded;
         members=(await api(base+'/members')).members;
         sharing=await api(base+'/compendium-sharing');
+        if(loaded.sync)packList=(await api(base+'/compendium-packs')).packs;
       }catch(e){error=e.message;}
     })();
   });
   const sync=$derived(ctx?.sync);
+  // Packs offered on the website: the GM can hide some that Leveler offers (e.g. animal companion ancestries).
+  let packList=$state(null);
+  let hidden=$state(null);
+  const shownHidden=$derived(hidden??new Set((packList??[]).filter(p=>p.hidden).map(p=>p.pack)));
+  const packGroups=$derived.by(()=>{
+    const groups=new Map();
+    for(const p of packList??[]){
+      const name=p.pack.split('.')[0];
+      if(!groups.has(name))groups.set(name,[]);
+      groups.get(name).push(p);
+    }
+    return [...groups.entries()];
+  });
+  const packsChanged=$derived(!!hidden&&!!packList&&(hidden.size!==packList.filter(p=>p.hidden).length||packList.some(p=>p.hidden!==hidden.has(p.pack))));
+  const TYPE_NAMES={ancestry:'ancestries',heritage:'heritages',background:'backgrounds',class:'classes',feat:'feats',spell:'spells',
+    action:'actions',deity:'deities',equipment:'equipment',weapon:'weapons',armor:'armor',shield:'shields',consumable:'consumables'};
+  const contents=p=>Object.entries(p.types).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([t,n])=>n+' '+(TYPE_NAMES[t]??t)).join(', ')
+    +(Object.keys(p.types).length>4?'…':'');
+  function togglePack(pack,on){const next=new Set(shownHidden);on?next.delete(pack):next.add(pack);hidden=next;}
+  function toggleGroup(list,on){const next=new Set(shownHidden);for(const p of list)on?next.delete(p.pack):next.add(p.pack);hidden=next;}
+  const savePacks=()=>run(async()=>{
+    packList=(await api(base+'/compendium-packs',{method:'PUT',body:{hidden:[...shownHidden]}})).packs;
+    hidden=null;notice='Compendium choices saved. Players see the change when they next open a character.';
+  });
   const rules=$derived(Object.entries(sync?.variants??{}).filter(([,v])=>typeof v==='boolean'));
   const variantNames={freeArchetype:'Free Archetype',dualClass:'Dual Class',ancestralParagon:'Ancestral Paragon',
     gradualAbilityBoosts:'Gradual Ability Boosts',automaticBonusProgression:'Automatic Bonus Progression',
@@ -215,6 +240,29 @@
               (My characters). Tick this to let everyone else here use them too. Nothing is copied; turning it off keeps
               what other players’ characters already picked.{sharing.personalCharacters?` ${sharing.personalCharacters} personal character${sharing.personalCharacters===1?' uses':'s use'} this world.`:''}</small></span></label>
       {/if}
+      {#if packList?.length}
+        <details class="sub packs-pick" open={packsChanged||packList.some(p=>p.hidden)}>
+          <summary>Available on the website ({packList.length-shownHidden.size} of {packList.length} packs)</summary>
+          <p class="muted small">Untick packs players shouldn’t pick from here, even though PF2e Leveler offers them (animal
+            companion ancestries, NPC options…). Hidden packs stay synced, so ticking them again needs no Sync Now.
+            Characters that already picked something from a hidden pack keep it.</p>
+          {#each packGroups as [name,list] (name)}
+            {@const on=list.filter(p=>!shownHidden.has(p.pack)).length}
+            <fieldset class="pack-group">
+              <legend><label><input type="checkbox" checked={on===list.length} indeterminate={on>0&&on<list.length}
+                onchange={e=>toggleGroup(list,e.currentTarget.checked)}/> <b>{name}</b></label>
+                <small class="muted">{on} of {list.length}</small></legend>
+              {#each list as p (p.pack)}
+                <label class="pack" class:off={shownHidden.has(p.pack)}><input type="checkbox" checked={!shownHidden.has(p.pack)}
+                  onchange={e=>togglePack(p.pack,e.currentTarget.checked)}/>
+                  <span class="num">{p.pack.slice(name.length+1)}</span><small class="muted">{contents(p)}</small></label>
+              {/each}
+            </fieldset>
+          {/each}
+          <div class="row start"><button class="btn" disabled={busy||!packsChanged} onclick={savePacks}>Save compendium choices</button>
+            {#if packsChanged}<button class="link" onclick={()=>hidden=null}>Undo changes</button>{/if}</div>
+        </details>
+      {/if}
       <div class="row start"><a class="btn" href={campaignPath(campaignId,'/feats')}>Feat browser</a>
         <a class="btn ghost" href={campaignPath(campaignId,'/ruleset')}>Detailed sync report</a></div>
     </section>
@@ -232,6 +280,12 @@
   .facts div{background:var(--panel-2);border-radius:8px;padding:10px 12px}
   dt{color:var(--muted);font-size:.8rem}dd{margin:2px 0 0;font-weight:700}
   .sub{display:grid;gap:8px}
+  .pack-group{border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px 10px;margin:0;display:grid;gap:4px}
+  .pack-group legend{display:flex;gap:10px;align-items:center;padding:0 4px}
+  .pack-group legend label{display:flex;gap:6px;align-items:center}
+  .pack{display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 8px;align-items:baseline;font-size:.88rem;padding:2px 0}
+  .pack small{grid-column:2}
+  .pack.off span{color:var(--muted);text-decoration:line-through}
   summary{cursor:pointer;font-weight:700}
   .link-form .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .link-form input[type=number]{width:6em}

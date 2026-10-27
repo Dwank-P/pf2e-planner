@@ -1,5 +1,5 @@
 import {createHash,randomBytes} from 'node:crypto';
-import {db,unix} from './db.js';
+import {db,unix,HIDDEN_PACK,hiddenKey} from './db.js';
 import {problem} from './api.js';
 import {EXCLUDED_TYPES,BUNDLE_FORMAT,bundleItem} from './bundle.js';
 import {documentUuids,dnd5eUuids,toCharacter} from './characters.js';
@@ -232,7 +232,8 @@ const bundles=new Map();
 export function personalBundle(row,{onlyNeeded=false}={}){
   const catalog=personalCatalog(row);
   const keptRows=db().prepare('SELECT uuid,item_json,kept_at FROM personal_kept_items WHERE character_id=?').all(row.id);
-  const sourceKey=[...catalog.sources.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([p,w])=>p+'@'+w.integrationId+':'+w.sha256).join('|');
+  const sourceKey=[...catalog.sources.entries()].sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([p,w])=>p+'@'+w.integrationId+':'+w.sha256+':'+hiddenKey(w.integrationId)).join('|');
   const version=createHash('sha256').update([sourceKey,keptRows.length,Math.max(0,...keptRows.map(k=>k.kept_at)),
     row.variants_json,onlyNeeded?'needed:'+row.revision:'all',BUNDLE_FORMAT].join('\n')).digest('hex');
   const key=row.id+':'+version;
@@ -244,13 +245,13 @@ export function personalBundle(row,{onlyNeeded=false}={}){
     }else{
       const seen=new Set();
       items=[];
-      const select=db().prepare(`SELECT uuid,item_json FROM catalog_entries WHERE integration_id=? AND snapshot_id=?
+      const select=db().prepare(`SELECT uuid,item_json,${HIDDEN_PACK} AS hidden FROM catalog_entries WHERE integration_id=? AND snapshot_id=?
         AND (pack=? OR pack LIKE ? ESCAPE '\\') AND type NOT IN (${EXCLUDED_TYPES.map(()=>'?').join(',')})`);
       for(const [name,w] of catalog.sources){
         const like=name.replace(/[\\%_]/g,m=>'\\'+m)+'.%';
         for(const r of select.iterate(w.integrationId,w.snapshotId,name,like,...EXCLUDED_TYPES)){
           if(seen.has(r.uuid))continue;
-          seen.add(r.uuid);items.push(bundleItem(r.item_json));
+          seen.add(r.uuid);items.push(r.hidden?{...bundleItem(r.item_json),hidden:true}:bundleItem(r.item_json));
         }
       }
       for(const k of keptRows)if(!seen.has(k.uuid)){seen.add(k.uuid);items.push({...bundleItem(k.item_json),kept:true});}

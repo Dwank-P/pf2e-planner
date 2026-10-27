@@ -1,4 +1,4 @@
-import {db} from '#lib/server/db.js';
+import {db,HIDDEN_PACK} from '#lib/server/db.js';
 import {readPublished} from '#lib/server/catalog-import.js';
 import {respond,sessionUser,requireMembership,problem} from '#lib/server/api.js';
 export function GET(event){
@@ -14,7 +14,8 @@ export function GET(event){
   const trait=(event.url.searchParams.get('trait')||'').trim().toLowerCase().slice(0,80);
   const page=Math.max(1,Math.min(10000,Number.parseInt(event.url.searchParams.get('page')||'1',10)||1));
   if(!/^[a-z][a-zA-Z0-9-]{0,39}$/.test(type))problem(400,'invalid_item_type');
-  const clauses=['integration_id=?','snapshot_id=?','type=?'];
+  // Packs the GM hid in campaign settings aren't browsable.
+  const clauses=['integration_id=?','snapshot_id=?','type=?','NOT '+HIDDEN_PACK];
   const values=[pub.integration_id,pub.snapshot_id,type];
   if(q){clauses.push("(LOWER(name) LIKE ? ESCAPE '\\' OR LOWER(json_extract(item_json,'$.metadata.slug')) LIKE ? ESCAPE '\\')");const term='%'+q.replace(/[\\%_]/g,v=>'\\'+v)+'%';values.push(term,term);}
   if(level!==null && level!==''){const n=Number(level);if(!Number.isInteger(n)||n<0||n>25)problem(400,'invalid_level');clauses.push('level=?');values.push(n);}

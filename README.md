@@ -791,3 +791,12 @@ Website only; the Bridge stays at 0.14.1.
   type (versatile weapons count for both), damage die, hands, melee or ranged, group and trait;
   Armor adds category, AC bonus, Dex cap, Strength and group; Shield adds AC bonus and hardness.
   D&D armor and shields are now listed under Armor and Shield.
+
+### v0.31.0 — Choose which compendiums the website offers
+
+- **Campaign settings → Compendiums → Available on the website**: untick synced packs players
+  shouldn't pick from on the website, even when PF2e Leveler offers them (animal companion
+  ancestries, NPC options…). Packs are grouped by module with what each contains.
+- Hidden packs leave every option list, search and the feat browser, for the campaign and for
+  personal characters that use this world. They stay synced, so ticking one again takes effect
+  without Sync Now. Characters that already picked something from a hidden pack keep it.

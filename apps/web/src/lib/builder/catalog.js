@@ -9,6 +9,8 @@ export function indexCatalog(bundle){
   const byUuid=new Map(),byType=new Map();
   for(const item of items){
     byUuid.set(item.uuid,item);
+    // Items from packs the GM hid still resolve for characters that picked them, but aren't offered.
+    if(item.hidden)continue;
     if(!byType.has(item.type))byType.set(item.type,[]);
     byType.get(item.type).push(item);
   }

@@ -113,7 +113,7 @@
       onToggle={pick} onInfo={item=>info(item.uuid)} detail={choice.detail??(()=> '')}
       test={id==='background'?backgroundTest:null} filters={id==='background'?backgroundFilters:undefined}
       placeholder={'Search '+choice.items.length+' options'}
-      empty={'No options for this step are in the synced compendiums. Ask the GM to include the right packs in Leveler’s Compendium Manager.'}/>
+      empty={'No options for this step are in the synced compendiums. Ask the GM to include the right packs in Leveler’s Compendium Manager, and to check none are hidden in campaign settings.'}/>
   {:else if id==='sanctification'}
     <p class="muted">{bucket.deity?.name} allows {sanctOptions.join(' or ')} sanctification{bucket.deity?.sanctification?.modal==='must'?'':' (or none)'}.</p>
     <div class="choices">
