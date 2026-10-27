@@ -31,7 +31,7 @@
   const line=c=>[c.summary?.ancestry??c.summary?.background,c.summary?.className].filter(Boolean).join(' · ');
 </script>
 <svelte:head><title>My characters · PF2e Planner</title></svelte:head>
-{#if session}<AppBar me={session.user} campaigns={session.campaigns} crumb="My characters"/>{/if}
+{#if session}<AppBar me={session.user} campaigns={session.campaigns} crumb="My characters" personal/>{/if}
 <main class="page">
   {#if error}<p class="notice bad" role="alert">{error}</p>{/if}
   <section class="head">
@@ -67,7 +67,8 @@
             <button class="btn primary" disabled={busy||!name.trim()}>Create</button></div>
         </form>
       {:else if importing}
-        <ImportCharacter importUrl="/api/v1/personal/import" personal onCancel={()=>importing=false}/>
+        <ImportCharacter importUrl="/api/v1/personal/import" personal onCancel={()=>importing=false}
+          onImported={c=>list={...list,characters:[c,...list.characters]}}/>
       {:else}
         <button class="card new" onclick={()=>creating=true}><span class="plus" aria-hidden="true">+</span><b>New character</b>
           <small>Choose rules and sources next</small></button>

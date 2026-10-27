@@ -12,10 +12,18 @@
   let busy=$state(false);
   let error=$state('');
   let notice=$state('');
+  // Foundry browsers connected to this account (GM pairings, player connections).
+  let connections=$state(null);
   onMount(async()=>{
     session=await requireSession();
     username=session.user.username??'';displayName=session.user.displayName??'';
+    connections=(await api('/api/v1/me/foundry-connections').catch(()=>({connections:[]}))).connections;
   });
+  const disconnect=c=>run(async()=>{
+    connections=(await api('/api/v1/me/foundry-connections',{method:'DELETE',body:{id:c.id}})).connections;
+    notice='Disconnected '+(c.origin??'that browser')+' ('+c.campaign+').';
+  });
+  const date=s=>new Date(s*1000).toLocaleDateString();
   async function run(work){busy=true;error='';notice='';try{await work();}catch(e){error=e.message;}finally{busy=false;}}
   const saveProfile=event=>{event.preventDefault();run(async()=>{
     const result=await api('/api/v1/me',{method:'PATCH',body:{username:username.trim(),displayName:displayName.trim()}});
@@ -55,6 +63,19 @@
       <button class="btn primary" disabled={busy}>Change password</button>
       <p class="muted small">Locked out? The server owner can send you a reset link.</p>
     </form>
+    {#if connections}
+      <section class="panel block">
+        <h2>Foundry connections</h2>
+        <p class="muted small">Foundry browsers that act for you: a GM's pairing syncs a world; a player connection
+          (campaign page → Connect Foundry) sends and pulls your characters. Disconnect any you no longer use.</p>
+        {#if connections.length}
+          <ul class="connections">{#each connections as c (c.id)}
+            <li><span><b>{c.campaign}</b> <small class="muted">{c.scope==='player'?'player connection':'GM pairing'} · {c.origin??'—'} · since {date(c.createdAt)}</small></span>
+              <button class="btn small ghost danger" disabled={busy} onclick={()=>disconnect(c)}>Disconnect</button></li>
+          {/each}</ul>
+        {:else}<p class="muted">None.</p>{/if}
+      </section>
+    {/if}
   {/if}
 </main>
 <style>
@@ -63,4 +84,6 @@
   .block .btn{justify-self:start}
   h2{font-size:1.1rem}
   .small{font-size:.85rem}
+  .connections{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+  .connections li{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:8px}
 </style>

@@ -5,7 +5,8 @@
    * Import a character from another planner (or this one): its public link, or an exported
    * file. importUrl: this planner's import endpoint; personal: open results in My characters.
    */
-  let {importUrl,personal=false,onCancel}=$props();
+  // onImported(character): the page adds it to its list straight away.
+  let {importUrl,personal=false,onCancel,onImported=()=>{}}=$props();
   let link=$state('');
   let file=$state(null);
   let busy=$state(false);
@@ -28,6 +29,7 @@
         data=await response.json();
       }
       result=await api(importUrl,{method:'POST',body:{export:data,fileName:file?.name??''}});
+      onImported(result.character);
     }catch(e){error=e.message;}finally{busy=false;}
   }
   const href=$derived(result?personal?'/characters/'+encodeURIComponent(result.character.id)

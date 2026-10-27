@@ -1,8 +1,8 @@
 import {createReadStream,statSync} from 'node:fs';
 import {Readable} from 'node:stream';
 import {join} from 'node:path';
-import {problem,sessionUser} from '#lib/server/api.js';
-import {BACKUP_NAME,backupDir} from '#lib/server/backup.js';
+import {problem,respond,sessionUser} from '#lib/server/api.js';
+import {BACKUP_NAME,backupDir,deleteBackup,listBackups} from '#lib/server/backup.js';
 /** Download one backup (server owner only), to keep a copy off the server. */
 export function GET(event){
   const user=sessionUser(event);
@@ -15,4 +15,11 @@ export function GET(event){
   return new Response(Readable.toWeb(createReadStream(path)),{headers:{
     'content-type':'application/vnd.sqlite3','content-length':String(size),
     'content-disposition':`attachment; filename="${name}"`}});
+}
+/** Delete one backup (server owner only). */
+export function DELETE(event){
+  const user=sessionUser(event);
+  if(user.site_role!=='owner')problem(403,'owner_required');
+  if(!deleteBackup(event.params.name))problem(404,'backup_not_found');
+  return respond({deleted:true,backups:listBackups()});
 }

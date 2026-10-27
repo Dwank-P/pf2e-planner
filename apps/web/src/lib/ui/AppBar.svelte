@@ -5,7 +5,8 @@
    * me: {displayName, siteRole}; campaigns: [{id,title,role}]; campaign: current;
    * sync: catalog-summary report; crumb: trailing breadcrumb text; actions: snippet.
    */
-  let {me=null,campaigns=[],campaign=null,sync=null,crumb='',actions}=$props();
+  // personal: the page belongs to My characters, so the breadcrumb starts there.
+  let {me=null,campaigns=[],campaign=null,sync=null,crumb='',actions,personal=false}=$props();
   let menu=$state(false);
   let switcher=$state(false);
   let theme=$state('system');
@@ -44,8 +45,8 @@
       {#if crumb}<span class="sep" aria-hidden="true">/</span><span class="here">{crumb}</span>{/if}
     </div>
   {:else if crumb&&me}
-    <div class="crumbs"><a class="crumb" href="/characters">My characters</a>
-      {#if crumb!=='My characters'}<span class="sep" aria-hidden="true">/</span><span class="here">{crumb}</span>{/if}</div>
+    <div class="crumbs">{#if personal}<a class="crumb" href="/characters">My characters</a>{/if}
+      {#if crumb!=='My characters'||!personal}{#if personal}<span class="sep" aria-hidden="true">/</span>{/if}<span class="here">{crumb}</span>{/if}</div>
   {/if}
   <span class="spacer"></span>
   {#if campaign}

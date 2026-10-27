@@ -69,12 +69,29 @@ export function removeWish(planner,id){
   return next;
 }
 /** Wishlist entries grouped by target level, with totals. */
-export function wishesByLevel(planner){
+// Fundamental rune prices in gp by grade (Player Core / GM Core).
+const RUNE_GP={weaponPotency:[0,35,935,8935],striking:[0,65,1065,31065],armorPotency:[0,160,1060,20560],resilient:[0,340,3440,49440]};
+/** What runes planned on a PF2e weapon or armor entry cost: fundamental runes plus property runes' own prices. */
+export function runeCost(w,lookup=()=>null){
+  const r=w?.runes;
+  if(!r)return 0;
+  const armor=w.type==='armor';
+  const pick=(table,n)=>table[Math.max(0,Math.min(3,Number(n)||0))];
+  let gp=pick(armor?RUNE_GP.armorPotency:RUNE_GP.weaponPotency,r.potency)+(armor?pick(RUNE_GP.resilient,r.resilient):pick(RUNE_GP.striking,r.striking));
+  for(const uuid of r.property??[])gp+=priceGp(lookup(uuid))??0;
+  return gp;
+}
+/** One entry's price including planned runes (null when nothing is known). */
+export function unitPrice(w,lookup){
+  const runes=runeCost(w,lookup);
+  return w.price==null&&!runes?null:(w.price??0)+runes;
+}
+export function wishesByLevel(planner,lookup=()=>null){
   const groups=new Map();
   for(const w of wishlist(planner)){
     if(!groups.has(w.targetLevel))groups.set(w.targetLevel,[]);
     groups.get(w.targetLevel).push(w);
   }
   return [...groups.entries()].sort((a,b)=>a[0]-b[0]).map(([level,items])=>({level,items,
-    total:items.reduce((n,w)=>n+(w.price??0)*(w.quantity||1),0)}));
+    total:items.reduce((n,w)=>n+(unitPrice(w,lookup)??0)*(w.quantity||1),0)}));
 }

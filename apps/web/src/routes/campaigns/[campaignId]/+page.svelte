@@ -122,7 +122,8 @@
           </div>
         </form>
       {:else if importingPlanner}
-        <ImportCharacter importUrl={'/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/import'} onCancel={()=>importingPlanner=false}/>
+        <ImportCharacter importUrl={'/api/v1/campaigns/'+encodeURIComponent(campaignId)+'/characters/import'} onCancel={()=>importingPlanner=false}
+          onImported={c=>characters=[{...c,ownerName:ctx.me.displayName,access:{edit:true,manage:true}},...characters]}/>
       {:else if importing}
         <form class="card new-form" onsubmit={importPathbuilder}>
           <label class="field" for="pb-id">Pathbuilder JSON ID

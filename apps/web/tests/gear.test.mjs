@@ -102,3 +102,16 @@ test('item details list armor, shield and weapon stats',()=>{
   assert.equal(stats(plate).AC,'18');
   assert.equal(stats({name:'Longsword',metadata:{weapon:{number:1,denomination:8,types:['slashing'],classification:'martialM'}}}).Damage,'1d8 slashing');
 });
+
+import {runeCost,unitPrice,wishesByLevel} from '../src/lib/builder/equipment.js';
+test('planned runes count in equipment prices',()=>{
+  const flaming={uuid:'R',name:'Flaming',metadata:{rules:{price:{value:{gp:500}}}}};
+  const lookup=u=>u==='R'?flaming:null;
+  const sword={id:'1',type:'weapon',price:1,quantity:1,targetLevel:5,runes:{potency:1,striking:1,property:['R']}};
+  assert.equal(runeCost(sword,lookup),35+65+500);
+  assert.equal(unitPrice(sword,lookup),601);
+  const armor={id:'2',type:'armor',price:6,quantity:1,targetLevel:5,runes:{potency:1,resilient:1,property:[]}};
+  assert.equal(runeCost(armor),160+340);
+  assert.equal(wishesByLevel({wishlist:[sword,armor]},lookup)[0].total,601+506);
+  assert.equal(unitPrice({price:null}),null);
+});

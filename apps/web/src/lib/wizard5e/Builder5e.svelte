@@ -127,7 +127,7 @@
   const editionLabel=$derived(isModern(variants)?'2024 rules':'2014 rules');
 </script>
 <svelte:head><title>{name||'Character'} · Planner</title></svelte:head>
-<AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name}>
+<AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name} personal={!scope.campaignId&&!scope.publicView}>
   {#snippet actions()}
     {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">View only</span>{/if}
     {#if scope.exportUrl}<button class="btn small ghost" title="Download the build to import into another planner" onclick={()=>downloadJson(scope.exportUrl,name).catch(e=>error=e.message)}>Export</button>{/if}

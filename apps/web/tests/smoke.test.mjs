@@ -44,12 +44,12 @@ test('production API: bootstrap → pair world → create player → sync → re
       await sleep(100);
     }
     assert.ok(ready,'Server failed to start. '+output.slice(-1500));
-    assert.match(output,/Starting web v0\.28\.2/,'Boot log should include package version');
+    assert.match(output,/Starting web v0\.29\.0/,'Boot log should include package version');
     assert.match(output,/Source fingerprint: [a-f0-9]{16}/,
       'Boot log should include a source identifier');
     const health=await send('/health',undefined,'',origin,'GET');
     assert.equal(health.status,200);
-    assert.equal(health.body.version,'0.28.2');
+    assert.equal(health.body.version,'0.29.0');
     assert.match(health.body.sourceFingerprint,/^[a-f0-9]{16}$/);
     assert.ok(health.body.builtAt);
 
@@ -58,7 +58,7 @@ test('production API: bootstrap → pair world → create player → sync → re
       'https://a-foundry-world.example','GET');
     assert.equal(check.status,200,JSON.stringify(check));
     assert.equal(check.body.service,'pf2e-planner-web');
-    assert.equal(check.body.version,'0.28.2');
+    assert.equal(check.body.version,'0.29.0');
     const corsCheck=await fetch(origin+'/api/v1/bridge/status',{
       headers:{origin:'https://a-foundry-world.example'}
     });
@@ -760,6 +760,21 @@ test('production API: bootstrap → pair world → create player → sync → re
     const download=await fetch(origin+'/api/v1/admin/backups/'+madeBackup.body.backup.name,{headers:{cookie:ownerCookie}});
     assert.equal(download.status,200);
     assert.equal(Buffer.from(await download.arrayBuffer()).subarray(0,15).toString(),'SQLite format 3');
+    // The owner sets the schedule and how many to keep; lowering the count removes extras now.
+    assert.equal(backupList.body.keep,7);
+    assert.equal((await send('/api/v1/admin/backups',{every:12,keep:0},ownerCookie,origin,'PUT')).status,400);
+    assert.equal((await send('/api/v1/admin/backups',{every:12,keep:3},playerCookie,origin,'PUT')).status,403);
+    const secondBackup=await send('/api/v1/admin/backups',{},ownerCookie);
+    assert.equal(secondBackup.status,201);
+    const kept=await send('/api/v1/admin/backups',{every:12,keep:1},ownerCookie,origin,'PUT');
+    assert.equal(kept.status,200,JSON.stringify(kept));
+    assert.equal(kept.body.every,12);
+    assert.equal(kept.body.keep,1);
+    assert.equal(kept.body.backups.length,1,'Older backups beyond the new count are removed');
+    const gone=await send('/api/v1/admin/backups/'+kept.body.backups[0].name,{},ownerCookie,origin,'DELETE');
+    assert.equal(gone.status,200,JSON.stringify(gone));
+    assert.equal(gone.body.backups.length,0);
+    assert.equal((await send('/api/v1/admin/backups',undefined,ownerCookie,origin,'GET')).body.keep,1,'The setting persists');
     for(const action of ['checkpoint','cleanup','optimize']){
       const done=await send('/api/v1/admin/storage',{action},ownerCookie);
       assert.equal(done.status,200,action+' '+JSON.stringify(done));
@@ -963,6 +978,14 @@ test('production API: bootstrap → pair world → create player → sync → re
     assert.equal((await bridge('/characters/export',{characterId:pCopy.body.character.id,actorId:'actorPlayer1'})).status,200);
     const playerRefresh=await send('/api/v1/bridge/'+integrationId+'/refresh',{refreshToken:connected.body.refreshToken},'',gmOrigin);
     assert.equal(playerRefresh.status,200,'Player connections refresh like GM ones');
+    // Players see and disconnect their Foundry connections on their account page.
+    const mine=await send('/api/v1/me/foundry-connections',undefined,playerCookie,origin,'GET');
+    const conn=mine.body.connections.find(c=>c.scope==='player');
+    assert.ok(conn&&conn.campaign,'Listed with its campaign');
+    assert.equal((await send('/api/v1/me/foundry-connections',{id:conn.id},ownerCookie,origin,'DELETE')).status,404,'Only your own');
+    assert.equal((await send('/api/v1/me/foundry-connections',{id:conn.id},playerCookie,origin,'DELETE')).status,200);
+    assert.equal((await send('/api/v1/bridge/'+integrationId+'/refresh',{refreshToken:playerRefresh.body.refreshToken},'',gmOrigin)).status,401,
+      'A disconnected browser can no longer refresh');
     // A PF2e Leveler plan file replaces the level plan; items are matched by name when uuids differ.
     const planChar=(await send(cRoute,undefined,playerCookie,origin,'GET')).body.character;
     const levelerPlan={version:1,classSlug:'fighter',dualClassSlug:null,levels:{

@@ -759,3 +759,17 @@ Website only; the Bridge stays at 0.14.1.
 
 - The **Import a character** form's link field and file picker stay inside their card instead of
   spilling past its edge.
+
+### v0.29.0 — Polish sweep
+
+- **Backups**: the server owner sets how often backups run and how many are kept, on the admin
+  page (the environment variables are now only defaults); lowering the count removes extras
+  straight away. Single backups can be deleted, and a warning shows if the newest is overdue.
+  Fixed: two backups in the same second no longer fail.
+- **Account → Foundry connections**: see the Foundry browsers acting for you (GM pairings and
+  player connections) and disconnect any you no longer use.
+- **Equipment plan**: planned runes count in each item's price and the level totals (fundamental
+  runes at their standard prices, property runes at the synced price).
+- **Imports** from another planner or a Leveler plan appear in the list straight away.
+- A friendly page for broken links and errors; red "Delete"-style links everywhere; the
+  "My characters" breadcrumb only on personal-character pages.

@@ -72,6 +72,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--brass)}
 .btn.small{padding:.32rem .55rem;font-size:.8rem}
 .link{background:none;border:0;padding:0;color:var(--brass);font-weight:700;text-align:left}
 .link:hover{text-decoration:underline}
+.link.danger{color:var(--bad)}
 
 /* PF2e trait chips and rarity */
 .chips{display:flex;flex-wrap:wrap;gap:4px}

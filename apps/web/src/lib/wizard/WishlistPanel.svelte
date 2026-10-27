@@ -2,7 +2,7 @@
   import Traits from '../ui/Traits.svelte';
   import Icon from '../ui/Icon.svelte';
   import {canEquip,takesRunes,takesMagicBonus,runesOf,runedName} from '../builder/gear.js';
-  import {itemOptions,priceGp,formatPrice,isConsumable,TYPE_LABELS,wishlist,wishesByLevel,addWish,updateWish,removeWish,setEquipped}
+  import {itemOptions,priceGp,formatPrice,isConsumable,TYPE_LABELS,wishlist,wishesByLevel,addWish,updateWish,removeWish,setEquipped,unitPrice,runeCost}
     from '../builder/equipment.js';
   /** Equipment plan: browse synced items, then park them on the level you want them at. */
   // startLevel: open with items going to this level (level 1's Equipment card opens it at 1).
@@ -30,7 +30,7 @@
       .sort(SORTS[sort]);
   });
   const LIMIT=150;
-  const groups=$derived(wishesByLevel(planner));
+  const groups=$derived(wishesByLevel(planner,catalog.get));
   const grand=$derived(groups.reduce((n,g)=>n+g.total,0));
   const set=(id,change)=>updatePlanner(p=>updateWish(p,id,change));
   // Runes (PF2e weapons and armor) or a magic bonus (D&D) planned on an item; one editor open at a time.
@@ -64,7 +64,7 @@
               <input type="checkbox" checked={w.status==='bought'} aria-label={'Bought '+w.name}
                 onchange={e=>set(w.id,{status:e.currentTarget.checked?'bought':'wanted'})}/>
               <button class="link name" onclick={()=>info(w.uuid)}>{it&&w.runes?runedName({entry:w,item:it},catalog.get):w.bonus?'+'+w.bonus+' '+w.name:w.name}</button>
-              <small class="muted">{TYPE_LABELS[w.type]??w.type}{w.level!=null?' · L'+w.level:''} · {formatPrice(w.price)}</small>
+              <small class="muted">{TYPE_LABELS[w.type]??w.type}{w.level!=null?' · L'+w.level:''} · <span title={runeCost(w,catalog.get)?'Item '+formatPrice(w.price)+' + runes '+formatPrice(runeCost(w,catalog.get)):''}>{formatPrice(unitPrice(w,catalog.get))}</span></small>
               <span class="controls">
                 {#if takesRunes(it)||takesMagicBonus(it)}
                   <button class="link" aria-expanded={runesFor===w.id} onclick={()=>runesFor=runesFor===w.id?null:w.id}>{takesRunes(it)?'Runes':'Magic'}</button>

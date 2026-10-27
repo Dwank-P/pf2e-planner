@@ -206,7 +206,7 @@
 </script>
 <svelte:head><title>{name||'Character'} · PF2e Planner</title></svelte:head>
 {#if ctx}
-  <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name}>
+  <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name} personal={!scope.campaignId&&!scope.publicView}>
     {#snippet actions()}
       {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">View only</span>{/if}
       <span class="files-wrap">

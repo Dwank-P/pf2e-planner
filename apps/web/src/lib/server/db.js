@@ -202,6 +202,8 @@ function migrate(sql) {
   // 'gm' credentials pair and sync a world; 'player' ones (a player's own Foundry browser, connected
   // with a code from the website) may only send and pull that player's characters.
   addColumn('bridge_credentials', 'scope', "TEXT NOT NULL DEFAULT 'gm'");
+  // Server owner settings changed on the admin page (environment variables are the defaults).
+  sql.exec('CREATE TABLE IF NOT EXISTS site_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
   sql.exec(`CREATE TABLE IF NOT EXISTS player_link_codes (
     code_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     campaign_id TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
@@ -249,4 +251,13 @@ export function limit(key, max, windowSeconds) {
     sql.prepare('INSERT INTO rate_limits(key,bucket,hits) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET bucket=excluded.bucket,hits=excluded.hits').run(key, bucket, count);
     return count <= max;
   });
+}
+
+/** A server setting the owner saved on the admin page, or null to use the default. */
+export function siteSetting(key) {
+  return db().prepare('SELECT value FROM site_settings WHERE key=?').get(key)?.value ?? null;
+}
+export function setSiteSetting(key, value) {
+  if (value === null || value === undefined) db().prepare('DELETE FROM site_settings WHERE key=?').run(key);
+  else db().prepare('INSERT INTO site_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(key, String(value));
 }

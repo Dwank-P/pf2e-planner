@@ -55,6 +55,27 @@
       notice=`Backup ${r.backup.name} made and verified (${fmt(r.backup.size)}).`;}
     catch(e){error=e.message;}finally{busy='';}
   }
+  // Schedule and retention, set here (the environment variables are only the defaults).
+  let every=$state(24),keepCount=$state(7);
+  $effect(()=>{if(backups){every=backups.every;keepCount=backups.keep;}});
+  async function saveBackupSettings(event){
+    event.preventDefault();busy='backup-settings';error='';notice='';
+    try{
+      const r=await api('/api/v1/admin/backups',{method:'PUT',body:{every:Number(every),keep:Number(keepCount)}});
+      backups={...backups,...r};
+      notice='Backup schedule saved'+(r.removed.length?`; removed ${r.removed.length} older backup${r.removed.length===1?'':'s'}`:'')+'.';
+    }catch(e){error=e.message;}finally{busy='';}
+  }
+  let confirmBackup=$state(null);
+  async function deleteBackup(name){
+    busy='backup-delete';error='';notice='';
+    try{const r=await api('/api/v1/admin/backups/'+encodeURIComponent(name),{method:'DELETE'});backups={...backups,backups:r.backups};
+      notice=`Deleted ${name}.`;confirmBackup=null;}
+    catch(e){error=e.message;}finally{busy='';}
+  }
+  // The newest backup is overdue when it's older than twice the schedule.
+  const overdue=$derived(backups&&backups.every>0&&backups.backups.length
+    ?Date.now()/1000-backups.backups[0].createdAt>backups.every*2*3600:false);
   async function deleteUser(user){
     busy='delete-'+user.id;error='';notice='';
     try{
@@ -142,12 +163,22 @@
       <section class="panel block">
         <div class="head"><h2>Backups</h2>
           <button class="btn small" disabled={!!busy} onclick={backupNow}>{busy==='backup'?'Backing up…':'Back up now'}</button></div>
-        <p class="muted small">{backups.every>0?`A verified copy is made every ${backups.every} hours`:'Automatic backups are off (PLANNER_BACKUP_HOURS=0)'}; the newest {backups.keep} are kept in <span class="num">{backups.dir}</span>.
+        <form class="backup-settings" onsubmit={saveBackupSettings}>
+          <label>Back up every <input type="number" min="0" max="720" bind:value={every} aria-label="Hours between backups"/> hours</label>
+          <label>Keep the newest <input type="number" min="1" max="100" bind:value={keepCount} aria-label="Backups to keep"/></label>
+          <button class="btn small" disabled={!!busy||(Number(every)===backups.every&&Number(keepCount)===backups.keep)}>{busy==='backup-settings'?'Saving…':'Save'}</button>
+        </form>
+        <p class="muted small">{backups.every>0?`A verified copy is made every ${backups.every} hours`:'Automatic backups are off (0 hours)'}; the newest {backups.keep} are kept in <span class="num">{backups.dir}</span>.
           They're on the same disk as the database, so download one now and then and keep it elsewhere.</p>
+        {#if overdue}<p class="notice">The newest backup is {timeAgo(backups.backups[0].createdAt)} — older than expected. Check the server log, or back up now.</p>{/if}
         {#if backups.backups.length}
           <ul class="backups">{#each backups.backups as b (b.name)}
             <li><span class="num">{b.name}</span><small class="muted">{fmt(b.size)} · {timeAgo(b.createdAt)}</small>
-              <a class="link" href={'/api/v1/admin/backups/'+encodeURIComponent(b.name)} download>Download</a></li>
+              <a class="link" href={'/api/v1/admin/backups/'+encodeURIComponent(b.name)} download>Download</a>
+              {#if confirmBackup===b.name}
+                <button class="link danger" disabled={!!busy} onclick={()=>deleteBackup(b.name)}>Delete it</button>
+                <button class="link" onclick={()=>confirmBackup=null}>Keep</button>
+              {:else}<button class="link danger" onclick={()=>confirmBackup=b.name}>Delete</button>{/if}</li>
           {/each}</ul>
         {:else}<p class="muted">No backups yet.</p>{/if}
         <details class="small"><summary>How to restore</summary>
@@ -224,4 +255,6 @@
     .row.users .row-actions{grid-column:1/-1;justify-content:flex-start}
     .bar{grid-template-columns:110px 1fr 64px}
   }
+  .backup-settings{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;font-size:.9rem}
+  .backup-settings input{width:5em;margin:0 4px}
 </style>
