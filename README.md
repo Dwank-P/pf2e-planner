@@ -754,3 +754,8 @@ Website only; the Bridge stays at 0.14.1.
   (A character's *Files → Import Leveler plan* still replaces an existing character's plan.)
 - Plan imports no longer list links inside feat descriptions as missing items, and no longer
   compare variant rules (plan files don't carry them).
+
+### v0.28.2 — Import form layout
+
+- The **Import a character** form's link field and file picker stay inside their card instead of
+  spilling past its edge.

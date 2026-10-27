@@ -57,7 +57,12 @@
   </form>
 {/if}
 <style>
-  .card{display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel)}
+  /* Grid cards can be narrow: keep every field (the file picker especially) inside the card. */
+  .card{display:grid;gap:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);
+    min-width:0;box-sizing:border-box;overflow:hidden}
+  .card :global(.field){min-width:0}
+  .card input{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+  .card input[type=file]{font-size:.8rem;padding:6px}
   .row{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
   small{color:var(--muted);font-weight:400}
   p{margin:0}
