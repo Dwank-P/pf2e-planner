@@ -164,6 +164,27 @@ function minimalItem(item){
   if(item.unresolved)out.unresolved=true;
   return out;
 }
+/**
+ * Starting gear for Leveler's Character Wizard: the equipment plan's level-1 items go into
+ * creation.equipment (with quantity and price, so Leveler adds them to the actor and gives back
+ * the unspent starting gold). Items already in the creation's own equipment list are kept.
+ */
+export function withStartingEquipment(creation,planner,resolve=()=>null){
+  if(!isObject(creation))return creation;
+  const wanted=(Array.isArray(planner?.wishlist)?planner.wishlist:[]).filter(w=>w?.targetLevel===1&&typeof w.uuid==='string');
+  if(!wanted.length)return creation;
+  const equipment=[...(creation.equipment||[])];
+  for(const w of wanted){
+    const item=resolve(w.uuid);
+    const price=item?.metadata?.rules?.price;
+    const entry={...minimalItem(item??{uuid:w.uuid,name:w.name}),quantity:Math.max(1,Number(w.quantity)||1),
+      price:price?.value&&typeof price.value==='object'?{...price.value}:null,pricePer:Number(price?.per)||1};
+    const index=equipment.findIndex(e=>e?.uuid===w.uuid);
+    if(index>=0)equipment[index]={...equipment[index],quantity:Math.max(Number(equipment[index].quantity)||1,entry.quantity)};
+    else equipment.push(entry);
+  }
+  return {...creation,equipment};
+}
 export function featEntry(item){
   return {...minimalItem(item),level:Number.isInteger(item.level)?item.level:null,
     traits:Array.isArray(item.traits)?[...item.traits]:[],choices:{}};

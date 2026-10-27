@@ -1,6 +1,7 @@
 import {transaction} from '#lib/server/db.js';
 import {bridgeAuth,input,respond,problem} from '#lib/server/api.js';
-import {readDocument,mergeView} from '#lib/server/characters.js';
+import {readDocument,mergeView,catalogFor} from '#lib/server/characters.js';
+import {withStartingEquipment} from '#lib/leveler-format.js';
 
 /**
  * "Pull from Planner": hand a website build to the authorized GM's Foundry as
@@ -25,6 +26,8 @@ export async function POST(event){
     if(current.dnd5e)problem(400,'dnd5e_plans_are_not_exported');
     // Pre-v2 builds are converted on the fly; the stored row is left unchanged.
     const doc=current.doc??mergeView(row.campaign_id,null,current.view);
+    // The equipment plan's level-1 items become Leveler's starting gear.
+    const startingCreation=withStartingEquipment(doc.leveler.creation??null,doc.planner,catalogFor(row.campaign_id)?.resolve);
     if(b.link===true){
       // Both ends must be free, or the GM must confirm moving the link (relink): this
       // build may already link to another actor, and the actor to another build.
@@ -38,14 +41,14 @@ export async function POST(event){
         problem(409,'actor_linked_to_other_character');
       // commit:false only checks the link (the Bridge writes Foundry's flags, then commits).
       if(b.commit===false)return {character:{id:row.id,name:row.name,level:row.level,revision:row.revision},
-        leveler:{creation:doc.leveler.creation??null,plan:doc.leveler.plan??null},linked:false,linkAllowed:true};
+        leveler:{creation:startingCreation,plan:doc.leveler.plan??null},linked:false,linkAllowed:true};
       sql.prepare('DELETE FROM foundry_actor_links WHERE character_id=?').run(row.id);
       sql.prepare('DELETE FROM foundry_actor_links WHERE integration_id=? AND actor_id=?').run(integrationId,actorId);
       sql.prepare(`INSERT INTO foundry_actor_links(integration_id,actor_id,character_id) VALUES(?,?,?)`)
         .run(integrationId,actorId,row.id);
     }
     return {character:{id:row.id,name:row.name,level:row.level,revision:row.revision},
-      leveler:{creation:doc.leveler.creation??null,plan:doc.leveler.plan??null},
+      leveler:{creation:startingCreation,plan:doc.leveler.plan??null},
       linked:b.link===true};
   });
   return respond(result);

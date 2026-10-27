@@ -43,6 +43,8 @@
   let openStep=$state(null);
   let detail=$state(null);
   let railOpen=$state(false);
+  // The level the equipment plan adds to when opened from level 1's Equipment card.
+  let equipmentLevel=$state(null);
   // Under 1180px the summary is a drawer, opened from the button at the top right.
   let summaryOpen=$state(false);
   let timer;
@@ -161,6 +163,7 @@
     // A level-1 step id opens level 1 at that card.
     if(!sequence.includes(next)){openStep=next;next='level-1';}
     at=next;
+    if(next!=='equipment')equipmentLevel=null;
     railOpen=false;extraMode=null;addMenu=false;
     try{history.replaceState(history.state,'','?at='+encodeURIComponent(next));}catch{}
     document.querySelector('.stage')?.scrollTo?.({top:0});
@@ -254,7 +257,8 @@
         <h1>{labelOf(at)}</h1>
       </header>
       {#if at==='level-1'}
-        <Level1Panel {steps} open={openStep} {creation} {plan} {catalog} {variants} {update} info={uuid=>detail=uuid}
+        <Level1Panel {steps} open={openStep} {creation} {plan} {catalog} {variants} {update} info={uuid=>detail=uuid} {planner}
+          onEquipment={()=>{equipmentLevel=1;go('equipment');}}
           onOpen={id=>openStep=id} onPlan={()=>go('level-2')}/>
       {:else if atLevel&&!primary}
         <p class="empty">Choose a class at level 1 to plan levels 2–20.</p>
@@ -264,7 +268,7 @@
             info={uuid=>detail=uuid} {currentLevel} onEquipment={()=>go('equipment')}/>
         {/key}
       {:else if at==='equipment'}
-        <WishlistPanel {planner} {catalog} {updatePlanner} {currentLevel} info={uuid=>detail=uuid}/>
+        {#key equipmentLevel}<WishlistPanel {planner} {catalog} {updatePlanner} {currentLevel} startLevel={equipmentLevel} info={uuid=>detail=uuid}/>{/key}
       {/if}
       {#if atLevel&&(atLevel===1||primary)}
         {#key atLevel}

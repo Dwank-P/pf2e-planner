@@ -720,3 +720,12 @@ Website only; the Bridge stays at 0.14.1.
 - **Icons** for Perception, saves and skills (game-icons.net, CC BY 3.0).
 
 **Update both Bridges to 0.27.0.**
+
+### v0.27.1 — Starting gear from the equipment plan
+
+- **Level 1's Equipment card opens the equipment plan**, with new items going to level 1; the card
+  shows how many items are planned for level 1.
+- **Exporting to Foundry includes them**: the equipment plan's level-1 items (with quantities and
+  prices) go into Leveler's Character Wizard as starting gear, so it adds them to the actor and
+  returns the unspent starting gold. Items from later levels stay in the plan. Runes planned on
+  them aren't applied by Leveler; add those in Foundry.

@@ -155,3 +155,22 @@ test('exports match Leveler import formats',()=>{
   assert.equal(typeof creation.data.version,'number');
   assert.equal(levelerPlanExport(emptyDocument()),null);
 });
+
+import {withStartingEquipment} from '../src/lib/leveler-format.js';
+test('the equipment plan’s level-1 items become Leveler starting gear',()=>{
+  const items={'Compendium.pf2e.equipment-srd.Item.Rope':{uuid:'Compendium.pf2e.equipment-srd.Item.Rope',name:'Rope',img:'r.webp',
+    metadata:{slug:'rope',rules:{price:{value:{sp:5},per:1}}}},
+    'Compendium.pf2e.equipment-srd.Item.Arrows':{uuid:'Compendium.pf2e.equipment-srd.Item.Arrows',name:'Arrows',
+      metadata:{slug:'arrows',rules:{price:{value:{sp:1},per:10}}}}};
+  const planner={wishlist:[
+    {uuid:'Compendium.pf2e.equipment-srd.Item.Rope',name:'Rope',targetLevel:1,quantity:2},
+    {uuid:'Compendium.pf2e.equipment-srd.Item.Arrows',name:'Arrows',targetLevel:1,quantity:20},
+    {uuid:'Compendium.pf2e.equipment-srd.Item.Later',name:'Later',targetLevel:3,quantity:1}]};
+  const creation={equipment:[{uuid:'Compendium.pf2e.equipment-srd.Item.Arrows',name:'Arrows',quantity:10,price:{sp:1},pricePer:10}]};
+  const out=withStartingEquipment(creation,planner,uuid=>items[uuid]??null);
+  assert.deepEqual(out.equipment.map(e=>[e.name,e.quantity]),[['Arrows',20],['Rope',2]],'Later levels stay in the plan');
+  assert.deepEqual(out.equipment[1].price,{sp:5});
+  assert.equal(out.equipment[1].pricePer,1);
+  assert.equal(creation.equipment.length,1,'The stored creation is not changed');
+  assert.equal(withStartingEquipment(creation,{wishlist:[]}),creation);
+});

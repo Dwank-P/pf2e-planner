@@ -3,7 +3,9 @@
   import {stepSummary} from '../builder/summaries.js';
   import Icon from '../ui/Icon.svelte';
   /** Level 1 laid out like levels 2–20: one card per creation step, opened in place. */
-  let {steps,open=null,creation,plan,catalog,variants,update,info,onOpen,onPlan}=$props();
+  // onEquipment: starting gear is planned in the equipment plan (level 1), not in a step of its own.
+  let {steps,open=null,creation,plan,catalog,variants,update,info,onOpen,onPlan,onEquipment=null,planner={}}=$props();
+  const startingGear=$derived([...(planner?.wishlist??[]).filter(w=>w.targetLevel===1),...(creation?.equipment??[])]);
   const cards=$derived(steps.filter(s=>s.id!=='review'));
   /** The chosen item for single-choice steps, for its icon. */
   function chosenEntry(step){
@@ -29,16 +31,17 @@
 </script>
 <div class="level">
   {#each cards as step (step.id)}
-    {@const summary=stepSummary(step,creation,catalog.get,variants)}
+    {@const gear=step.id==='equipment'&&onEquipment}
+    {@const summary=gear?(startingGear.length?startingGear.length+' item'+(startingGear.length===1?'':'s')+' at level 1':''):stepSummary(step,creation,catalog.get,variants)}
     {@const img=iconOf(step)}
     <section class="slot" class:open={open===step.id} class:done={step.complete}>
-      <button class="head" aria-expanded={open===step.id} onclick={()=>onOpen(open===step.id?null:step.id)}>
+      <button class="head" aria-expanded={gear?undefined:open===step.id} onclick={()=>gear?onEquipment():onOpen(open===step.id?null:step.id)}>
         <span class="icon" class:pic={!!img} aria-hidden="true">{#if img}<Icon src={img} size={30}/>{:else}{step.complete?'✓':'·'}{/if}</span>
         <span class="text"><span class="eyebrow">{step.label}</span>
           <span class="value" class:unset={!summary}>{summary||(step.optional?'Optional':'Choose')}</span></span>
-        <span class="action">{open===step.id?'Close':summary?'Change':'Choose'}</span>
+        <span class="action">{gear?'Equipment plan →':open===step.id?'Close':summary?'Change':'Choose'}</span>
       </button>
-      {#if open===step.id}
+      {#if open===step.id&&!gear}
         <div class="body">
           <StepPanel {step} {steps} {creation} {plan} {catalog} {variants} {update} {info} {go} {onPlan}/>
         </div>

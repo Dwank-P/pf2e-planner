@@ -5,14 +5,15 @@
   import {itemOptions,priceGp,formatPrice,isConsumable,TYPE_LABELS,wishlist,wishesByLevel,addWish,updateWish,removeWish,setEquipped}
     from '../builder/equipment.js';
   /** Equipment plan: browse synced items, then park them on the level you want them at. */
-  let {planner,catalog,updatePlanner,currentLevel=1,info}=$props();
+  // startLevel: open with items going to this level (level 1's Equipment card opens it at 1).
+  let {planner,catalog,updatePlanner,currentLevel=1,info,startLevel=null}=$props();
   let query=$state('');
   let type=$state('');
   let use=$state('');
   let minLevel=$state(0);
   let maxLevel=$state(20);
   let sort=$state('level');
-  let target=$state(null);
+  let target=$state(startLevel);
   const forLevel=$derived(target??currentLevel);
   const items=$derived(itemOptions(catalog));
   const types=$derived(Object.keys(TYPE_LABELS).filter(t=>items.some(i=>i.type===t)));
