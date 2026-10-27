@@ -144,13 +144,13 @@
           <div class="card new-form import-choice" role="group" aria-label="Import from">
             <b>Import a character from…</b>
             {#if !dnd5e}<button class="btn" onclick={()=>{choosingImport=false;importing=true;imported=null;}}>Pathbuilder 2e</button>{/if}
-            <button class="btn" onclick={()=>{choosingImport=false;importingPlanner=true;}}>Another planner (link or file)</button>
+            <button class="btn" onclick={()=>{choosingImport=false;importingPlanner=true;}}>{dnd5e?'Another planner (link or file)':'Another planner or a Leveler plan file'}</button>
             <button class="btn ghost" onclick={()=>choosingImport=false}>Cancel</button>
           </div>
         {:else}
           <button class="card new" onclick={()=>choosingImport=true}>
             <span class="plus" aria-hidden="true">⇩</span><b>Import a character</b>
-            <small>{dnd5e?'From another planner':'From Pathbuilder or another planner'}</small>
+            <small>{dnd5e?'From another planner':'From Pathbuilder, another planner or PF2e Leveler'}</small>
           </button>
         {/if}
       {/if}

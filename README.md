@@ -745,3 +745,12 @@ Website only; the Bridge stays at 0.14.1.
   another planner.
 
 **Update the PF2e Bridge to 0.28.0.**
+
+### v0.28.1 — Leveler plan files as new characters
+
+- **Import a character** (party page and My characters) now also takes a PF2e Leveler plan file
+  (Leveler's *Export plan*). It becomes a new character named after the file, with the class the
+  plan is for and levels 2–20 filled in; choose ancestry, background and the rest on level 1.
+  (A character's *Files → Import Leveler plan* still replaces an existing character's plan.)
+- Plan imports no longer list links inside feat descriptions as missing items, and no longer
+  compare variant rules (plan files don't carry them).

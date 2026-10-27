@@ -3,7 +3,7 @@ import {db,unix} from '#lib/server/db.js';
 import {sessionUser,requireMembership,input,problem,respond,throttle} from '#lib/server/api.js';
 import {catalogFor,validateDocument,validateDnd5eDocument,toCharacter,campaignSystem} from '#lib/server/characters.js';
 import {familyOf} from '#lib/server/personal.js';
-import {readExport,transplant,campaignByName} from '#lib/server/transfer.js';
+import {readImport,transplant,campaignByName,classBySlug,planCreation} from '#lib/server/transfer.js';
 
 /**
  * Import a character exported from a planner (this one or another): {export}. Each item is
@@ -15,16 +15,22 @@ export async function POST(event){
   requireMembership(user,campaignId);
   throttle(event,'character-import',30,600);
   const body=await input(event.request,2000000);
-  const source=readExport(body.export);
+  const source=readImport(body.export,body.fileName);
   if(familyOf(campaignSystem(campaignId))!==source.system)problem(400,'campaign_uses_other_rules_system');
   const target=catalogFor(campaignId);
   if(!target)problem(409,'sync_compendiums_before_selecting_items');
-  const {doc,report}=transplant(source,{has:target.has,byName:campaignByName(target.integrationId),variants:target.variants});
+  // A Leveler plan file becomes a character of the class its plan is for.
+  if(source.levelerPlan){
+    const pub=db().prepare('SELECT snapshot_id FROM catalog_publications WHERE integration_id=?').get(target.integrationId);
+    source.document.leveler.creation=planCreation(classBySlug([{integrationId:target.integrationId,snapshotId:pub.snapshot_id}],source.classSlug));
+  }
+  const {doc,report}=transplant(source,{has:target.has,byName:campaignByName(target.integrationId),variants:source.levelerPlan?null:target.variants});// plan files carry no variant rules
   const valid=source.system==='dnd5e'?validateDnd5eDocument(campaignId,null,doc):validateDocument(campaignId,null,doc);
   const count=db().prepare('SELECT COUNT(*) AS n FROM character_builds WHERE campaign_id=? AND owner_user_id=?').get(campaignId,user.id).n;
   if(count>=50)problem(409,'maximum_50_characters_per_player');
   const id=randomUUID(),now=unix();
   db().prepare(`INSERT INTO character_builds(id,campaign_id,owner_user_id,name,level,build_json,revision,created_at,updated_at)
     VALUES(?,?,?,?,?,?,1,?,?)`).run(id,campaignId,user.id,source.name,source.level,JSON.stringify(valid),now,now);
-  return respond({character:toCharacter(db().prepare('SELECT * FROM character_builds WHERE id=?').get(id),{includeLeveler:false}),report},201);
+  return respond({character:toCharacter(db().prepare('SELECT * FROM character_builds WHERE id=?').get(id),{includeLeveler:false}),
+    report:{...report,...(source.levelerPlan&&!source.document.leveler.creation?{noClass:source.classSlug}:{})}},201);
 }

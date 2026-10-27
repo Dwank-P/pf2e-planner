@@ -174,3 +174,20 @@ test('the equipment plan’s level-1 items become Leveler starting gear',()=>{
   assert.equal(creation.equipment.length,1,'The stored creation is not changed');
   assert.equal(withStartingEquipment(creation,{wishlist:[]}),creation);
 });
+
+import {readImport,uuidsIn} from '../src/lib/server/transfer.js';
+test('Leveler plan files import as characters; only real picks are matched',()=>{
+  const plan={version:1,classSlug:'ranger',dualClassSlug:null,levels:{
+    2:{classFeats:[{uuid:'Compendium.pf2e.feats-srd.Item.A',name:'Hunter’s Aim',
+      system:{description:{value:'<p>@UUID[Compendium.pf2e.actionspf2e.Item.X]{Demoralize}</p>'}}}],abilityBoosts:['con']},
+    5:{ancestryFeats:[{uuid:'Compendium.pf2e.feats-srd.Item.B',name:'Chosen',choices:{heritage:'Compendium.pf2e.heritages.Item.H'}}]},
+    9:{skillFeats:[],classFeatureChoices:{}}}};
+  const source=readImport(plan,'Gakk-level-plan.json');
+  assert.equal(source.levelerPlan,true);
+  assert.equal(source.name,'Gakk');
+  assert.equal(source.level,5,'Highest level with a pick');
+  assert.equal(source.classSlug,'ranger');
+  assert.deepEqual([...uuidsIn(plan)].sort(),['Compendium.pf2e.feats-srd.Item.A','Compendium.pf2e.feats-srd.Item.B','Compendium.pf2e.heritages.Item.H'],
+    'Links inside descriptions are not picks');
+  assert.equal(source.nameOf('Compendium.pf2e.feats-srd.Item.B').name,'Chosen');
+});

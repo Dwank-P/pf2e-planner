@@ -9,7 +9,20 @@ import {problem} from './api.js';
  */
 export const EXPORT_FORMAT='planner-character';
 const UUIDS=/Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+/g;
-export const uuidsIn=value=>new Set([...JSON.stringify(value??null).matchAll(UUIDS)].map(m=>m[0]));
+const WHOLE_UUID=/^Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+$/;
+/**
+ * The items a document picks: string values that are a uuid, and uuids inside object keys (5e
+ * choice keys). Uuids inside longer text (a description's @UUID links) are not picks.
+ */
+export function uuidsIn(value,out=new Set()){
+  if(typeof value==='string'){if(WHOLE_UUID.test(value))out.add(value);}
+  else if(Array.isArray(value))for(const v of value)uuidsIn(v,out);
+  else if(value&&typeof value==='object')for(const [k,v] of Object.entries(value)){
+    for(const m of k.matchAll(UUIDS))out.add(m[0]);
+    uuidsIn(v,out);
+  }
+  return out;
+}
 const VARIANT_NAMES={freeArchetype:'Free Archetype',dualClass:'Dual Class',ancestralParagon:'Ancestral Paragon',mythic:'Mythic',
   gradualAbilityBoosts:'Gradual Boosts',proficiencyWithoutLevel:'Proficiency Without Level'};
 const ABP_NAMES={noABP:'off',ABPFundamentalPotency:'fundamental potency',ABPRulesAsWritten:'rules as written'};
@@ -64,6 +77,7 @@ export function transplant(source,target){
     if(other){map.set(uuid,other);renamed++;}
     else{missing.add(uuid);missingNames.add(item?.name??uuid);}
   }
+  // Renamed uuids are swapped wherever they appear (values, 5e choice keys).
   let doc=JSON.parse(map.size?text.replace(UUIDS,m=>map.get(m)??m):text);
   if(source.system==='dnd5e')doc={...doc,build:prune5e(doc.build??{},missing)};
   else doc={...doc,leveler:pruneLeveler(doc.leveler,missing),
@@ -131,6 +145,44 @@ export function exportPayload({name,level,system,variants,document,resolve}){
   return {format:EXPORT_FORMAT,version:1,exportedAt:new Date().toISOString(),
     character:{name,level,system,variants:variantsFor(system,variants)},document,items};
 }
+/** The level a Leveler plan reaches: its highest level with any pick. */
+function planLevel(plan){
+  const levels=Object.entries(plan?.levels??{}).filter(([,d])=>Object.values(d??{}).some(v=>Array.isArray(v)?v.length:v&&typeof v==='object'&&Object.keys(v).length))
+    .map(([l])=>Number(l)).filter(Number.isInteger);
+  return levels.length?Math.min(20,Math.max(...levels)):1;
+}
+/**
+ * An import may be a planner export or a PF2e Leveler plan file (Leveler's "Export plan"). A plan
+ * becomes a new PF2e character named after the file, with the class its plan is for (the route
+ * finds that class in the target's compendiums: classSlug).
+ */
+export function readImport(value,fileName=''){
+  if(value?.format===EXPORT_FORMAT)return readExport(value);
+  if(value&&typeof value==='object'&&value.levels&&value.version&&value.classSlug!==undefined){
+    const {plan,nameOf}=readLevelerPlan(value);
+    const name=String(fileName||'').replace(/\.json$/i,'').replace(/-level-plan$/i,'').replace(/[-_]+/g,' ').trim().slice(0,80)||'Imported plan';
+    return {name,level:planLevel(plan),system:'pf2e',variants:variantsFor('pf2e',{}),classSlug:plan.classSlug||null,
+      document:{leveler:{creation:null,plan},planner:{notes:'',wishlist:[]}},nameOf,levelerPlan:true};
+  }
+  return readExport(value);
+}
+/** Find a class Item by slug among (integrationId, snapshotId, package?) sources. */
+export function classBySlug(sources,slug){
+  if(!slug)return null;
+  const find=db().prepare(`SELECT item_json FROM catalog_entries WHERE integration_id=? AND snapshot_id=? AND type='class'
+    AND (json_extract(item_json,'$.metadata.slug')=? OR json_extract(item_json,'$.metadata.levelerProgression.slug')=?)`);
+  for(const s of sources)for(const row of find.all(s.integrationId,s.snapshotId,slug,slug)){
+    const item=JSON.parse(row.item_json);
+    if(!s.package||item.uuid.split('.')[1]===s.package)return item;
+  }
+  return null;
+}
+/** A Leveler-plan import's creation document: just the class, so the plan applies to it. */
+export function planCreation(classItem){
+  return classItem?{class:{uuid:classItem.uuid,name:classItem.name,img:classItem.img??null,
+    slug:classItem.metadata?.slug??classItem.metadata?.levelerProgression?.slug??null}}:null;
+}
+
 /** Check an uploaded or fetched export. */
 export function readExport(value){
   if(!value||typeof value!=='object'||value.format!==EXPORT_FORMAT||value.version!==1)problem(400,'not_a_planner_character_export');

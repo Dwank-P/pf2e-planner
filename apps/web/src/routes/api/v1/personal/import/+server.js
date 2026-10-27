@@ -3,7 +3,7 @@ import {db,unix,transaction} from '#lib/server/db.js';
 import {sessionUser,input,problem,respond,throttle} from '#lib/server/api.js';
 import {validateDocument,validateDnd5eDocument} from '#lib/server/characters.js';
 import {availableSources,personalCatalog,personalRights,toPersonal,packageOf} from '#lib/server/personal.js';
-import {readExport,transplant} from '#lib/server/transfer.js';
+import {readImport,transplant,classBySlug,planCreation} from '#lib/server/transfer.js';
 
 /**
  * Import a character export into My characters: {export}. The new character keeps the build's
@@ -14,7 +14,7 @@ export async function POST(event){
   const user=sessionUser(event);
   throttle(event,'character-import',30,600);
   const body=await input(event.request,2000000);
-  const source=readExport(body.export);
+  const source=readImport(body.export,body.fileName);
   const count=db().prepare('SELECT COUNT(*) AS n FROM personal_characters WHERE owner_user_id=?').get(user.id).n;
   if(count>=100)problem(409,'maximum_100_personal_characters');
   const packages=availableSources(user.id,source.system);
@@ -34,6 +34,8 @@ export async function POST(event){
       for(const hit of find.all(w.integrationId,w.snapshotId,type,name))if(packageOf(hit.uuid)===pkg)return hit.uuid;
     return null;
   };
+  if(source.levelerPlan)source.document.leveler.creation=planCreation(classBySlug(
+    [...catalog.sources].map(([pkg,w])=>({integrationId:w.integrationId,snapshotId:w.snapshotId,package:pkg})),source.classSlug));
   try{
     const {doc,report}=transplant(source,{has:catalog.has,byName,variants:null});
     const valid=source.system==='dnd5e'?validateDnd5eDocument(null,null,doc,{catalog}):validateDocument(null,null,doc,{catalog});
