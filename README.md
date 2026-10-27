@@ -705,3 +705,18 @@ Website only; the Bridge stays at 0.14.1.
   again while a sync runs says one is already in progress.
 
 **Update both Bridges to 0.26.1.**
+
+### v0.27.0 — Item stats, training, icons; icon sync fix
+
+- **Fixed: "Sync failed — invalid_icon_batch".** The Bridge could put more than 100 small icons in
+  one upload, which the website refused; the compendium data had already synced, but the sync
+  reported failure. The website now accepts larger batches, the Bridges send at most 100 at a time,
+  and icon problems are a warning rather than a failed sync.
+- **Item details show stats**: armor (category, AC bonus, Dex cap, Strength, check and Speed
+  penalties, runes), shields (AC bonus, Hardness, HP), weapons (damage, range, group, runes) and
+  D&D armor and weapons, plus price, Bulk and usage.
+- **Training** in the PF2e summary: armor (U, L, M, H) and weapons (U, S, M, A) with rank letters;
+  hover for the full name and rank.
+- **Icons** for Perception, saves and skills (game-icons.net, CC BY 3.0).
+
+**Update both Bridges to 0.27.0.**

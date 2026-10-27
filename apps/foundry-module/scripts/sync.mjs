@@ -516,7 +516,15 @@ async function readIcon(path){
  * and hashed; the website links any image it already has (from any world) and
  * only the rest are uploaded.
  */
+/** Icons are extras: a problem with them is a warning, never a failed sync. */
 async function syncIcons(base,id){
+  try{return await uploadIcons(base,id);}
+  catch(error){
+    console.warn('[PF2e Planner Bridge]','Icons not synced:',error.message);
+    return {uploaded:0,linked:0,failed:0,error:error.message};
+  }
+}
+async function uploadIcons(base,id){
   let {auth}=await authorized();
   const call=async(path,body)=>{
     if(auth.accessExpiresAt<Math.floor(Date.now()/1000)+120)auth=(await authorized()).auth;
@@ -545,7 +553,8 @@ async function syncIcons(base,id){
     for(const icon of read){
       if(!needed.has(icon.path))continue;
       const data=toBase64(icon.bytes);
-      if(size+data.length>380000)await flush();
+      // The website takes up to ~400 KB and (older versions) 100 icons per request.
+      if(size+data.length>380000||batch.length>=100)await flush();
       batch.push({path:icon.path,data});size+=data.length;
     }
     await flush();

@@ -88,3 +88,17 @@ test('5e AC with armor types, shields and Unarmored Defense; attacks',()=>{
   assert.equal(a.damage,'1d8+4 slashing');
   assert.equal(a.name,'+1 Longsword');
 });
+
+import {itemStats} from '../src/lib/builder/item-stats.js';
+test('item details list armor, shield and weapon stats',()=>{
+  const stats=item=>Object.fromEntries(itemStats(item));
+  assert.deepEqual(stats(items.chain),{Category:'Medium','AC bonus':'+4','Dex cap':'+1',Strength:'+3','Check penalty':'-2',
+    'Speed penalty':'-5 ft.',Runes:'+1 potency, Resilient'});
+  assert.equal(stats(items.longsword).Damage,'1d8 slashing');
+  assert.equal(stats(items.bow).Range,'60 ft.');
+  assert.equal(stats(items.shield)['AC bonus'],'+2 (raised)');
+  assert.deepEqual(itemStats(items.rope),[]);
+  const plate={name:'Plate',metadata:{armor:{type:'heavy',value:18,dex:0,magicalBonus:0}}};
+  assert.equal(stats(plate).AC,'18');
+  assert.equal(stats({name:'Longsword',metadata:{weapon:{number:1,denomination:8,types:['slashing'],classification:'martialM'}}}).Damage,'1d8 slashing');
+});

@@ -7,6 +7,8 @@
   import {classTitle} from '../builder/summaries.js';
   import Icon from '../ui/Icon.svelte';
   import AcBadge from '../ui/AcBadge.svelte';
+  import Glyph from '../ui/Glyph.svelte';
+  import {SAVE_GLYPHS,skillGlyph} from '../ui/glyph-names.js';
   import {equipped,itemBonuses,skillBonus,armorClass,strike,runedName} from '../builder/gear.js';
   /** The character at its current `level`: level-1 creation plus planned boosts, increases and class features. */
   let {name,creation,plan=null,lookup,steps=[],onStep,level=1,variants={},planner={}}=$props();
@@ -37,6 +39,12 @@
   const defenseBonus=label=>bonuses.get(label.toLowerCase())?.value??0;
   const skillExtra=skill=>skillBonus(bonuses,skill)+(['str','dex'].includes(SKILL_ATTRIBUTE[skill])?ac.checkPenalty:0);
   const acTitle=$derived(`10 + Dex ${formatModifier(ac.parts.dex)} + proficiency ${formatModifier(ac.parts.prof)} (${ac.category}) + item ${formatModifier(ac.parts.item)}`);
+  // Armor and weapon training, as rank letters with the full name on hover.
+  const RANK_NAMES=['Untrained','Trained','Expert','Master','Legendary'];
+  const training=$derived([
+    ['Armor',[['U','unarmored','Unarmored defense'],['L','light','Light armor'],['M','medium','Medium armor'],['H','heavy','Heavy armor']]],
+    ['Weapons',[['U','unarmed','Unarmed attacks'],['S','simple','Simple weapons'],['M','martial','Martial weapons'],['A','advanced','Advanced weapons']]]
+  ].map(([label,keys])=>[label,keys.map(([short,key,name])=>({short,rank:Number(prof[key]??0),title:name+': '+RANK_NAMES[Number(prof[key]??0)]}))]));
   // Up to three equipped weapons, with attack modifier and damage.
   const strikes=$derived(gear.filter(g=>g.item.type==='weapon').slice(0,3)
     .map(g=>strike(g,{mods,ranks:prof,level,proficiency:(r,l)=>proficiencyBonus(r,l,pwl),variants,lookup})));
@@ -70,16 +78,24 @@
     <div class="block"><span class="eyebrow">Perception &amp; saves</span>
       <div class="ranks">
         {#each defenses as [label,attribute,rank]}
-          <div><span>{label}{#if defenseBonus(label)}<small class="bonus" title={'Item bonus from '+bonuses.get(label.toLowerCase()).source}> +{defenseBonus(label)} item</small>{/if}</span>
+          <div><span class="label"><Glyph name={SAVE_GLYPHS[label.toLowerCase()]}/>{label}{#if defenseBonus(label)}<small class="bonus" title={'Item bonus from '+bonuses.get(label.toLowerCase()).source}> +{defenseBonus(label)} item</small>{/if}</span>
             <span class="right"><b class="num">{total(attribute,rank,defenseBonus(label))}</b><RankLadder {rank}/></span></div>
         {/each}
       </div>
     </div>
   {/if}
+  {#if creation.class}
+    <div class="block"><span class="eyebrow">Training</span>
+      {#each training as [label,ranks]}
+        <div class="training"><span>{label}</span><span class="chips">
+          {#each ranks as r}<span class="tchip rank-{r.rank}" title={r.title}>{r.short}<b>{'UTEML'[r.rank]}</b></span>{/each}</span></div>
+      {/each}
+    </div>
+  {/if}
   {#if skills.length}
     <div class="block"><span class="eyebrow">Skills</span>
       <div class="ranks">{#each skills as [skill,rank]}
-        <div><span>{titleCase(skill)}{#if skillExtra(skill)}<small class="bonus">{skillExtra(skill)>0?' +':' '}{skillExtra(skill)}</small>{/if}</span>
+        <div><span class="label">{#if skillGlyph(skill)}<Glyph name={skillGlyph(skill)}/>{:else}<span class="gap"></span>{/if}{titleCase(skill)}{#if skillExtra(skill)}<small class="bonus">{skillExtra(skill)>0?' +':' '}{skillExtra(skill)}</small>{/if}</span>
           <span class="right"><b class="num">{total(SKILL_ATTRIBUTE[skill]??'int',rank,skillExtra(skill))}</b><RankLadder {rank}/></span></div>
       {/each}</div></div>
   {/if}
@@ -130,4 +146,14 @@
   .title{display:flex;justify-content:space-between;align-items:center;gap:10px}
   .strike{display:grid!important;justify-items:end;gap:0}
   .strike small{color:var(--text-2);font-size:.75rem}
+  .label{display:inline-flex;align-items:center;gap:6px}
+  .gap{width:16px;display:inline-block}
+  .training{display:flex;justify-content:space-between;align-items:center;font-size:.88rem;padding:2px 0}
+  .chips{display:flex;gap:4px}
+  .tchip{display:inline-flex;align-items:baseline;gap:2px;border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+    font:700 .72rem var(--mono);color:var(--muted);cursor:help}
+  .tchip b{font-size:.62rem;color:var(--faint)}
+  .tchip.rank-1{color:var(--text);border-color:var(--brass)}
+  .tchip.rank-2,.tchip.rank-3,.tchip.rank-4{color:var(--on-brass);background:var(--brass);border-color:var(--brass)}
+  .tchip.rank-2 b,.tchip.rank-3 b,.tchip.rank-4 b{color:var(--on-brass)}
 </style>

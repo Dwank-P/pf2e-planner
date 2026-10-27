@@ -1,6 +1,8 @@
 <script>
   import Icon from '../ui/Icon.svelte';
   import AcBadge from '../ui/AcBadge.svelte';
+  import Glyph from '../ui/Glyph.svelte';
+  import {SKILL_GLYPHS_5E} from '../ui/glyph-names.js';
   import {ABILITIES,ABILITY_NAMES,modifier,signed,multiclassRequirement,armorClass5e,weaponAttack5e} from '../systems/dnd5e/rules.js';
   import {unarmoredDefenses,weaponProficient} from '../systems/dnd5e/build.js';
   import {equipped} from '../builder/gear.js';
@@ -67,7 +69,7 @@
   {#if primary.size}<p class="legend muted">Outlined: saving throws (from the starting class). ◆ primary ability:
     {[...primary.entries()].map(([a,names])=>ABILITY_NAMES[a]+' ('+names.join(', ')+')').join(', ')}.</p>{/if}
   <div class="skills">
-    {#each skills as s}<span class:prof={s.rank>=1} class:exp={s.rank>=2}><i aria-hidden="true">{s.rank>=2?'◆':s.rank?'●':'○'}</i>{s.label}<b class="num">{signed(s.bonus)}</b></span>{/each}
+    {#each skills as s}<span class:prof={s.rank>=1} class:exp={s.rank>=2}><i aria-hidden="true">{s.rank>=2?'◆':s.rank?'●':'○'}</i><Glyph name={SKILL_GLYPHS_5E[s.key]} size={14}/>{s.label}<b class="num">{signed(s.bonus)}</b></span>{/each}
   </div>
   {#if p.armor.size||p.weapon.size}<p class="line"><b>Armor & weapons</b> {[list(p.armor),list(p.weapon)].filter(Boolean).join('; ')}</p>{/if}
   {#if p.mastery.size}<p class="line"><b>Weapon mastery</b> {list(p.mastery)}</p>{/if}
@@ -106,7 +108,7 @@
   .scores span.save{border-color:var(--brass)}
   .scores em{font-style:normal;color:var(--text-2);font-size:.8rem}
   .skills{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px}
-  .skills span{display:grid;grid-template-columns:14px 1fr auto;gap:4px;color:var(--muted)}
+  .skills span{display:grid;grid-template-columns:14px 14px 1fr auto;gap:4px;align-items:center;color:var(--muted)}
   .skills span.prof{color:var(--text)}
   .skills i{font-style:normal;color:var(--brass);font-size:.7rem}
   .line{margin:0;color:var(--text-2)}

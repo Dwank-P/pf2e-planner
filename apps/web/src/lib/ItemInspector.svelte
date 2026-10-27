@@ -1,6 +1,7 @@
 <script>
   import { renderLevelDescription } from './level-formulas.js';
   import Traits from './ui/Traits.svelte';
+  import {itemStats} from './builder/item-stats.js';
 
   // catalogBase: where catalog-item lives (a campaign, personal character or public link);
   // popout: open items in the campaign's item window; linksDisabled: public links can't follow references.
@@ -14,6 +15,7 @@
   let request=0;
   const cache=new Map();
   const html=$derived(renderLevelDescription(item?.description||'',level));
+  const stats=$derived(itemStats(item));
   const base=$derived((catalogBase??'/api/v1/campaigns/'+encodeURIComponent(campaignId))+'/catalog-item');
   const canPop=$derived(popout&&!!campaignId&&!catalogBase);
   function getRef(target) {
@@ -103,6 +105,9 @@
       <div class="eyebrow">{item.type||'Item'} <span>·</span> Level {item.level??'—'}</div>
       <h2>{item.name}</h2>
       <div class="inspector-tags"><Traits traits={item.traits||[]} rarity={item.rarity||'common'} max={20}/></div>
+      {#if stats.length}
+        <dl class="stats">{#each stats as [label,value]}<div><dt>{label}</dt><dd>{value}</dd></div>{/each}</dl>
+      {/if}
       {#if item.metadata?.prerequisites?.length}
         <p class="prereq"><strong>Prerequisites</strong> {item.metadata.prerequisites.join(', ')}</p>
       {/if}
@@ -173,4 +178,8 @@
   .inspector-empty h3{color:var(--text)}.spark{font-size:3.1rem;color:var(--accent)}
   /* Public links show references as plain text. */
   .links-off :global([data-pf2e-uuid]),.links-off :global([data-uuid]),.links-off :global([data-pf2e-action]){pointer-events:none;cursor:text;text-decoration:none;color:inherit}
+  .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin:.6rem 0 0}
+  .stats div{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:6px 9px}
+  .stats dt{font:600 .68rem var(--mono);text-transform:uppercase;color:var(--muted)}
+  .stats dd{margin:2px 0 0;font-weight:700}
 </style>
