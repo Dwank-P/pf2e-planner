@@ -1,5 +1,6 @@
 import {createHash,randomBytes} from 'node:crypto';
 import {db,unix,HIDDEN_PACK,hiddenKey} from './db.js';
+import {rowByName} from './item-detail.js';
 import {problem} from './api.js';
 import {EXCLUDED_TYPES,BUNDLE_FORMAT,bundleItem} from './bundle.js';
 import {documentUuids,dnd5eUuids,toCharacter} from './characters.js';
@@ -106,10 +107,11 @@ export function personalCatalog(row){
   const kept=db().prepare('SELECT item_json FROM personal_kept_items WHERE character_id=? AND uuid=?');
   const cache=new Map();
   const resolve=uuid=>{
-    if(typeof uuid!=='string'||!/^Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+$/.test(uuid))return null;
+    if(typeof uuid!=='string'||!/^Compendium\.[\w-]+\.[\w-]+\.Item\.[^\x00-\x1f]{1,200}$/.test(uuid))return null;
     if(!cache.has(uuid)){
       const source=sources.get(packageOf(uuid));
-      const row2=(source&&live.get(source.integrationId,source.snapshotId,uuid))||kept.get(row.id,uuid);
+      const row2=(source&&(live.get(source.integrationId,source.snapshotId,uuid)
+        ??rowByName(db(),source.integrationId,source.snapshotId,uuid)))||kept.get(row.id,uuid);
       cache.set(uuid,row2?JSON.parse(row2.item_json):null);
     }
     return cache.get(uuid);

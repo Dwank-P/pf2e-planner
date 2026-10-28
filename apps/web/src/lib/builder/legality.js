@@ -31,7 +31,7 @@ export function takenFeats(creation,plan){
 }
 
 /** Skill ranks after level-1 training and planned increases up to `level`. */
-export function skillRanks(creation,plan,lookup,level){
+export function skillRanks(creation,plan,lookup,level,{grants=true}={}){
   const {mods}=attributeModifiers(creation,lookup);
   const training=skillTraining(creation,lookup,mods.int);
   const ranks=new Map();
@@ -50,6 +50,7 @@ export function skillRanks(creation,plan,lookup,level){
     }
   }
   // Fixed training from rules on owned items (a class archetype's skill, a feat's expert rank…).
+  if(!grants)return ranks;
   for(const [key,rank] of Object.entries(grantsAt(creation,plan,lookup,level).ranks)){
     if(!key.startsWith('skill:'))continue;
     const skill=SKILL_SHORT[key.slice(6)]??key.slice(6).replace(/-/g,' ');

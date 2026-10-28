@@ -820,3 +820,24 @@ Website only; the Bridge stays at 0.14.1.
 - Feat choices also follow fixed grants: a feat that grants another item with its own choice now
   offers that choice, and shows "Grants …".
 - Bridge: exports each character option's grant, actor-flag and proficiency rules (`ruleEffects`).
+
+### v0.33.0 — Grants checked against the whole PF2e data set
+
+**Update the PF2e Bridge to 0.33 and run Sync Now.**
+
+- Tested against the real PF2e system data (every class and specialization, 669 granting feats,
+  150 granting origins): e.g. Warpriest now shows Shield Block and Deadly Simplicity under
+  "Gained automatically at level 1", with trained light and medium armor and expert Fortitude.
+- Armor and save training that features give outright (PF2e `subfeatures.proficiencies`, how the
+  Warpriest doctrine and many class features grant training) is now synced and applied.
+- Level 1 lists everything gained automatically: the class's level-1 features plus all grants.
+- Ancestries, heritages, backgrounds and specializations now offer their own choices (Able
+  Carter's skill, Brevic Noble's lineage, Close Ties…), stored the way Leveler stores them; grants
+  that depend on those picks follow them.
+- Grants that depend on a pick's option, on which item granted them (Crossblooded Evolution's
+  bloodline) or on a trained skill (Stonemason's Eye) now resolve.
+- **Rules summary** at the bottom of every PF2e item's details: what it grants (choices shown as
+  "X or Y", conditions such as "level 13+" or "if you pick Athletics"), what you choose, the
+  training it gives and what it passes on to other features (a doctrine's First Doctrine). Items
+  from a world synced with an older Bridge say so.
+- Named references ("…Item.Shield Block") open from links and lookups.

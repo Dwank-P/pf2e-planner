@@ -1,7 +1,16 @@
 import {sanitizeDescription} from './rich-text.js';
 import {problem,respond} from './api.js';
 
-const UUID=/^Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+$/;
+// Ids, or names: PF2e rules may reference an item by name ("…feats-srd.Item.Shield Block").
+const UUID=/^Compendium\.[\w-]+\.[\w-]+\.Item\.[^\x00-\x1f]{1,200}$/;
+const NAMED=/^Compendium\.([\w-]+\.[\w-]+)\.Item\.(.+)$/;
+/** A catalog row by pack and name, for a named reference (null for ids or no match). */
+export function rowByName(sql,integrationId,snapshotId,uuid){
+  const m=NAMED.exec(uuid);
+  if(!m||/^[\w-]{16}$/.test(m[2]))return null;
+  return sql.prepare(`SELECT item_json FROM catalog_entries WHERE integration_id=? AND snapshot_id=? AND pack=?
+    AND name=? COLLATE NOCASE LIMIT 1`).get(integrationId,snapshotId,m[1],m[2])??null;
+}
 /** catalog-item for a personal character or public link: by uuid, through `resolve`. */
 export function itemResponse(event,resolve,allowed=null){
   const uuid=event.url.searchParams.get('uuid')||'';

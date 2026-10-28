@@ -105,6 +105,23 @@ export function setSubclass(data,item,target='class'){
   });
 }
 
+/**
+ * Picks on an origin's or specialization's own rules (Able Carter's skill, Brevic Noble's lineage,
+ * a doctrine's option), stored as Leveler stores them: on the subclass entry for a specialization,
+ * otherwise in grantedFeatChoices under the item's uuid.
+ */
+export function originChoices(data,key,uuid){
+  if(!uuid)return {};
+  if(key==='subclass'||key==='dualSubclass')return data?.[key]?.uuid===uuid?data[key].choices??{}:{};
+  return data?.grantedFeatChoices?.[uuid]??{};
+}
+export function setOriginChoices(data,key,uuid,choices){
+  return edit(data,d=>{
+    if(key==='subclass'||key==='dualSubclass'){if(d[key]?.uuid===uuid)d[key]={...d[key],choices:{...choices}};}
+    else d.grantedFeatChoices={...(d.grantedFeatChoices??{}),[uuid]:{...choices}};
+  });
+}
+
 const normalizeFont=value=>{
   const v=String(value??'').trim().toLowerCase();
   return ['healing','heal'].includes(v)?'healing':['harmful','harming','harm'].includes(v)?'harmful':v||null;

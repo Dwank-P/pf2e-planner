@@ -1,6 +1,7 @@
 import {db} from '#lib/server/db.js';
 import {readPublished} from '#lib/server/catalog-import.js';
 import {sanitizeDescription} from '#lib/server/rich-text.js';
+import {rowByName} from '#lib/server/item-detail.js';
 import {respond,sessionUser,requireMembership,problem} from '#lib/server/api.js';
 export function GET(event){
   const user=sessionUser(event);requireMembership(user,event.params.campaignId);
@@ -10,11 +11,12 @@ export function GET(event){
   const slug=event.url.searchParams.get('slug')||'';
   let row;
   if(uuid){
-    if(!/^Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+$/.test(uuid))
+    if(!/^Compendium\.[\w-]+\.[\w-]+\.Item\.[^\x00-\x1f]{1,200}$/.test(uuid))
       problem(400,'invalid_compendium_uuid');
     row=db().prepare(`SELECT item_json FROM catalog_entries
       WHERE integration_id=? AND snapshot_id=? AND uuid=?`)
-      .get(pub.integration_id,pub.snapshot_id,uuid);
+      .get(pub.integration_id,pub.snapshot_id,uuid)
+      ??rowByName(db(),pub.integration_id,pub.snapshot_id,uuid);
   } else if(slug){
     if(!/^[a-z0-9-]{1,100}$/.test(slug))problem(400,'invalid_slug');
     // Explicitly limit action aliases to imported action Items; never execute

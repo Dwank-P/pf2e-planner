@@ -3,6 +3,7 @@
   import Traits from './ui/Traits.svelte';
   import {itemStats} from './builder/item-stats.js';
   import {originSummary} from './builder/origin-summary.js';
+  import {ruleSummary,hasRuleSummary} from './builder/rule-summary.js';
   import Icon from './ui/Icon.svelte';
 
   // catalogBase: where catalog-item lives (a campaign, personal character or public link);
@@ -21,6 +22,24 @@
   // Ancestries, classes and other origins: HP, size, key attribute, skills, features…
   const origin=$derived(originSummary(item,variants));
   const ORIGINS=['ancestry','heritage','background','class','race','subclass'];
+  // What the website detected from the item's rules: grants, choices, training (PF2e).
+  const rules=$derived(item&&!item.metadata?.advancement?ruleSummary(item):null);
+  const RULE_TYPES=['ancestry','heritage','background','class','feat','deity'];
+  const rulesMissing=$derived(!!item&&!!rules&&!rules.synced&&RULE_TYPES.includes(item.type)&&!item.metadata?.advancement);
+  // Names for items referenced by id (fetched once; named references show their own name).
+  let names=$state({});
+  $effect(()=>{
+    const wanted=rules?[...rules.grants,...rules.sets].filter(g=>g.uuid&&!g.name).map(g=>g.uuid):[];
+    for(const uuid of wanted)if(!(uuid in names)){
+      names={...names,[uuid]:null};
+      lookup({kind:'uuid',value:uuid}).then(found=>names={...names,[uuid]:found?.name??false}).catch(()=>names={...names,[uuid]:false});
+    }
+  });
+  const nameFor=g=>g.name??names[g.uuid]??(names[g.uuid]===false?'(not synced)':'…');
+  async function openUuid(uuid){
+    if(linksDisabled||!uuid)return;
+    try{await onOpen(await lookup({kind:'uuid',value:uuid}));}catch{hoverState='unavailable';}
+  }
   const base=$derived((catalogBase??'/api/v1/campaigns/'+encodeURIComponent(campaignId))+'/catalog-item');
   const canPop=$derived(popout&&!!campaignId&&!catalogBase);
   function getRef(target) {
@@ -126,6 +145,29 @@
         onpointerover={hoverLink} onpointerout={clearHover} onfocusin={hoverLink} onfocusout={clearHover}>
         {@html html||'<p>No description was imported for this item.</p>'}
       </div>
+      {#if rules&&hasRuleSummary(rules)}
+        <dl class="rules" aria-label="Rules summary">
+          {#snippet ref(uuid,label)}{#if uuid}<button type="button" class="ref" onclick={()=>openUuid(uuid)}>{label}</button>{:else}{label}{/if}{/snippet}
+          {#snippet either(options,more)}{#each options as o,j}{#if j}{' or '}{/if}{@render ref(o.uuid,o.label)}{/each}{#if more}{' '}<small class="muted">or {more} more</small>{/if}{/snippet}
+          {#snippet when(condition)}{#if condition}{' '}<small class="cond">({condition})</small>{/if}{/snippet}
+          {#if rules.grants.length}<div><dt>Grants</dt><dd><ul>
+            {#each rules.grants as g}<li>
+              {#if g.decidedBy}<em>{g.name}</em>{' '}<small class="muted">(decided by your other choices)</small>
+              {:else if g.uuid}{@render ref(g.uuid,nameFor(g))}
+              {:else if g.options?.length}{@render either(g.options,g.more)}{' '}<small class="muted">(your choice)</small>
+              {:else}<em>a {g.query?.toLowerCase()??'item'} you choose</em>{/if}{@render when(g.condition)}</li>{/each}</ul></dd></div>{/if}
+          {#if rules.choices.length}<div><dt>Choose</dt><dd><ul>
+            {#each rules.choices as c}<li>{#if c.prompt}<span class="muted">{c.prompt}:</span>{' '}{/if}
+              {#if c.options.length}{@render either(c.options,c.more)}{:else}<em>a {c.query?.toLowerCase()??'option'}</em>{/if}{@render when(c.condition)}</li>{/each}</ul></dd></div>{/if}
+          {#if rules.training.length}<div><dt>Training</dt><dd><ul>
+            {#each rules.training as t}<li>{t.rank} in {t.what}{@render when(t.condition)}</li>{/each}</ul></dd></div>{/if}
+          {#if rules.sets.length}<div><dt>Passes on</dt><dd><ul>
+            {#each rules.sets as s}<li>{s.label}:{' '}{@render ref(s.uuid,nameFor(s))}</li>{/each}</ul></dd></div>{/if}
+        </dl>
+      {:else if rulesMissing}
+        <p class="rules-missing">No rule data was synced for this item, so the website can't see what it grants. Update the
+          PF2e Bridge in Foundry and run Sync Now.</p>
+      {/if}
       <div class="inspector-footer">
         <span>Displayed at character level <strong>{level}</strong>.</span>
         <span>Level-based damage is estimated; no roll or Rule Elements are executed.</span>
@@ -194,6 +236,17 @@
   .stats dt{font:600 .68rem var(--mono);text-transform:uppercase;color:var(--muted)}
   .stats dd{margin:2px 0 0;font-weight:700}
   .heading{display:flex;align-items:center;gap:12px;margin:.4rem 0 1rem}
+  .rules{display:grid;gap:6px;margin:1.4rem 0 0;padding:.8rem 1rem;border:1px solid var(--line);border-radius:10px;
+    background:var(--panel-2);font-size:.9rem;max-width:62ch}
+  .rules div{display:grid;grid-template-columns:6.5em minmax(0,1fr);gap:8px}
+  .rules dt{font:700 .7rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);padding-top:.2em}
+  .rules dd{margin:0}
+  .rules ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+  .ref{background:none;border:0;padding:0;color:var(--accent);font:inherit;text-decoration:underline;
+    text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer}
+  .links-off .ref{color:inherit;text-decoration:none;pointer-events:none}
+  .cond{color:var(--muted)}
+  .rules-missing{margin:1.4rem 0 0;font-size:.85rem;color:var(--warn);max-width:62ch}
   .heading h2{margin:0}
   .notes{display:grid;gap:4px;margin:.6rem 0 1rem;font-size:.88rem}
   .notes div{display:grid;grid-template-columns:8.5em minmax(0,1fr);gap:8px}

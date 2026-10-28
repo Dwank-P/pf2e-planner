@@ -4,6 +4,7 @@
  * Leveler creation document. This is presentation math for planning; Leveler's
  * actor-backed build state stays authoritative once the plan is in Foundry.
  */
+import {grantsAt} from './granted.js';
 export const ATTRIBUTES=['str','dex','con','int','wis','cha'];
 export const ATTRIBUTE_NAMES={str:'Strength',dex:'Dexterity',con:'Constitution',
   int:'Intelligence',wis:'Wisdom',cha:'Charisma'};
@@ -30,7 +31,6 @@ export const RANKS=['Untrained','Trained','Expert','Master','Legendary'];
 export const RANK_LETTERS=['U','T','E','M','L'];
 
 export const titleCase=slug=>String(slug??'').replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-import {grantsAt} from './granted.js';
 const rulesOf=item=>item?.metadata?.rules??{};
 const list=value=>Array.isArray(value)?value:value&&typeof value==='object'?Object.values(value):[];
 

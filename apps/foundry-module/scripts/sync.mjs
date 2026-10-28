@@ -302,9 +302,17 @@ function exportItem(doc,pack){
   if(type!=='class')Object.assign(out,choiceData(system.rules));
   // What the item grants or changes once owned (Warpriest → First Doctrine → Shield Block): the
   // website follows these to know a character's granted feats, features and proficiencies.
+  // Always present for these types (empty when there are none), so the website can tell an item
+  // without grants from one synced by an older Bridge.
   if(['ancestry','heritage','background','class','feat','deity'].includes(type)){
-    const effects=ruleEffects(system.rules);
-    if(effects)out.ruleEffects=effects;
+    out.ruleEffects=ruleEffects(system.rules)??[];
+    // Training a feature gives without rule elements (First Doctrine (Warpriest): light and medium
+    // armor, expert Fortitude): {fortitude:{rank:2}, light:{rank:1}, …}.
+    const profs=system.subfeatures?.proficiencies;
+    if(profs&&typeof profs==='object'){
+      const ranks=Object.fromEntries(Object.entries(profs).map(([k,v])=>[k,Number(v?.rank??v)]).filter(([,n])=>Number.isFinite(n)&&n>0).slice(0,30));
+      if(Object.keys(ranks).length)out.proficiencies=ranks;
+    }
   }
   // Item bonuses an equipped item gives (+1 Athletics, +2 Perception…): plain numeric FlatModifiers.
   if(['armor','shield','equipment','weapon','backpack','consumable','treasure'].includes(type)){
@@ -366,6 +374,8 @@ function choiceData(rules){
     if(rule?.key==='ChoiceSet'){
       const set={flag:choiceFlag(rule,index),prompt:localize(rule.prompt)||null};
       if(rule.predicate)set.predicate=rule.predicate;
+      // The roll option a pick adds ("champion-dedication:light-and-medium"), which other rules test.
+      if(typeof rule.rollOption==='string'&&rule.rollOption)set.rollOption=rule.rollOption.slice(0,80);
       const c=rule.choices;
       if(Array.isArray(c)){
         set.options=c.slice(0,120).map(o=>({value:typeof o?.value==='object'?JSON.stringify(o.value):o?.value??null,
@@ -436,7 +446,8 @@ export async function syncNow({auto=false}={}){
       worldId:game.world.id,
       systemId:game.system.id,
       systemVersion:game.system.version,
-      levelerVersion:game.modules.get('pf2e-leveler')?.version||null
+      levelerVersion:game.modules.get('pf2e-leveler')?.version||null,
+      bridgeVersion:game.modules.get(MODULE_ID)?.version||null
     };
     const last=await post(base,'/api/v1/bridge/'+id+'/catalog-import/status',
       {},auth.accessToken);

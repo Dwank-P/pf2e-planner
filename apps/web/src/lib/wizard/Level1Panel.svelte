@@ -3,13 +3,16 @@
   import {stepSummary} from '../builder/summaries.js';
   import Icon from '../ui/Icon.svelte';
   import {grantsAt} from '../builder/granted.js';
+  import {classFeaturesAt} from '../leveler-progression.js';
   /** Level 1 laid out like levels 2–20: one card per creation step, opened in place. */
   // onEquipment: starting gear is planned in the equipment plan (level 1), not in a step of its own.
   let {steps,open=null,creation,plan,catalog,variants,update,info,onOpen,onPlan,onEquipment=null,planner={}}=$props();
   const startingGear=$derived([...(planner?.wishlist??[]).filter(w=>w.targetLevel===1),...(creation?.equipment??[])]);
   const cards=$derived(steps.filter(s=>s.id!=='review'));
-  // Feats and features level-1 choices grant (Warpriest's Shield Block, a heritage's feat…).
-  const granted=$derived(grantsAt(creation,plan,catalog.get,1,variants).granted);
+  // Level-1 class features, then what choices grant (Warpriest's Shield Block, a heritage's feat…).
+  const features=$derived(classFeaturesAt([catalog.get(creation.class?.uuid),variants.dualClass===true?catalog.get(creation.dualClass?.uuid):null],1));
+  const granted=$derived(grantsAt(creation,plan,catalog.get,1,variants).granted
+    .filter(g=>!features.some(f=>f.uuid===g.item.uuid||f.name===g.item.name)));
   /** The chosen item for single-choice steps, for its icon. */
   function chosenEntry(step){
     const c=creation??{};
@@ -51,9 +54,10 @@
       {/if}
     </section>
   {/each}
-  {#if granted.length}
+  {#if features.length||granted.length}
     <div class="granted"><span class="eyebrow">Gained automatically at level 1</span>
-      <ul>{#each granted as g (g.item.uuid)}<li><Icon src={g.item.img} size={22}/><button class="link" onclick={()=>info(g.item.uuid)}>{g.item.name}</button>
+      <ul>{#each features as f}<li><Icon src={f.uuid?catalog.get(f.uuid)?.img:null} size={22}/>{#if f.uuid}<button class="link" onclick={()=>info(f.uuid)}>{f.name}</button>{:else}{f.name}{/if}</li>{/each}
+        {#each granted as g (g.item.uuid)}<li><Icon src={g.item.img} size={22}/><button class="link" onclick={()=>info(g.item.uuid)}>{g.item.name}</button>
         <small class="muted">from {g.from}</small></li>{/each}</ul></div>
   {/if}
 </div>

@@ -156,6 +156,8 @@ export function choiceSetsFor(item,choices,catalog,ctx={}){
     // Fixed grants too (a feat that grants another with its own choice), as Leveler's grant preview does.
     for(const grant of effectsOf(source)){
       if(grant.key!=='grant'||String(grant.uuid).includes('{actor|')||!predicateMet(grant.predicate,ctx))continue;
+      // Conditional fixed grants show in the item's rules summary and, once met, under "Gained automatically".
+      if(grant.predicate&&!String(grant.uuid).includes('{'))continue;
       const uuid=resolveGrantUuid(grant.uuid,choices);
       const granted=uuid?catalog.get(uuid):null;
       if(granted){grants.push({uuid:granted.uuid,name:granted.name,from:source.name});next.push(granted);}

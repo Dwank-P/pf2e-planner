@@ -7,6 +7,8 @@
   import SpellsStep from './SpellsStep.svelte';
   import ReviewStep from './ReviewStep.svelte';
   import GrantsPanel from './GrantsPanel.svelte';
+  import FeatChoices from './FeatChoices.svelte';
+  import {choiceContext} from '../builder/choice-sets.js';
   import {creationGrantRequirements,toggleGrantSelection,takenFormulas} from '../builder/grants.js';
   import * as C from '../builder/creation.js';
   import {taggedItems,heritagesFor,equipmentOptions} from './options.js';
@@ -30,6 +32,9 @@
   }
 
   const id=$derived(step.stepId??step.id);
+  // Where an origin's own picks are stored (see originChoices).
+  const originKey=$derived(['ancestry','heritage','background'].includes(id)?id
+    :id==='subclass'?(step.target==='dualClass'?'dualSubclass':'subclass'):null);
   const target=$derived(step.target??'class');
   const bucket=$derived(creation.classSelections?.[target]??{});
   const subclass=$derived(target==='dualClass'?creation.dualSubclass:creation.subclass);
@@ -114,6 +119,12 @@
       test={id==='background'?backgroundTest:null} filters={id==='background'?backgroundFilters:undefined}
       placeholder={'Search '+choice.items.length+' options'}
       empty={'No options for this step are in the synced compendiums. Ask the GM to include the right packs in Leveler’s Compendium Manager, and to check none are hidden in campaign settings.'}/>
+    {#if originKey&&choice.picked?.uuid}
+      <!-- Choices the picked origin or specialization asks for, and those of what it grants. -->
+      <FeatChoices entry={{uuid:choice.picked.uuid,choices:C.originChoices(creation,originKey,choice.picked.uuid)}} {catalog}
+        context={choiceContext(creation,plan,catalog.get)} {info}
+        onChange={choices=>update(c=>C.setOriginChoices(c,originKey,choice.picked.uuid,choices))}/>
+    {/if}
   {:else if id==='sanctification'}
     <p class="muted">{bucket.deity?.name} allows {sanctOptions.join(' or ')} sanctification{bucket.deity?.sanctification?.modal==='must'?'':' (or none)'}.</p>
     <div class="choices">

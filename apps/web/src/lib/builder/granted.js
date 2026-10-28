@@ -11,6 +11,8 @@
  * grantChoices. Predicates this can't read count as not met, so nothing is granted by guesswork.
  */
 
+import {skillRanks} from './legality.js';
+
 const CREATION_FEATS=['ancestryFeat','ancestryParagonFeat','classFeat','dualClassFeat','skillFeat','mythicCalling'];
 const PLAN_FEATS=['classFeats','skillFeats','generalFeats','ancestryFeats','archetypeFeats','mythicFeats','dualClassFeats','customFeats'];
 const HANDLER_SOURCES=['deity','implement','innovationItem','innovationModification','secondElement','subconsciousMind','thesis',
@@ -33,18 +35,27 @@ function option(text,ctx){
   if(s==='self:level')return ctx.level;
   const [domain,...rest]=s.split(':');
   const value=rest.join(':');
+  // Roll options from picks ("champion-dedication:light-and-medium", "feat:order-explorer:animal-order").
+  if(ctx.options?.has(s))return true;
   switch(domain){
     case 'feature':return ctx.features.has(value);
     case 'feat':return ctx.feats.has(value);
     case 'class':return ctx.classes.has(value);
     case 'ancestry':return ctx.ancestry===value;
     case 'heritage':return ctx.heritage===value;
-    case 'deity':return value.startsWith('primary:')?ctx.deity===value.slice(8):null;
-    default:return null;
+    case 'deity':return !value?!!ctx.deity:value.startsWith('primary:')?ctx.deity===value.slice(8):null;
+    // The item that granted this rule's item (a bloodline granted by Crossblooded Evolution).
+    case 'parent':return value.startsWith('granter:slug:')?ctx.granter===value.slice(13):null;
+    default:
+      // A pick's roll option this character could have but doesn't.
+      return ctx.optionDomains?.has(domain)?false:null;
   }
 }
 function numeric(v,ctx){
   if(typeof v==='number')return v;
+  // "skill:crafting:rank" (Stonemason's Eye grants Specialty Crafting when trained in Crafting).
+  const skill=/^skill:([\w-]+):rank$/.exec(String(v));
+  if(skill&&ctx.skillRank)return ctx.skillRank(skill[1].replace(/-/g,' '));
   const r=option(v,ctx);
   return typeof r==='number'?r:Number.isFinite(Number(v))?Number(v):null;
 }
@@ -101,9 +112,11 @@ export function resolvePlaceholders(uuid,{choices={},flags={}}){
 function sources(creation,plan,lookup,level,variants){
   const c=creation??{};
   const out=[];
+  // Leveler keeps an origin's picks (and a granted feat's) in grantedFeatChoices by uuid.
+  const stored=uuid=>c.grantedFeatChoices?.[uuid]??{};
   const add=(entry,from=null)=>{
     const item=entry?.uuid?lookup(entry.uuid):null;
-    if(item)out.push({item,choices:entry.choices??{},from});
+    if(item)out.push({item,choices:{...stored(entry.uuid),...stored(item.uuid),...(entry.choices??{})},from,grantedBy:null});
   };
   const classes=[c.class,variants?.dualClass===false?null:c.dualClass].filter(Boolean);
   for(const entry of classes){
@@ -122,20 +135,37 @@ function sources(creation,plan,lookup,level,variants){
   }
   return out;
 }
-function context(records,creation,lookup,level){
-  const features=new Set(),feats=new Set(),classes=new Set();
-  for(const {item} of records){
+function context(records,creation,lookup,level,plan=null){
+  const features=new Set(),feats=new Set(),classes=new Set(),options=new Set(),optionDomains=new Set();
+  for(const {item,choices} of records){
     const slug=slugOf(item);
+    let prefix=null;
     if(item.type==='class')classes.add(slug);
     else if(item.type==='feat'){
       const category=String(item.metadata?.featType??item.metadata?.category??'');
-      (category==='classfeature'?features:feats).add(slug);
+      prefix=category==='classfeature'?'feature':'feat';
+      (prefix==='feature'?features:feats).add(slug);
+    }
+    // Each pick adds "<rollOption>:<value>" and "feat:<slug>:<value>", as PF2e does.
+    for(const set of item.metadata?.choiceSets??[]){
+      if(set.rollOption)optionDomains.add(set.rollOption.split(':')[0]);
+      const value=choices?.[set.flag];
+      if(typeof value!=='string'||!value)continue;
+      const picked=value.startsWith('Compendium.')?lookup(value):null;
+      const v=picked?slugOf(picked):slugify(value);
+      if(set.rollOption)options.add(set.rollOption+':'+v);
+      if(prefix)options.add(prefix+':'+slug+':'+v);
     }
   }
   const slug=entry=>entry?.uuid?slugOf(lookup(entry.uuid)??entry):null;
-  return {level,features,feats,classes,ancestry:slug(creation?.ancestry),heritage:slug(creation?.heritage),
+  // Skill ranks from training and increases (not from grants, which would recurse here).
+  let skills=null;
+  const skillRank=name=>(skills??=skillRanks(creation,plan,lookup,level,{grants:false})).get(name)??0;
+  return {level,features,feats,classes,options,optionDomains,skillRank,ancestry:slug(creation?.ancestry),heritage:slug(creation?.heritage),
     deity:slug(creation?.classSelections?.class?.deity??creation?.deity)};
 }
+
+const withGranter=(ctx,record)=>record.grantedBy?{...ctx,granter:slugOf(record.grantedBy)}:ctx;
 
 /**
  * Everything granted at `level`: {granted:[{item, from}], flags, ranks:{perception, fortitude, …}}.
@@ -148,18 +178,19 @@ export function grantsAt(creation,plan,lookup,level=1,variants={}){
   let flags={};
   for(let pass=0;pass<MAX_PASSES;pass++){
     const all=[...owned.values()];
-    const ctx=context(all,creation,lookup,level);
+    const ctx=context(all,creation,lookup,level,plan);
     // Flags first: a doctrine's flags decide what First Doctrine grants.
     flags={};
     for(const r of all)for(const e of effectsOf(r.item))
-      if(e.key==='flag'&&predicateHolds(e.predicate,ctx))setPath({flags},e.path,e.value);
+      if(e.key==='flag'&&predicateHolds(e.predicate,withGranter(ctx,r)))setPath({flags},e.path,e.value);
     let added=false;
     for(const r of all)for(const e of effectsOf(r.item)){
-      if(e.key!=='grant'||!predicateHolds(e.predicate,ctx))continue;
+      if(e.key!=='grant'||!predicateHolds(e.predicate,withGranter(ctx,r)))continue;
       const uuid=resolvePlaceholders(e.uuid,{choices:r.choices,flags});
       const item=uuid?lookup(uuid):null;
       if(!item||granted.has(item.uuid))continue;
-      const record={item,choices:r.choices,from:r.item.name};
+      const own=creation?.grantedFeatChoices?.[item.uuid]??{};
+      const record={item,choices:{...r.choices,...own},from:r.item.name,grantedBy:r.item};
       // Also noted when the player picked it too (a wasted pick the website points out).
       granted.set(item.uuid,record);
       if(!owned.has(item.uuid)){owned.set(item.uuid,record);added=true;}
@@ -167,10 +198,15 @@ export function grantsAt(creation,plan,lookup,level=1,variants={}){
     if(!added)break;
   }
   // Proficiency ranks set by owned items (upgrade = at least this rank).
-  const ctx=context([...owned.values()],creation,lookup,level);
+  const ctx=context([...owned.values()],creation,lookup,level,plan);
   const ranks={};
+  // Training an item gives outright (PF2e subfeatures.proficiencies): owned means it applies.
+  for(const r of owned.values())for(const [name,rank] of Object.entries(r.item.metadata?.proficiencies??{})){
+    const key=SUBFEATURE_KEYS[name]??(SKILLS.has(name)||/-lore$/.test(name)?'skill:'+name:null);
+    if(key)ranks[key]=Math.max(ranks[key]??0,Number(rank)||0);
+  }
   for(const r of owned.values())for(const e of effectsOf(r.item)){
-    if(e.key!=='rank'||!predicateHolds(e.predicate,ctx))continue;
+    if(e.key!=='rank'||!predicateHolds(e.predicate,withGranter(ctx,r)))continue;
     const key=rankKey(e.path);
     if(!key)continue;
     ranks[key]=e.mode==='override'?Number(e.value):Math.max(ranks[key]??0,Number(e.value));
@@ -178,6 +214,12 @@ export function grantsAt(creation,plan,lookup,level=1,variants={}){
   return {granted:[...granted.values()].map(({item,from})=>({item,from})),flags,ranks};
 }
 const DEFENSES=['unarmored','light','medium','heavy'],ATTACKS=['unarmed','simple','martial','advanced'];
+// subfeatures.proficiencies keys: saves, Perception, armor and weapon categories, class DC; skills by slug.
+export const SUBFEATURE_KEYS=Object.fromEntries([...DEFENSES,...ATTACKS,'perception','fortitude','reflex','will'].map(k=>[k,k]));
+SUBFEATURE_KEYS.classDC=SUBFEATURE_KEYS['class-dc']=SUBFEATURE_KEYS.classdc='classDC';
+// Other keys (weapon groups, a deity's favored weapon…) aren't tracked.
+const SKILLS=new Set(['acrobatics','arcana','athletics','crafting','deception','diplomacy','intimidation','medicine','nature',
+  'occultism','performance','religion','society','stealth','survival','thievery','computers','piloting']);
 function rankKey(path){
   let m;
   if(path==='system.perception.rank')return 'perception';

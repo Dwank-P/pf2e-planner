@@ -25,6 +25,7 @@ const items=[
       firstDoctrine:'Compendium.pf2e.classfeatures.Item.First Doctrine (Warpriest)',
       thirdDoctrine:'Compendium.pf2e.classfeatures.Item.Third Doctrine (Warpriest)'}}]}},
   {uuid:U('fdw'),name:'First Doctrine (Warpriest)',type:'feat',metadata:{featType:'classfeature',slug:'first-doctrine-warpriest',
+    proficiencies:{fortitude:2,light:1},
     ruleEffects:[{key:'grant',uuid:'Compendium.pf2e.feats-srd.Item.Shield Block'},
       {key:'rank',path:'system.proficiencies.defenses.light.rank',mode:'upgrade',value:2,predicate:[{gte:['self:level',13]},'feature:divine-defense']},
       {key:'rank',path:'system.proficiencies.defenses.medium.rank',mode:'upgrade',value:1},
@@ -65,7 +66,9 @@ test('granted feats meet prerequisites and are not offered again', () => {
 
 test('rank upgrades follow predicates', () => {
   assert.equal(proficienciesAt(creation,catalog.get,1).medium,1,'Warpriest medium armor');
-  assert.equal(proficienciesAt(creation,catalog.get,13).light,0,'Needs Divine Defense too');
+  assert.equal(proficienciesAt(creation,catalog.get,1).light,1,'subfeatures.proficiencies: trained in light armor');
+  assert.equal(proficienciesAt(creation,catalog.get,1).fortitude,2,'and expert Fortitude');
+  assert.equal(proficienciesAt(creation,catalog.get,13).light,1,'Expert needs Divine Defense too');
   assert.equal(predicateHolds([{gte:['self:level',13]},'feature:divine-defense'],{level:13,features:new Set(['divine-defense']),feats:new Set(),classes:new Set()}),true);
   assert.equal(predicateHolds('self:effect:raised-shield',{level:5,features:new Set(),feats:new Set(),classes:new Set()}),false);
   const plan={levels:{3:{generalFeats:[{uuid:F('canny'),name:'Canny Acumen'}]}}};
@@ -77,4 +80,43 @@ test('name references resolve and fixed grants show in feat choices', () => {
   assert.equal(catalog.get('Compendium.pf2e.feats-srd.Item.Nope'),null);
   const result=choiceSetsFor(catalog.get(U('fdw')),{},catalog);
   assert.deepEqual(result.grants.map(g=>g.name),['Shield Block','Deadly Simplicity']);
+});
+
+test('picks on origins, granters and skill ranks drive grants', () => {
+  const B=id=>'Compendium.pf2e.backgrounds.Item.'+id;
+  const more=indexCatalog({items:[...items,
+    {uuid:B('carter'),name:'Able Carter',type:'background',metadata:{slug:'able-carter',
+      choiceSets:[{flag:'skill',rollOption:'able-carter',options:[{value:'deception'},{value:'diplomacy'}]}],
+      ruleEffects:[{key:'grant',uuid:F('liar'),predicate:['able-carter:deception']},{key:'grant',uuid:F('hob'),predicate:['able-carter:diplomacy']}]}},
+    {uuid:F('liar'),name:'Charming Liar',type:'feat',metadata:{featType:'skill',slug:'charming-liar'}},
+    {uuid:F('hob'),name:'Hobnobber',type:'feat',metadata:{featType:'skill',slug:'hobnobber'}},
+    {uuid:F('cross'),name:'Crossblooded Evolution',type:'feat',metadata:{featType:'class',slug:'crossblooded-evolution',
+      ruleEffects:[{key:'grant',uuid:U('aberrant')}]}},
+    {uuid:U('aberrant'),name:'Bloodline: Aberrant',type:'feat',metadata:{featType:'classfeature',slug:'bloodline-aberrant',
+      ruleEffects:[{key:'grant',uuid:F('hob'),predicate:['parent:granter:slug:crossblooded-evolution']}]}},
+    {uuid:F('eye'),name:"Stonemason's Eye",type:'feat',metadata:{featType:'ancestry',slug:'stonemasons-eye',
+      ruleEffects:[{key:'grant',uuid:F('liar'),predicate:[{gte:['skill:crafting:rank',1]}]}]}}]});
+  const base={class:creation.class,background:{uuid:B('carter'),name:'Able Carter'}};
+  const names=c=>grantsAt(c,null,more.get,1).granted.map(g=>g.item.name);
+  assert.deepEqual(names(base),[],'No pick, nothing guessed');
+  assert.deepEqual(names({...base,grantedFeatChoices:{[B('carter')]:{skill:'diplomacy'}}}),['Hobnobber']);
+  const plan={levels:{2:{classFeats:[{uuid:F('cross'),name:'Crossblooded Evolution'}]}}};
+  assert.ok(grantsAt({class:creation.class},plan,more.get,2).granted.some(g=>g.item.name==='Hobnobber'),'granted by the right parent');
+  const eye={class:creation.class,ancestryFeat:{uuid:F('eye'),name:"Stonemason's Eye"}};
+  assert.deepEqual(names(eye),[],'not trained in Crafting');
+  assert.deepEqual(names({...eye,skills:['crafting']}),['Charming Liar'],'trained in Crafting');
+});
+
+test('rule summary lists grants, picks as X or Y, training and passed-on choices', async () => {
+  const {ruleSummary}=await import('../src/lib/builder/rule-summary.js');
+  const s=ruleSummary(catalog.get(U('fdw')));
+  assert.deepEqual(s.grants.map(g=>g.name),['Shield Block','Deadly Simplicity']);
+  assert.deepEqual(s.training.map(t=>t.rank+' in '+t.what+(t.condition?' ('+t.condition+')':'')),
+    ['Expert in Light armor (level 13+, with Divine Defense)','Trained in Medium armor, Light armor','Expert in Fortitude']);
+  const w=ruleSummary(catalog.get(U('warpriest')));
+  assert.deepEqual(w.sets.map(x=>x.label+': '+x.name),['First Doctrine: First Doctrine (Warpriest)','Third Doctrine: Third Doctrine (Warpriest)']);
+  const doctrine=ruleSummary({...catalog.get(U('doctrine')),metadata:{...catalog.get(U('doctrine')).metadata,
+    choiceSets:[{flag:'doctrine',options:[{value:U('warpriest'),label:'Warpriest'},{value:'x',label:'Cloistered Cleric'}]}]}});
+  assert.deepEqual(doctrine.grants[0].options.map(o=>o.label),['Warpriest','Cloistered Cleric']);
+  assert.equal(ruleSummary(catalog.get(F('sb'))).synced,false,'old syncs are flagged');
 });
