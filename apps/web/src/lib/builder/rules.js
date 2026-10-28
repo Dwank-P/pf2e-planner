@@ -30,6 +30,7 @@ export const RANKS=['Untrained','Trained','Expert','Master','Legendary'];
 export const RANK_LETTERS=['U','T','E','M','L'];
 
 export const titleCase=slug=>String(slug??'').replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+import {grantsAt} from './granted.js';
 const rulesOf=item=>item?.metadata?.rules??{};
 const list=value=>Array.isArray(value)?value:value&&typeof value==='object'?Object.values(value):[];
 
@@ -203,8 +204,11 @@ const FEATURE_RANKS=[
 ];
 const ARMOR_KEYS=['unarmored','light','medium','heavy'];
 const WEAPON_KEYS=['unarmed','simple','martial','advanced'];
-/** Perception, save and class DC ranks at `level`, from the class Item and its features. */
-export function proficienciesAt(creation,lookup,level=1){
+/**
+ * Perception, save, class DC, armor and weapon ranks at `level`, from the class Item and its features,
+ * plus upgrades from rules on everything the character owns (with `plan`: feats taken too).
+ */
+export function proficienciesAt(creation,lookup,level=1,{plan=null,variants={}}={}){
   const item=lookup(creation?.class?.uuid);
   const ranks={...classProficiencies(creation,lookup)};
   const raise=(key,rank)=>{
@@ -222,6 +226,9 @@ export function proficienciesAt(creation,lookup,level=1){
     if(Number(f.level)>level)continue;
     for(const [pattern,key,rank] of FEATURE_RANKS)if(pattern.test(String(f.name).trim()))raise(key,rank);
   }
+  // ActiveEffectLike upgrades: Warpriest armor expertise at 13, Armor Proficiency, class archetypes…
+  for(const [key,rank] of Object.entries(grantsAt(creation,plan,lookup,level,variants).ranks))
+    if(!key.startsWith('skill:'))raise(key,rank);
   return ranks;
 }
 /** PF2e proficiency bonus: untrained 0, otherwise rank × 2 + level. */

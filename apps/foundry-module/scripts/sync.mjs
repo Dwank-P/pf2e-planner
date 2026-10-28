@@ -300,6 +300,12 @@ function exportItem(doc,pack){
   // ChoiceSets (Order Explorer's druid order, a skill to train…) and the GrantItems that use their
   // picks; the website offers the same choices and stores them as Leveler does (feat.choices).
   if(type!=='class')Object.assign(out,choiceData(system.rules));
+  // What the item grants or changes once owned (Warpriest → First Doctrine → Shield Block): the
+  // website follows these to know a character's granted feats, features and proficiencies.
+  if(['ancestry','heritage','background','class','feat','deity'].includes(type)){
+    const effects=ruleEffects(system.rules);
+    if(effects)out.ruleEffects=effects;
+  }
   // Item bonuses an equipped item gives (+1 Athletics, +2 Perception…): plain numeric FlatModifiers.
   if(['armor','shield','equipment','weapon','backpack','consumable','treasure'].includes(type)){
     const bonuses=itemBonuses(system.rules);
@@ -327,6 +333,31 @@ function configChoices(key){
   const table=foundry.utils.getProperty(CONFIG.PF2E??{},path);
   if(!table||typeof table!=='object')return null;
   return Object.entries(table).slice(0,120).map(([value,label])=>({value,label:localize(label)||value}));
+}
+// Proficiency ranks the website computes (perception, saves, armor, weapons, class DC, skills).
+const RANK_PATH=/^system\.(?:perception\.rank|saves\.(?:fortitude|reflex|will)\.rank|proficiencies\.(?:defenses|attacks|classDCs)\.[\w-]+\.rank|skills\.[\w-]+\.rank)$/;
+/**
+ * GrantItem rules (fixed, by name, or through {item|…}/{actor|…} placeholders), actor flags set
+ * by ActiveEffectLike (how a doctrine tells First Doctrine what to grant) and numeric proficiency
+ * upgrades, with their predicates. Null when there are none or they don't fit.
+ */
+function ruleEffects(rules){
+  if(!Array.isArray(rules))return null;
+  const out=[];
+  for(const rule of rules){
+    const predicate=rule?.predicate?{predicate:rule.predicate}:{};
+    if(rule?.key==='GrantItem'&&typeof rule.uuid==='string'){
+      out.push({key:'grant',uuid:rule.uuid.slice(0,300),...(rule.flag?{flag:String(rule.flag)}:{}),...predicate});
+    }else if(rule?.key==='ActiveEffectLike'&&typeof rule.path==='string'){
+      if(/^flags\.pf2e\.[\w.-]+$/.test(rule.path)&&(typeof rule.value==='string'||(rule.value&&typeof rule.value==='object'&&!Array.isArray(rule.value))))
+        out.push({key:'flag',path:rule.path,value:rule.value,mode:rule.mode??'override',...predicate});
+      else if(RANK_PATH.test(rule.path)&&Number.isFinite(Number(rule.value)))
+        out.push({key:'rank',path:rule.path,value:Number(rule.value),mode:rule.mode??'upgrade',...predicate});
+    }
+  }
+  if(!out.length)return null;
+  const text=JSON.stringify(out.slice(0,40));
+  return text.length<=6000?JSON.parse(text):null;
 }
 function choiceData(rules){
   if(!Array.isArray(rules))return {};

@@ -2,11 +2,14 @@
   import StepPanel from './StepPanel.svelte';
   import {stepSummary} from '../builder/summaries.js';
   import Icon from '../ui/Icon.svelte';
+  import {grantsAt} from '../builder/granted.js';
   /** Level 1 laid out like levels 2–20: one card per creation step, opened in place. */
   // onEquipment: starting gear is planned in the equipment plan (level 1), not in a step of its own.
   let {steps,open=null,creation,plan,catalog,variants,update,info,onOpen,onPlan,onEquipment=null,planner={}}=$props();
   const startingGear=$derived([...(planner?.wishlist??[]).filter(w=>w.targetLevel===1),...(creation?.equipment??[])]);
   const cards=$derived(steps.filter(s=>s.id!=='review'));
+  // Feats and features level-1 choices grant (Warpriest's Shield Block, a heritage's feat…).
+  const granted=$derived(grantsAt(creation,plan,catalog.get,1,variants).granted);
   /** The chosen item for single-choice steps, for its icon. */
   function chosenEntry(step){
     const c=creation??{};
@@ -48,8 +51,16 @@
       {/if}
     </section>
   {/each}
+  {#if granted.length}
+    <div class="granted"><span class="eyebrow">Gained automatically at level 1</span>
+      <ul>{#each granted as g (g.item.uuid)}<li><Icon src={g.item.img} size={22}/><button class="link" onclick={()=>info(g.item.uuid)}>{g.item.name}</button>
+        <small class="muted">from {g.from}</small></li>{/each}</ul></div>
+  {/if}
 </div>
 <style>
+  .granted{display:grid;gap:6px;padding:10px 14px;border:1px dashed var(--line);border-radius:var(--radius)}
+  .granted ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+  .granted li{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.9rem}
   .level{display:grid;gap:10px}
   .slot{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);overflow:hidden}
   .slot.open{border-color:var(--line-strong)}

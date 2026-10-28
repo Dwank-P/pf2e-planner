@@ -800,3 +800,23 @@ Website only; the Bridge stays at 0.14.1.
 - Hidden packs leave every option list, search and the feat browser, for the campaign and for
   personal characters that use this world. They stay synced, so ticking one again takes effect
   without Sync Now. Characters that already picked something from a hidden pack keep it.
+
+### v0.32.0 — Granted feats, features and proficiencies
+
+**Update the PF2e Bridge to 0.32 and run Sync Now** — the website needs the new rule data.
+
+- The website now follows what items grant, the way the PF2e system does in Foundry. Example: the
+  cleric's First Doctrine grants whatever the chosen doctrine names, so Warpriest now gives Shield
+  Block and Deadly Simplicity at level 1 and its Third Doctrine at 7. This covers ancestries,
+  heritages, backgrounds, classes and their features, subclasses, deities and feats, including
+  grants chained through other grants and items named rather than linked by id.
+- Granted feats count for prerequisites, can't be picked a second time ("Already granted by …";
+  an earlier pick of the same feat shows a warning), appear under "Gained automatically" on the
+  level they arrive (level 1 included) and in the summary's new "Granted feats" list.
+- The feat a background grants (Assurance, Lie to Me…) is blocked as a second pick too.
+- Proficiency upgrades written as rules (armor and weapon training, saves, Perception, class DC,
+  skills) now apply, with their conditions — e.g. Warpriest armor expertise only from level 13 with
+  Divine Defense, Armor Proficiency, class archetype training.
+- Feat choices also follow fixed grants: a feat that grants another item with its own choice now
+  offers that choice, and shows "Grants …".
+- Bridge: exports each character option's grant, actor-flag and proficiency rules (`ruleEffects`).

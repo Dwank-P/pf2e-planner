@@ -4,11 +4,14 @@
  */
 const DB_NAME='pf2e-planner-catalog',STORE='bundles';
 
+const COMPENDIUM_REF=/^Compendium\.([^.]+\.[^.]+)\.Item\.(.+)$/;
 export function indexCatalog(bundle){
   const items=Array.isArray(bundle?.items)?bundle.items:[];
-  const byUuid=new Map(),byType=new Map();
+  const byUuid=new Map(),byType=new Map(),byName=new Map();
   for(const item of items){
     byUuid.set(item.uuid,item);
+    const ref=COMPENDIUM_REF.exec(item.uuid);
+    if(ref)byName.set(ref[1]+'|'+String(item.name).toLowerCase(),item);
     // Items from packs the GM hid still resolve for characters that picked them, but aren't offered.
     if(item.hidden)continue;
     if(!byType.has(item.type))byType.set(item.type,[]);
@@ -17,7 +20,14 @@ export function indexCatalog(bundle){
   for(const list of byType.values())list.sort((a,b)=>a.name.localeCompare(b.name));
   return {sha256:bundle?.sha256??null,variants:bundle?.variants??{},sources:bundle?.sources??{},
     updatedAt:bundle?.updatedAt??null,count:items.length,
-    get:uuid=>uuid?byUuid.get(uuid)??null:null,
+    // PF2e rules may name an item instead of its id ("…feats-srd.Item.Shield Block").
+    get:uuid=>{
+      if(!uuid)return null;
+      const hit=byUuid.get(uuid);
+      if(hit)return hit;
+      const ref=COMPENDIUM_REF.exec(uuid);
+      return ref?byName.get(ref[1]+'|'+ref[2].toLowerCase())??null:null;
+    },
     ofType:type=>byType.get(type)??[],
     types:()=>[...byType.keys()]};
 }

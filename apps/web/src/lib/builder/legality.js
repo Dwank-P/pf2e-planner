@@ -6,12 +6,16 @@
  */
 import {attributeModifiers,skillTraining,isSkill,ATTRIBUTES,RANKS,titleCase} from './rules.js';
 import {ancestryFeatBlock} from '../wizard/options.js';
+import {grantsAt} from './granted.js';
 
 const FEAT_FIELDS=['ancestryFeat','ancestryParagonFeat','classFeat','dualClassFeat','skillFeat','mythicCalling'];
 const FEAT_CATEGORIES=['classFeats','skillFeats','generalFeats','ancestryFeats','archetypeFeats','dualClassFeats','mythicFeats','customFeats'];
 const ATTRIBUTE_WORDS={strength:'str',dexterity:'dex',constitution:'con',intelligence:'int',wisdom:'wis',charisma:'cha'};
 const RANK_WORDS={trained:1,expert:2,master:3,legendary:4};
 const norm=s=>String(s??'').trim().toLowerCase();
+// Older PF2e data keys skills by abbreviation.
+const SKILL_SHORT={acr:'acrobatics',arc:'arcana',ath:'athletics',cra:'crafting',dec:'deception',dip:'diplomacy',itm:'intimidation',
+  med:'medicine',nat:'nature',occ:'occultism',prf:'performance',rel:'religion',soc:'society',ste:'stealth',sur:'survival',thi:'thievery'};
 
 /** Highest skill rank a skill increase may reach at a character level. */
 export const maxSkillRank=level=>level>=15?4:level>=7?3:2;
@@ -45,12 +49,27 @@ export function skillRanks(creation,plan,lookup,level){
       ranks.set(skill,Math.max(ranks.get(skill)??0,Math.min(4,to)));
     }
   }
+  // Fixed training from rules on owned items (a class archetype's skill, a feat's expert rank…).
+  for(const [key,rank] of Object.entries(grantsAt(creation,plan,lookup,level).ranks)){
+    if(!key.startsWith('skill:'))continue;
+    const skill=SKILL_SHORT[key.slice(6)]??key.slice(6).replace(/-/g,' ');
+    ranks.set(skill,Math.max(ranks.get(skill)??0,Math.min(4,Number(rank)||0)));
+  }
   return ranks;
 }
 
 export function buildState(creation,plan,lookup,level,variants={}){
   const feats=takenFeats(creation,plan);
-  return {level,variants,grants:grantedNames(creation,lookup,level),
+  // Feats and features the character gets from its other items (Warpriest → Shield Block).
+  const granted=new Map(grantsAt(creation,plan,lookup,level,variants).granted.map(g=>[g.item.uuid,g]));
+  const grants=grantedNames(creation,lookup,level);
+  for(const g of granted.values())grants.add(norm(g.item.name));
+  // The skill feat a background gives (Assurance, Lie to Me…) is owned too; the Bridge sends its name.
+  const background=lookup(creation?.background?.uuid);
+  for(const name of background?.metadata?.grantedFeats??[])
+    if(![...granted.values()].some(g=>norm(g.item.name)===norm(name)))
+      granted.set('name:'+norm(name),{item:{name,type:'feat'},from:background.name});
+  return {level,variants,grants,granted,
     mods:attributeModifiers(creation,lookup,plan?.levels??{},level).mods,
     skills:skillRanks(creation,plan,lookup,level),
     feats,
@@ -119,6 +138,9 @@ export function checkFeat(feat,state,{kind='',featNames=new Set(),currentUuid=nu
   const takenAt=state.feats.find(f=>f.uuid===feat.uuid&&f.uuid!==currentUuid);
   // Taking a feat twice would add it twice in Foundry, so this one can't be overridden.
   if(takenAt&&maxTakable<=1)return {blocked:`Already taken at level ${takenAt.level}`,unknown,hard:true};
+  const grantedBy=state.granted?.get(feat.uuid)??[...(state.granted?.values()??[])].find(g=>norm(g.item.name)===norm(feat.name)&&g.item.type===feat.type);
+  // Picking it anyway would add it twice in Foundry; a pick made before the grant shows a warning.
+  if(grantedBy&&maxTakable<=1)return {blocked:`Already granted by ${grantedBy.from}`,unknown,hard:feat.uuid!==currentUuid};
   if(kind==='ancestry'){
     const reason=ancestryFeatBlock(feat,state.creation);
     if(reason)return {blocked:reason,unknown};

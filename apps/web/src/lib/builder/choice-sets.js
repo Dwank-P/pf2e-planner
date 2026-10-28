@@ -9,6 +9,8 @@
  * Leveler's planner does).
  */
 
+import {effectsOf} from './granted.js';
+
 const MAX_DEPTH=3;
 const PLACEHOLDER=/\{item\|flags\.(?:pf2e|system)\.rulesSelections\.([^}]+)\}/g;
 
@@ -151,8 +153,9 @@ export function choiceSetsFor(item,choices,catalog,ctx={}){
     }
     // Picked items: granted by a placeholder GrantItem, or picked directly; follow their choices.
     const next=[];
-    for(const grant of source.metadata?.grantChoices??[]){
-      if(!predicateMet(grant.predicate,ctx))continue;
+    // Fixed grants too (a feat that grants another with its own choice), as Leveler's grant preview does.
+    for(const grant of effectsOf(source)){
+      if(grant.key!=='grant'||String(grant.uuid).includes('{actor|')||!predicateMet(grant.predicate,ctx))continue;
       const uuid=resolveGrantUuid(grant.uuid,choices);
       const granted=uuid?catalog.get(uuid):null;
       if(granted){grants.push({uuid:granted.uuid,name:granted.name,from:source.name});next.push(granted);}

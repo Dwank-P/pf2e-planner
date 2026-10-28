@@ -9,6 +9,7 @@
   import AcBadge from '../ui/AcBadge.svelte';
   import Portrait from '../ui/Portrait.svelte';
   import Glyph from '../ui/Glyph.svelte';
+  import {grantsAt} from '../builder/granted.js';
   import {SAVE_GLYPHS,skillGlyph} from '../ui/glyph-names.js';
   import {equipped,itemBonuses,skillBonus,armorClass,strike,runedName} from '../builder/gear.js';
   /** The character at its current `level`: level-1 creation plus planned boosts, increases and class features. */
@@ -17,7 +18,10 @@
   const result=$derived(attributeModifiers(creation,lookup,plan?.levels??{},level));
   const mods=$derived(result.mods);
   const hp=$derived(hitPoints(creation,lookup,mods.con,level));
-  const prof=$derived(proficienciesAt(creation,lookup,level));
+  const prof=$derived(proficienciesAt(creation,lookup,level,{plan,variants}));
+  // Feats other items grant (Shield Block from Warpriest…), not class features listed by level.
+  const grantedFeats=$derived(grantsAt(creation,plan,lookup,level,variants).granted
+    .filter(g=>g.item.type==='feat'&&String(g.item.metadata?.featType??'')!=='classfeature'));
   const key=$derived(creation.boosts?.class?.[0]??keyAttributeOptions(creation,lookup(creation.class?.uuid))[0]);
   const skills=$derived([...skillRanks(creation,plan,lookup,level).entries()].filter(([,r])=>r>0)
     .sort((a,b)=>a[0].localeCompare(b[0])));
@@ -100,6 +104,11 @@
         <div><span class="label">{#if skillGlyph(skill)}<Glyph name={skillGlyph(skill)}/>{:else}<span class="gap"></span>{/if}{titleCase(skill)}{#if skillExtra(skill)}<small class="bonus">{skillExtra(skill)>0?' +':' '}{skillExtra(skill)}</small>{/if}</span>
           <span class="right"><b class="num">{total(SKILL_ATTRIBUTE[skill]??'int',rank,skillExtra(skill))}</b><RankLadder {rank}/></span></div>
       {/each}</div></div>
+  {/if}
+  {#if grantedFeats.length}
+    <div class="block"><span class="eyebrow">Granted feats</span>
+      <ul class="gear">{#each grantedFeats as g (g.item.uuid)}<li title={'From '+g.from}><Icon src={g.item.img} size={20}/><span>{g.item.name}</span>
+        <small class="muted">· {g.from}</small></li>{/each}</ul></div>
   {/if}
   {#if strikes.length&&creation.class}
     <div class="block"><span class="eyebrow">Strikes</span>
