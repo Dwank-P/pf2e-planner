@@ -853,3 +853,12 @@ Website only; the Bridge stays at 0.14.1.
 - Features a specialization replaces (Battle Creed's doctrines, via PF2e `suppressedFeatures`)
   no longer show under "Gained automatically" or count for grants.
 - The rules summary no longer shows "false" for a reference that isn't synced.
+
+### v0.33.2 — Class feats need their class
+
+- A class feat for a class the character doesn't have — for example after changing class — now
+  shows a warning on its slot ("Fighter feat — this character is a Cleric"). The class slot needs
+  the main class and the dual-class slot the second class; archetype feats stay open to all.
+- The level list marks every level with a planned feat that no longer fits (wrong class, missing
+  prerequisite, already granted…) with ⚠; hover it for the reasons.
+- Level-1 feat picks show the same warnings.

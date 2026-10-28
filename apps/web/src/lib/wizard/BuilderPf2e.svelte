@@ -20,6 +20,7 @@
   import {emptyCreation} from '../leveler-format.js';
   import {setSkillSet} from '../builder/rules.js';
   import {choiceSetsFor,choicesComplete,choiceContext} from '../builder/choice-sets.js';
+  import {buildState,checkFeat,featNameIndex} from '../builder/legality.js';
 
   /**
    * The PF2e/SF2e character builder (levels 1–20, equipment). `scope` says where the character
@@ -143,6 +144,27 @@
     const done=slots.filter(slotDone).length;
     return !slots.length?'none':done===slots.length?'done':done?'part':'todo';
   }
+  // Planned feats that no longer fit (a class feat after changing class, a missing prerequisite):
+  // the reasons per level, shown as ⚠ in the level list.
+  const featNames=$derived(catalog?featNameIndex(catalog):new Set());
+  const LEVEL1_FEATS=[['classFeat','class'],['dualClassFeat','dual-class'],['ancestryFeat','ancestry'],['skillFeat','skill']];
+  const warnings=$derived.by(()=>{
+    if(!catalog||!creation)return {};
+    const out={};
+    for(let level=1;level<=20;level++){
+      const picks=level===1?LEVEL1_FEATS.map(([field,kind])=>({entry:creation[field],kind}))
+        :primary?slotsAt(level).filter(s=>s.type==='feat').map(s=>({entry:planFeat(plan,s),kind:s.kind})):[];
+      const chosen=picks.filter(p=>p.entry?.uuid);
+      if(!chosen.length)continue;
+      const state=buildState(creation,plan,catalog.get,level,variants);
+      const reasons=chosen.map(p=>{
+        const blocked=checkFeat(catalog.get(p.entry.uuid)??p.entry,state,{kind:p.kind,featNames,currentUuid:p.entry.uuid}).blocked;
+        return blocked?p.entry.name+': '+blocked:null;
+      }).filter(Boolean);
+      if(reasons.length)out[level]=reasons;
+    }
+    return out;
+  });
   function levelLines(level){
     if(level>1)return levelSummary(level,slotsAt(level),plan);
     const pick=id=>{const s=steps.find(x=>x.id===id);return s?stepSummary(s,creation,catalog.get,variants):'';};
@@ -293,7 +315,8 @@
                 {#if level===currentLevel}<span class="now">Current</span>{/if}
                 {#if wishes}<span class="wish">{wishes} item{wishes===1?'':'s'}</span>{/if}</span>{/if}
             </span>
-            <span class="status {status}" aria-label={status}></span>
+            {#if warnings[level]}<span class="flag" title={warnings[level].join(' · ')} aria-label={'Check: '+warnings[level].join('; ')}>⚠</span>
+            {:else}<span class="status {status}" aria-label={status}></span>{/if}
           </button></li>
         {/each}
         <li><button class="item" class:on={at==='equipment'} onclick={()=>go('equipment')}>
@@ -384,6 +407,7 @@
   .now{background:var(--brass);color:var(--on-brass)}
   .wish{background:var(--panel-3);color:var(--text-2)}
   .status{width:9px;height:9px;border-radius:50%;margin-top:5px;background:var(--line-strong)}
+  .flag{color:var(--warn);font-size:.9rem;line-height:1;margin-top:1px;cursor:help}
   .status.done{background:var(--good)}.status.part{background:transparent;border:2px solid var(--brass)}
   .status.none{background:transparent}
   .empty{border:1px dashed var(--line-strong);border-radius:var(--radius);padding:1.4rem;color:var(--muted)}

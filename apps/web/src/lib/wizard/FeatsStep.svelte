@@ -27,10 +27,12 @@
     {#if !slots.some(s=>s.slot==='class')&&creation.class} {creation.class.name}s take their first class feat at level 2.{/if}</p>
   {#each slots as slot (slot.slot)}
     {@const chosen=creation[featField(slot.slot)]}
+    {@const verdict=chosen?checkFeat(catalog.get(chosen.uuid)??chosen,state,{kind:kindOf(slot),featNames:names,currentUuid:chosen.uuid}):null}
     <section class="slot" class:open={open===slot.slot}>
       <button class="head" aria-expanded={open===slot.slot} onclick={()=>open=open===slot.slot?'':slot.slot}>
         <span class="kind eyebrow">{slot.label}</span>
         <span class="value" class:unset={!chosen}>{chosen?.name??'Choose a feat'}</span>
+        {#if verdict?.blocked}<small class="warn">⚠ {verdict.blocked}</small>{/if}
         <span class="state" aria-hidden="true">{chosen?'✓':'○'}</span>
       </button>
       {#if chosen}<FeatChoices entry={chosen} {catalog} context={choiceContext(creation,null,catalog.get)} {info}
@@ -57,4 +59,5 @@
   .value{grid-area:value;font:800 1rem var(--display)}
   .value.unset{font:400 .95rem var(--body);color:var(--muted)}
   .state{grid-area:state;align-self:center;color:var(--brass);font-size:1.1rem}
+  .warn{grid-column:1;color:var(--warn);font-size:.8rem}
 </style>

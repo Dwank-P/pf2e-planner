@@ -139,3 +139,22 @@ test('PF2e 8 (Foundry v14) flags.system doctrines, and suppressed features', () 
   assert.ok(result.suppressed.has(U('first')));
   assert.equal(result.granted.length,0);
 });
+
+test('class feats need their class: changing class flags the old picks', () => {
+  const C='Compendium.pf2e.classes.Item.';
+  const cat=indexCatalog({items:[...items,
+    {uuid:C+'fighter',name:'Fighter',type:'class',metadata:{slug:'fighter'}},
+    {uuid:F('power'),name:'Power Attack',type:'feat',level:1,traits:['fighter','flourish'],metadata:{featType:'class',slug:'power-attack'}},
+    {uuid:F('domain'),name:'Domain Initiate',type:'feat',level:1,traits:['cleric'],metadata:{featType:'class',slug:'domain-initiate'}},
+    {uuid:F('dedi'),name:'Fighter Dedication',type:'feat',level:2,traits:['archetype','dedication','multiclass'],metadata:{featType:'class',slug:'fighter-dedication'}}]});
+  const plan={levels:{2:{classFeats:[{uuid:F('power'),name:'Power Attack'}]}}};
+  const asFighter=buildState({class:{uuid:C+'fighter',name:'Fighter'}},plan,cat.get,2);
+  const asCleric=buildState({class:{uuid:creation.class.uuid,name:'Cleric'}},plan,cat.get,2);
+  assert.equal(checkFeat(cat.get(F('power')),asFighter,{kind:'class',currentUuid:F('power')}).blocked,null);
+  assert.equal(checkFeat(cat.get(F('power')),asCleric,{kind:'class',currentUuid:F('power')}).blocked,'Fighter feat — this character is a Cleric');
+  assert.equal(checkFeat(cat.get(F('domain')),asCleric,{kind:'class'}).blocked,null);
+  assert.equal(checkFeat(cat.get(F('dedi')),asCleric,{kind:'class'}).blocked,null,'Archetype feats are open to every class');
+  const dual=buildState({class:{uuid:creation.class.uuid,name:'Cleric'},dualClass:{uuid:C+'fighter',name:'Fighter'}},plan,cat.get,2);
+  assert.match(checkFeat(cat.get(F('power')),dual,{kind:'class',currentUuid:F('power')}).blocked,/Fighter feat/,'the class slot needs the main class');
+  assert.equal(checkFeat(cat.get(F('power')),dual,{kind:'dual-class',currentUuid:F('power')}).blocked,null,'the dual-class slot takes the second class');
+});

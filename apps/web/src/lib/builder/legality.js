@@ -74,7 +74,9 @@ export function buildState(creation,plan,lookup,level,variants={}){
     mods:attributeModifiers(creation,lookup,plan?.levels??{},level).mods,
     skills:skillRanks(creation,plan,lookup,level),
     feats,
-    classSlugs:[creation?.class?.slug,creation?.dualClass?.slug].filter(Boolean).map(norm),
+    // The class and dual class, by slug (the entry's own, else the synced class item's).
+    classSlug:classSlugOf(creation?.class,lookup),dualClassSlug:classSlugOf(creation?.dualClass,lookup),
+    classSlugs:[classSlugOf(creation?.class,lookup),classSlugOf(creation?.dualClass,lookup)].filter(Boolean),
     creation};
 }
 
@@ -127,6 +129,31 @@ function checkPrerequisite(text,state,featNames){
   return undefined;
 }
 
+const classSlugOf=(entry,lookup)=>{
+  if(!entry)return null;
+  const item=lookup(entry.uuid);
+  return norm(entry.slug??item?.metadata?.slug??item?.metadata?.levelerProgression?.slug??item?.name).replace(/\s+/g,'-')||null;
+};
+// PF2e and SF2e class traits; a class feat carries its class's trait.
+const CLASS_TRAITS=new Set(['alchemist','animist','barbarian','bard','champion','cleric','commander','daredevil','druid',
+  'envoy','exemplar','fighter','guardian','gunslinger','inventor','investigator','kineticist','magus','monk','mystic',
+  'necromancer','operative','oracle','psychic','ranger','rogue','runesmith','slayer','solarian','soldier','sorcerer',
+  'summoner','swashbuckler','technomancer','thaumaturge','witch','witchwarper','wizard']);
+/**
+ * A class feat for a class the character doesn't have (after changing class, say): the reason,
+ * or null. Archetype feats are open to everyone; the dual-class slot needs the dual class.
+ */
+export function classFeatBlock(feat,state,kind=''){
+  const category=norm(feat.metadata?.featType??feat.metadata?.category);
+  const traits=(feat.traits??[]).map(norm);
+  if(category!=='class'||traits.includes('archetype'))return null;
+  const classes=traits.filter(t=>CLASS_TRAITS.has(t)||state.classSlugs?.includes(t));
+  if(!classes.length)return null;
+  const own=kind==='class'?[state.classSlug]:kind==='dual-class'?[state.dualClassSlug]:state.classSlugs??[];
+  if(classes.some(t=>own.includes(t)))return null;
+  const mine=own.filter(Boolean).map(titleCase).join(' or ');
+  return `${classes.map(titleCase).join(' or ')} feat${mine?` — this character is a ${mine}`:''}`;
+}
 /**
  * Check a feat for a slot at `state.level`. Returns {blocked, unknown}:
  * blocked = first reason it can't be taken (or null); unknown = prerequisites
@@ -135,6 +162,8 @@ function checkPrerequisite(text,state,featNames){
 export function checkFeat(feat,state,{kind='',featNames=new Set(),currentUuid=null}={}){
   const unknown=[];
   if(Number.isFinite(feat.level)&&feat.level>state.level)return {blocked:`Level ${feat.level} feat`,unknown};
+  const wrongClass=classFeatBlock(feat,state,kind);
+  if(wrongClass)return {blocked:wrongClass,unknown};
   const maxTakable=Number(feat.metadata?.rules?.maxTakable??1);
   const takenAt=state.feats.find(f=>f.uuid===feat.uuid&&f.uuid!==currentUuid);
   // Taking a feat twice would add it twice in Foundry, so this one can't be overridden.
