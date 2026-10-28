@@ -10,8 +10,11 @@
   const startingGear=$derived([...(planner?.wishlist??[]).filter(w=>w.targetLevel===1),...(creation?.equipment??[])]);
   const cards=$derived(steps.filter(s=>s.id!=='review'));
   // Level-1 class features, then what choices grant (Warpriest's Shield Block, a heritage's feat…).
-  const features=$derived(classFeaturesAt([catalog.get(creation.class?.uuid),variants.dualClass===true?catalog.get(creation.dualClass?.uuid):null],1));
-  const granted=$derived(grantsAt(creation,plan,catalog.get,1,variants).granted
+  const result=$derived(grantsAt(creation,plan,catalog.get,1,variants));
+  // Minus features a specialization replaces (Battle Creed's doctrines).
+  const features=$derived(classFeaturesAt([catalog.get(creation.class?.uuid),variants.dualClass===true?catalog.get(creation.dualClass?.uuid):null],1)
+    .filter(f=>!f.uuid||!result.suppressed.has(catalog.get(f.uuid)?.uuid??f.uuid)));
+  const granted=$derived(result.granted
     .filter(g=>!features.some(f=>f.uuid===g.item.uuid||f.name===g.item.name)));
   /** The chosen item for single-choice steps, for its icon. */
   function chosenEntry(step){

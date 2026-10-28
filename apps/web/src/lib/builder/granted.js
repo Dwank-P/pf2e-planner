@@ -2,7 +2,7 @@
  * What a PF2e character owns without picking it, at a level: items granted by GrantItem rules on
  * everything it has (ancestry, heritage, background, class and its features, subclass, deity,
  * feats), followed through placeholders the way the PF2e system does:
- *   Cleric's First Doctrine grants "{actor|flags.pf2e.cleric.firstDoctrine}"; the Warpriest doctrine
+ *   Cleric's First Doctrine grants "{actor|flags.system.cleric.firstDoctrine}" (flags.pf2e before PF2e 8); the Warpriest doctrine
  *   sets that flag to "First Doctrine (Warpriest)", which grants Shield Block and Deadly Simplicity.
  * Also the proficiency ranks those items set (ActiveEffectLike upgrades), e.g. Warpriest's armor
  * expertise at 13.
@@ -168,11 +168,15 @@ function context(records,creation,lookup,level,plan=null){
 const withGranter=(ctx,record)=>record.grantedBy?{...ctx,granter:slugOf(record.grantedBy)}:ctx;
 
 /**
- * Everything granted at `level`: {granted:[{item, from}], flags, ranks:{perception, fortitude, …}}.
+ * Everything granted at `level`: {granted:[{item, from}], flags, ranks:{perception, fortitude, …},
+ * suppressed: uuids of class features another item replaces}.
  * `granted` excludes what the character picked itself.
  */
 export function grantsAt(creation,plan,lookup,level=1,variants={}){
-  const records=sources(creation,plan,lookup,level,variants);
+  const all0=sources(creation,plan,lookup,level,variants);
+  // Features another owned item replaces (a class archetype's suppressedFeatures) aren't owned.
+  const suppressed=new Set(all0.flatMap(r=>(r.item.metadata?.suppressedFeatures??[]).map(u=>lookup(u)?.uuid??u)));
+  const records=all0.filter(r=>!suppressed.has(r.item.uuid));
   const owned=new Map(records.map(r=>[r.item.uuid,r]));
   const granted=new Map();
   let flags={};
@@ -211,7 +215,7 @@ export function grantsAt(creation,plan,lookup,level=1,variants={}){
     if(!key)continue;
     ranks[key]=e.mode==='override'?Number(e.value):Math.max(ranks[key]??0,Number(e.value));
   }
-  return {granted:[...granted.values()].map(({item,from})=>({item,from})),flags,ranks};
+  return {granted:[...granted.values()].map(({item,from})=>({item,from})),flags,ranks,suppressed};
 }
 const DEFENSES=['unarmored','light','medium','heavy'],ATTACKS=['unarmed','simple','martial','advanced'];
 // subfeatures.proficiencies keys: saves, Perception, armor and weapon categories, class DC; skills by slug.

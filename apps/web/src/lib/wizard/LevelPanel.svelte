@@ -7,7 +7,7 @@
   import {ATTRIBUTES,ATTRIBUTE_NAMES,SKILLS,RANKS,titleCase,attributeModifiers,formatModifier} from '../builder/rules.js';
   import {featOptions,spellOptions} from './options.js';
   import {classFeaturesAt} from '../leveler-progression.js';
-  import {grantedNewAt} from '../builder/granted.js';
+  import {grantedNewAt,grantsAt} from '../builder/granted.js';
   import {wishlist,formatPrice} from '../builder/equipment.js';
   import GrantsPanel from './GrantsPanel.svelte';
   import FeatChoices from './FeatChoices.svelte';
@@ -19,7 +19,9 @@
   const state=$derived(buildState(creation,plan,lookup,level,variants));
   const names=$derived(featNameIndex(catalog));
   const choiceCtx=$derived(choiceContext(creation,plan,lookup));
-  const features=$derived(classFeaturesAt([lookup(creation.class?.uuid),variants.dualClass===true?lookup(creation.dualClass?.uuid):null],level));
+  const suppressed=$derived(grantsAt(creation,plan,lookup,level,variants).suppressed);
+  const features=$derived(classFeaturesAt([lookup(creation.class?.uuid),variants.dualClass===true?lookup(creation.dualClass?.uuid):null],level)
+    .filter(f=>!f.uuid||!suppressed.has(lookup(f.uuid)?.uuid??f.uuid)));
   // Feats and features other items grant at this level (Second Doctrine's grants, a dedication's feat…).
   const grantedHere=$derived(grantedNewAt(creation,plan,lookup,level,variants).filter(g=>!features.some(f=>f.uuid===g.item.uuid||f.name===g.item.name)));
   const before=$derived(attributeModifiers(creation,lookup,plan?.levels??{},level-1));

@@ -35,7 +35,7 @@
       lookup({kind:'uuid',value:uuid}).then(found=>names={...names,[uuid]:found?.name??false}).catch(()=>names={...names,[uuid]:false});
     }
   });
-  const nameFor=g=>g.name??names[g.uuid]??(names[g.uuid]===false?'(not synced)':'…');
+  const nameFor=g=>g.name??(names[g.uuid]===false?'(not synced)':names[g.uuid]??'…');
   async function openUuid(uuid){
     if(linksDisabled||!uuid)return;
     try{await onOpen(await lookup({kind:'uuid',value:uuid}));}catch{hoverState='unavailable';}

@@ -841,3 +841,15 @@ Website only; the Bridge stays at 0.14.1.
   training it gives and what it passes on to other features (a doctrine's First Doctrine). Items
   from a world synced with an older Bridge say so.
 - Named references ("…Item.Shield Block") open from links and lookups.
+
+### v0.33.1 — PF2e 8 (Foundry v14) grants
+
+**Update the PF2e Bridge to 0.33.1 and run Sync Now.**
+
+- PF2e 8 keeps actor flags under `flags.system` instead of `flags.pf2e`. The Bridge now exports
+  both, so a Warpriest gets First Doctrine (Warpriest) → Shield Block and Deadly Simplicity, with
+  trained light and medium armor and expert Fortitude, on Foundry v14 too. Checked against PF2e
+  8.6.1's own data (182 class/specialization combinations, 831 granting feats).
+- Features a specialization replaces (Battle Creed's doctrines, via PF2e `suppressedFeatures`)
+  no longer show under "Gained automatically" or count for grants.
+- The rules summary no longer shows "false" for a reference that isn't synced.

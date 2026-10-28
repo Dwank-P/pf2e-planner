@@ -119,4 +119,23 @@ test('rule summary lists grants, picks as X or Y, training and passed-on choices
     choiceSets:[{flag:'doctrine',options:[{value:U('warpriest'),label:'Warpriest'},{value:'x',label:'Cloistered Cleric'}]}]}});
   assert.deepEqual(doctrine.grants[0].options.map(o=>o.label),['Warpriest','Cloistered Cleric']);
   assert.equal(ruleSummary(catalog.get(F('sb'))).synced,false,'old syncs are flagged');
+  const v14=ruleSummary({...catalog.get(U('first')),metadata:{featType:'classfeature',ruleEffects:[{key:'grant',uuid:'{actor|flags.system.cleric.firstDoctrine}'}]}});
+  assert.equal(v14.grants[0].decidedBy,true,'flags.system placeholders are recognised');
+});
+
+test('PF2e 8 (Foundry v14) flags.system doctrines, and suppressed features', () => {
+  // Same chain with the flags.system namespace and id references, as PF2e 8.6 ships it.
+  const v8=indexCatalog({items:items.map(i=>{
+    const effects=i.metadata?.ruleEffects?.map(e=>({...e,
+      ...(e.uuid?{uuid:e.uuid.replace('flags.pf2e.','flags.system.')}:{}),
+      ...(e.path?{path:e.path.replace('flags.pf2e.','flags.system.')}:{})}));
+    return effects?{...i,metadata:{...i.metadata,ruleEffects:effects}}:i;
+  })});
+  assert.ok(grantsAt(creation,null,v8.get,1).granted.some(g=>g.item.name==='Shield Block'));
+  // Battle Creed replaces the doctrine features.
+  const creed=indexCatalog({items:[...items,{uuid:U('creed'),name:'Battle Creed',type:'feat',
+    metadata:{featType:'classfeature',slug:'battle-creed',suppressedFeatures:[U('first'),U('third')],ruleEffects:[]}}]});
+  const result=grantsAt({class:creation.class,subclass:{uuid:U('creed'),name:'Battle Creed'}},null,creed.get,7);
+  assert.ok(result.suppressed.has(U('first')));
+  assert.equal(result.granted.length,0);
 });

@@ -84,7 +84,7 @@ export function ruleSummary(item){
     const condition=when(e.predicate);
     if(e.key==='grant'){
       const pick=/\{item\|flags\.(?:pf2e|system)\.rulesSelections\.([^}]+)\}/.exec(e.uuid);
-      const actor=/\{actor\|flags\.pf2e\.([^}]+)\}/.exec(e.uuid);
+      const actor=/\{actor\|flags\.(?:pf2e|system)\.([^}]+)\}/.exec(e.uuid);
       if(pick){
         const set=sets.find(s=>s.flag===pick[1]);
         used.add(pick[1]);

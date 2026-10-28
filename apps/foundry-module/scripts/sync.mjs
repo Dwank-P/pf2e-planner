@@ -313,6 +313,10 @@ function exportItem(doc,pack){
       const ranks=Object.fromEntries(Object.entries(profs).map(([k,v])=>[k,Number(v?.rank??v)]).filter(([,n])=>Number.isFinite(n)&&n>0).slice(0,30));
       if(Object.keys(ranks).length)out.proficiencies=ranks;
     }
+    // Class features this one replaces (Battle Creed suppresses First Doctrine and the rest).
+    const suppressed=system.subfeatures?.suppressedFeatures;
+    if(Array.isArray(suppressed)&&suppressed.length)
+      out.suppressedFeatures=suppressed.filter(x=>typeof x==='string').slice(0,30).map(x=>x.slice(0,300));
   }
   // Item bonuses an equipped item gives (+1 Athletics, +2 Perception…): plain numeric FlatModifiers.
   if(['armor','shield','equipment','weapon','backpack','consumable','treasure'].includes(type)){
@@ -357,7 +361,8 @@ function ruleEffects(rules){
     if(rule?.key==='GrantItem'&&typeof rule.uuid==='string'){
       out.push({key:'grant',uuid:rule.uuid.slice(0,300),...(rule.flag?{flag:String(rule.flag)}:{}),...predicate});
     }else if(rule?.key==='ActiveEffectLike'&&typeof rule.path==='string'){
-      if(/^flags\.pf2e\.[\w.-]+$/.test(rule.path)&&(typeof rule.value==='string'||(rule.value&&typeof rule.value==='object'&&!Array.isArray(rule.value))))
+      // PF2e 7 writes actor flags under flags.pf2e, PF2e 8 (Foundry v14) under flags.system.
+      if(/^flags\.(?:pf2e|system)\.[\w.-]+$/.test(rule.path)&&(typeof rule.value==='string'||(rule.value&&typeof rule.value==='object'&&!Array.isArray(rule.value))))
         out.push({key:'flag',path:rule.path,value:rule.value,mode:rule.mode??'override',...predicate});
       else if(RANK_PATH.test(rule.path)&&Number.isFinite(Number(rule.value)))
         out.push({key:'rank',path:rule.path,value:Number(rule.value),mode:rule.mode??'upgrade',...predicate});
