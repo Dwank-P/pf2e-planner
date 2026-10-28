@@ -18,7 +18,9 @@
   const lookup=$derived(catalog.get);
   const state=$derived(buildState(creation,plan,lookup,level,variants));
   const names=$derived(featNameIndex(catalog));
-  const choiceCtx=$derived(choiceContext(creation,plan,lookup));
+  const choiceCtx=$derived({...choiceContext(creation,plan,lookup),
+    // Skills already trained before this level: a feat that would train one offers another instead.
+    trainedBefore:new Set([...skillRanks(creation,plan,lookup,level-1)].filter(([,r])=>r>0).map(([k])=>k))});
   const suppressed=$derived(grantsAt(creation,plan,lookup,level,variants).suppressed);
   const features=$derived(classFeaturesAt([lookup(creation.class?.uuid),variants.dualClass===true?lookup(creation.dualClass?.uuid):null],level)
     .filter(f=>!f.uuid||!suppressed.has(lookup(f.uuid)?.uuid??f.uuid)));

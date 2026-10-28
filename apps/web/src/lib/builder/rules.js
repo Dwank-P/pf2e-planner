@@ -142,15 +142,14 @@ export function skillTraining(creation,lookup,intModifier=0){
   const deities=[creation?.deity??creation?.classSelections?.class?.deity,creation?.classSelections?.dualClass?.deity].filter(Boolean);
   const granted=new Map();
   const grant=(skill,source)=>{if(isSkill(skill)&&!granted.has(skill))granted.set(skill,source);};
-  const classSkills=new Set();
-  for(const entry of classes)for(const skill of list(rulesOf(lookup(entry.uuid)).trainedSkills?.value)){
-    classSkills.add(skill);grant(skill,entry.name??'Class');
-  }
-  for(const deity of deities)for(const skill of list(deity.skill)){classSkills.add(skill);grant(skill,deity.name??'Deity');}
-  const backgroundSkills=list(backgroundRules.trainedSkills?.value);
-  for(const skill of backgroundSkills)grant(skill,creation?.background?.name??'Background');
+  // Each source that would train a skill already trained by another gives a free pick instead
+  // (class and background both Religion; a deity whose skill the class already trains).
+  let duplicates=0;
+  const fixed=(skill,source)=>{if(!isSkill(skill))return;if(granted.has(skill))duplicates++;else grant(skill,source);};
+  for(const entry of classes)for(const skill of new Set(list(rulesOf(lookup(entry.uuid)).trainedSkills?.value)))fixed(skill,entry.name??'Class');
+  for(const deity of deities)for(const skill of new Set(list(deity.skill)))fixed(skill,deity.name??'Deity');
+  for(const skill of new Set(list(backgroundRules.trainedSkills?.value)))fixed(skill,creation?.background?.name??'Background');
   const additional=classes.length?Math.max(...classes.map(e=>Number(rulesOf(lookup(e.uuid)).trainedSkills?.additional)||0)):0;
-  const duplicates=backgroundSkills.filter(s=>classSkills.has(s)).length;
   const chosen=(creation?.skills??[]).filter(s=>isSkill(s)&&!granted.has(s));
   const chosenLores=(creation?.selectedLoreSkills??[]).filter(l=>typeof l==='string'&&l.trim());
   return {granted,chosen,chosenLores,choices:Math.max(0,additional+intModifier+duplicates),duplicates,
@@ -227,7 +226,9 @@ export function proficienciesAt(creation,lookup,level=1,{plan=null,variants={}}=
     for(const [pattern,key,rank] of FEATURE_RANKS)if(pattern.test(String(f.name).trim()))raise(key,rank);
   }
   // ActiveEffectLike upgrades: Warpriest armor expertise at 13, Armor Proficiency, class archetypes…
-  for(const [key,rank] of Object.entries(grantsAt(creation,plan,lookup,level,variants).ranks))
+  // Formulas read the ranks the class gives (Warpriest's Armor: heavy armor = medium armor).
+  const base={...ranks};
+  for(const [key,rank] of Object.entries(grantsAt(creation,plan,lookup,level,variants,{base:key=>base[key]??0}).ranks))
     if(!key.startsWith('skill:'))raise(key,rank);
   return ranks;
 }

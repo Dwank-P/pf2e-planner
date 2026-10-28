@@ -212,6 +212,30 @@ async function authorized(){
   }
   return {base,id,auth};
 }
+/** Leveler's test for "…instead become trained in a skill of your choice" wording. */
+function hasSkillFallbackText(html){
+  const text=String(html??'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
+  if(!text)return false;
+  if(text.includes('skill of your choice')&&text.includes('already trained'))return true;
+  return /if you would automatically become trained in [^.]+?,?\s+you instead become trained in a skill of your choice/.test(text)
+    ||/if you would automatically become trained in one of those skills(?:\s*\([^)]*\))?,?\s+you instead become trained in a skill of your choice/.test(text);
+}
+/** Domain slug → {label, spell, advanced}: the uuids the system's Domains journal links. */
+let domainSpellMap=new Map();
+async function loadDomainSpells(){
+  domainSpellMap=new Map();
+  try{
+    const pack=game.packs.get(systemId()+'.journals')??game.packs.get('pf2e.journals');
+    const entry=pack?(await pack.getDocuments()).find(d=>/^domains$/i.test(d.name)):null;
+    for(const page of entry?.pages?.contents??[]){
+      const html=String(page.text?.content??'');
+      const link=label=>new RegExp('<strong>'+label+'</strong>\s*@UUID\[([^\]]+)\]','i').exec(html)?.[1]??null;
+      const label=String(page.name).replace(/\s+domain$/i,'').trim();
+      const slug=label.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+      if(slug)domainSpellMap.set(slug,{label,spell:link('Domain Spell'),advanced:link('Advanced Domain Spell')});
+    }
+  }catch(error){console.warn('[PF2e Planner Bridge]','Domain spells unavailable:',error.message);}
+}
 function exportItem(doc,pack){
   const type=doc.type;
   // Preserve all Item subtypes, including action/condition/effect references.
@@ -229,6 +253,12 @@ function exportItem(doc,pack){
     duration:system.duration?.value??null,
     category:system.category??null
   };
+  if(type==='deity'){
+    // Each domain's spells, from the system's Domains journal (read once per sync).
+    const domains=[...(system.domains?.primary??[]),...(system.domains?.alternate??[])];
+    const spells=Object.fromEntries(domains.map(d=>[d,domainSpellMap.get(d)]).filter(([,v])=>v));
+    if(Object.keys(spells).length)out.domainSpells=spells;
+  }
   if(type==='heritage'){
     out.ancestrySlug=system.ancestry?.slug??null;
     out.ancestryUuid=system.ancestry?.uuid??null;
@@ -313,6 +343,9 @@ function exportItem(doc,pack){
       const ranks=Object.fromEntries(Object.entries(profs).map(([k,v])=>[k,Number(v?.rank??v)]).filter(([,n])=>Number.isFinite(n)&&n>0).slice(0,30));
       if(Object.keys(ranks).length)out.proficiencies=ranks;
     }
+    // "If you would automatically become trained in … you instead become trained in a skill of your
+    // choice": the website offers that pick when the character already has the skill (as Leveler does).
+    if(hasSkillFallbackText(system.description?.value))out.skillFallback=true;
     // Class features this one replaces (Battle Creed suppresses First Doctrine and the rest).
     const suppressed=system.subfeatures?.suppressedFeatures;
     if(Array.isArray(suppressed)&&suppressed.length)
@@ -346,8 +379,17 @@ function configChoices(key){
   if(!table||typeof table!=='object')return null;
   return Object.entries(table).slice(0,120).map(([value,label])=>({value,label:localize(label)||value}));
 }
-// Proficiency ranks the website computes (perception, saves, armor, weapons, class DC, skills).
-const RANK_PATH=/^system\.(?:perception\.rank|saves\.(?:fortitude|reflex|will)\.rank|proficiencies\.(?:defenses|attacks|classDCs)\.[\w-]+\.rank|skills\.[\w-]+\.rank)$/;
+// Proficiency ranks the website computes (perception, saves, armor, weapons, class DC, skills); a
+// segment may be a pick ("system.skills.{item|flags.system.rulesSelections.skill}.rank").
+const SEG=String.raw`(?:[\w-]+|\{item\|flags\.(?:pf2e|system)\.rulesSelections\.[\w-]+\})`;
+const RANK_PATH=new RegExp(String.raw`^system\.(?:perception\.rank|saves\.${SEG}\.rank|proficiencies\.(?:defenses|attacks|classDCs)\.${SEG}\.rank|skills\.${SEG}\.rank)$`);
+// A Lore skill a rule adds: "system.skills.catfolk-lore" = {label, rank}.
+const LORE_PATH=new RegExp(String.raw`^system\.skills\.${SEG}$`);
+// Rank values: a number, or a short formula ("@actor.system.proficiencies.defenses.medium.rank",
+// "ternary(gte(@actor.level,7),3,2)") the website evaluates.
+const rankValue=v=>typeof v==='number'?v:typeof v==='string'&&v.length<=300?(/^-?\d+$/.test(v)?Number(v):v):null;
+// Speed bonuses (Fleet): plain FlatModifiers on the land speed.
+const SPEED_SELECTORS=new Set(['speed','land-speed','all-speeds']);
 /**
  * GrantItem rules (fixed, by name, or through {item|…}/{actor|…} placeholders), actor flags set
  * by ActiveEffectLike (how a doctrine tells First Doctrine what to grant) and numeric proficiency
@@ -364,8 +406,13 @@ function ruleEffects(rules){
       // PF2e 7 writes actor flags under flags.pf2e, PF2e 8 (Foundry v14) under flags.system.
       if(/^flags\.(?:pf2e|system)\.[\w.-]+$/.test(rule.path)&&(typeof rule.value==='string'||(rule.value&&typeof rule.value==='object'&&!Array.isArray(rule.value))))
         out.push({key:'flag',path:rule.path,value:rule.value,mode:rule.mode??'override',...predicate});
-      else if(RANK_PATH.test(rule.path)&&Number.isFinite(Number(rule.value)))
-        out.push({key:'rank',path:rule.path,value:Number(rule.value),mode:rule.mode??'upgrade',...predicate});
+      else if(RANK_PATH.test(rule.path)&&rankValue(rule.value)!==null)
+        out.push({key:'rank',path:rule.path,value:rankValue(rule.value),mode:rule.mode??'upgrade',
+          ...(Number.isFinite(Number(rule.priority))?{priority:Number(rule.priority)}:{}),...predicate});
+      else if(LORE_PATH.test(rule.path)&&rule.value&&typeof rule.value==='object'&&rankValue(rule.value.rank)!==null)
+        out.push({key:'lore',path:rule.path,label:String(rule.value.label??'').slice(0,120),rank:rankValue(rule.value.rank),...predicate});
+    }else if(rule?.key==='FlatModifier'&&[].concat(rule.selector).some(x=>SPEED_SELECTORS.has(x))&&Number.isFinite(Number(rule.value))){
+      out.push({key:'speed',value:Number(rule.value),type:rule.type??'untyped',...predicate});
     }
   }
   if(!out.length)return null;
@@ -408,7 +455,7 @@ const RULE_FIELDS={
   ancestry:['boosts','flaws','hp','size','speed','languages','additionalLanguages','vision','reach'],
   background:['boosts','trainedSkills'],
   class:['hp','keyAbility','trainedSkills','perception','savingThrows','attacks','defenses','classDC','spellcasting'],
-  deity:['font','sanctification','domains','skill','weapons','attribute','category'],
+  deity:['font','sanctification','domains','skill','weapons','attribute','category','spells'],
   feat:['maxTakable','onlyLevel1'],
   // Targeted defense for spell filters: AC, or a Fortitude/Reflex/Will save.
   spell:['defense'],
@@ -460,6 +507,7 @@ export async function syncNow({auto=false}={}){
     const entries=[];
     const byPack=new Map();
     const classDocs=[];
+    await loadDomainSpells();
     let bannedSkipped=0;
     for(const pack of available){
       const documents=await pack.getDocuments();

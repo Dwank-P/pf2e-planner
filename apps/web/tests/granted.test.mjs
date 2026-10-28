@@ -158,3 +158,49 @@ test('class feats need their class: changing class flags the old picks', () => {
   assert.match(checkFeat(cat.get(F('power')),dual,{kind:'class',currentUuid:F('power')}).blocked,/Fighter feat/,'the class slot needs the main class');
   assert.equal(checkFeat(cat.get(F('power')),dual,{kind:'dual-class',currentUuid:F('power')}).blocked,null,'the dual-class slot takes the second class');
 });
+
+test('formulas, picked skills, lores, replacement picks and speed', async () => {
+  const {evaluateFormula}=await import('../src/lib/builder/formula.js');
+  const {skillTraining}=await import('../src/lib/builder/rules.js');
+  const lvl=n=>p=>p==='actor.level'?n:null;
+  assert.equal(evaluateFormula('ternary(gte(@actor.level,15),4,ternary(gte(@actor.level,7),3,2))',lvl(8)),3);
+  assert.equal(evaluateFormula('match(when(gte(@actor.level, 15), 4), when(gte(@actor.level, 7), 3),when(gte(@actor.level, 3), 2),1)',lvl(3)),2);
+  assert.equal(evaluateFormula('min(3,@actor.flags.system.x)',lvl(1)),null,'unknown references give up');
+  assert.equal(evaluateFormula('alert(1)'),null,'unknown functions give up');
+  const S='Compendium.pf2e.feats-srd.Item.';
+  const cat=indexCatalog({items:[...items,
+    {uuid:S+'wa',name:"Warpriest's Armor",type:'feat',level:2,traits:['cleric'],metadata:{featType:'class',ruleEffects:[
+      {key:'rank',path:'system.proficiencies.defenses.heavy.rank',mode:'upgrade',priority:41,value:'@actor.system.proficiencies.defenses.medium.rank'}]}},
+    {uuid:S+'cl',name:'Catfolk Lore',type:'feat',level:1,metadata:{featType:'ancestry',skillFallback:true,ruleEffects:[
+      {key:'rank',path:'system.skills.acrobatics.rank',mode:'upgrade',value:1},{key:'rank',path:'system.skills.survival.rank',mode:'upgrade',value:1},
+      {key:'lore',path:'system.skills.catfolk-lore',label:'{item|name}',rank:'match(when(gte(@actor.level, 7), 3),when(gte(@actor.level, 3), 2),1)'}]}},
+    {uuid:S+'st',name:'Skill Training',type:'feat',level:1,metadata:{featType:'general',
+      choiceSets:[{flag:'skill',options:[{value:'arcana'},{value:'nature'}]}],
+      ruleEffects:[{key:'rank',path:'system.skills.{item|flags.system.rulesSelections.skill}.rank',mode:'upgrade',value:1}]}},
+    {uuid:S+'dandy',name:'Dandy Dedication',type:'feat',level:2,metadata:{featType:'class',
+      ruleEffects:[{key:'rank',path:'system.skills.deception.rank',mode:'upgrade',value:'{item|flags.system.rulesSelections.deceptionRank}'}]}},
+    {uuid:S+'fleet',name:'Fleet',type:'feat',level:1,metadata:{featType:'general',ruleEffects:[{key:'speed',value:5}]}}]});
+  const plan={levels:{2:{classFeats:[{uuid:S+'wa',name:"Warpriest's Armor"}],archetypeFeats:[{uuid:S+'dandy',name:'Dandy',choices:{deceptionRank:'2'}}]},
+    3:{ancestryFeats:[{uuid:S+'cl',name:'Catfolk Lore',choices:{levelerSkillFallback1:'nature'}}],generalFeats:[{uuid:S+'st',name:'Skill Training',choices:{skill:'arcana'}}]},
+    7:{generalFeats:[{uuid:S+'fleet',name:'Fleet'}]}}};
+  const c={...creation,skills:['survival']};
+  assert.equal(proficienciesAt(c,cat.get,2,{plan}).heavy,1,"Warpriest's Armor: heavy = medium");
+  const r=skillRanks(c,plan,cat.get,7);
+  assert.equal(r.get('acrobatics'),1);
+  assert.equal(r.get('nature'),1,'replacement pick for Survival');
+  assert.equal(r.get('arcana'),1,'Skill Training’s picked skill');
+  assert.equal(r.get('deception'),2,'Dandy’s picked rank');
+  assert.equal(r.get('catfolk lore'),3);
+  assert.equal(grantsAt(c,plan,cat.get,7).speed,5);
+  const sets=choiceSetsFor(cat.get(S+'cl'),{},cat,{trainedBefore:new Set(['survival'])}).sets;
+  assert.deepEqual(sets.map(s=>s.flag),['levelerSkillFallback1']);
+  assert.ok(!sets[0].options.some(o=>['survival','acrobatics'].includes(o.value)));
+  assert.equal(choiceSetsFor(cat.get(S+'cl'),{},cat,{trainedBefore:new Set(['arcana'])}).sets.length,0,'no overlap, no pick');
+  // Level 1: class, deity and background each training Religion → two extra picks.
+  const B='Compendium.pf2e.backgrounds.Item.';
+  const cat2=indexCatalog({items:[...items,{uuid:B+'om',name:'Otherworldly Mission',type:'background',metadata:{rules:{trainedSkills:{value:['religion']}}}},
+    {uuid:'Compendium.pf2e.classes.Item.cleric2',name:'Cleric',type:'class',metadata:{slug:'cleric',rules:{trainedSkills:{value:['religion'],additional:2}}}}]});
+  const t=skillTraining({class:{uuid:'Compendium.pf2e.classes.Item.cleric2'},background:{uuid:B+'om'},deity:{name:'X',skill:['religion']}},cat2.get,0);
+  assert.equal(t.duplicates,2);
+  assert.equal(t.choices,4);
+});

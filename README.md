@@ -871,3 +871,25 @@ Website only; the Bridge stays at 0.14.1.
   artwork as class icons (e.g. PF2e Team+ Adventures' 0.7–1.1 MB class icons). Both Bridges now
   scale such images down in Foundry (to at most 256 px, keeping the file's format) before
   uploading, so they appear on the website.
+
+### v0.34.0 — Skill overlaps, formula ranks, lores, deity details
+
+**Update the PF2e Bridge to 0.34 and run Sync Now.**
+
+- **"Already trained? Choose another skill."** Feats, heritages and backgrounds that train a skill
+  you already have (Catfolk Lore with Survival, Angelkin with Society…) now offer a replacement
+  skill, stored as PF2e Leveler stores it.
+- **Level-1 overlaps** count every source: class, deity and background each training the same
+  skill give an extra free skill.
+- **Picked skills and ranks** from rules now apply: Skill Training-style feats and dedications
+  ("train the skill you chose"), Dandy/Linguist-style picked ranks.
+- **Formula ranks** now apply: Warpriest's Armor (heavy armor as medium armor), Avenger, Acrobat
+  Dedication's expert/master/legendary by level, and similar.
+- **Lore skills from rules** (Catfolk Lore, Esoteric Lore…) appear in your skills and rise with
+  level.
+- **Summary**: Size and Speed (with Fleet-style bonuses and armor penalties); the granted feats list
+  is gone.
+- **Deity details**: font, skill, favored weapon, divine attribute and sanctification at a glance;
+  domains with links to their domain and advanced domain spells; cleric spells by rank; Title,
+  Edicts, Anathema and similar lines stand out in descriptions.
+- Checked against PF2e 8.6.1: all 697 rank and Lore rules evaluate.

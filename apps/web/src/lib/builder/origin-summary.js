@@ -40,6 +40,16 @@ function pf2e(item){
     case 'heritage':
       fact('Ancestry',m.versatile?'Any (versatile)':title(m.ancestrySlug));
       break;
+    case 'deity':{
+      const font=list(r.font).map(f=>/harm/.test(f)?'Harm':/heal/.test(f)?'Heal':title(f));
+      fact('Divine font',font.join(' or '));
+      fact('Skill',list(r.skill).map(title).join(', '));
+      fact('Favored weapon',list(r.weapons).map(title).join(', '));
+      fact('Divine attribute',list(r.attribute).map(a=>ATTR[a]??title(a)).join(' or '));
+      const sanct=r.sanctification;
+      if(sanct?.what?.length)fact('Sanctification',(sanct.modal==='must'?'Must be ':'Can be ')+list(sanct.what).map(title).join(' or '));
+      break;
+    }
     case 'background':{
       note('Boosts',boosts(r.boosts));
       note('Trained skills',join([...list(r.trainedSkills?.value??m.trainedSkills).map(title),

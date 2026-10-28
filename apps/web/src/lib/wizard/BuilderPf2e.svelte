@@ -20,7 +20,7 @@
   import {emptyCreation} from '../leveler-format.js';
   import {setSkillSet} from '../builder/rules.js';
   import {choiceSetsFor,choicesComplete,choiceContext} from '../builder/choice-sets.js';
-  import {buildState,checkFeat,featNameIndex} from '../builder/legality.js';
+  import {buildState,checkFeat,featNameIndex,skillRanks} from '../builder/legality.js';
 
   /**
    * The PF2e/SF2e character builder (levels 1–20, equipment). `scope` says where the character
@@ -126,7 +126,10 @@
     if(slot.type==='feat'){
       const feat=planFeat(plan,slot);
       const item=feat&&catalog.get(feat.uuid);
-      return !!feat&&(!item||choicesComplete(choiceSetsFor(item,feat.choices??{},catalog,choiceContext(creation,plan,catalog.get))));
+      if(!feat||!item)return !!feat;
+      // Includes "already trained: choose another skill" picks, against the skills before this level.
+      const trainedBefore=new Set([...skillRanks(creation,plan,catalog.get,slot.level-1)].filter(([,r])=>r>0).map(([k])=>k));
+      return choicesComplete(choiceSetsFor(item,feat.choices??{},catalog,{...choiceContext(creation,plan,catalog.get),trainedBefore}));
     }
     if(slot.type==='ability')return planBoosts(plan,slot.level).length>=slot.count;
     if(slot.type==='skill')return !!planSkillIncrease(plan,slot);

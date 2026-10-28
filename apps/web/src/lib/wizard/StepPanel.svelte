@@ -9,6 +9,7 @@
   import GrantsPanel from './GrantsPanel.svelte';
   import FeatChoices from './FeatChoices.svelte';
   import {choiceContext} from '../builder/choice-sets.js';
+  import {skillRanks} from '../builder/legality.js';
   import {creationGrantRequirements,toggleGrantSelection,takenFormulas} from '../builder/grants.js';
   import * as C from '../builder/creation.js';
   import {taggedItems,heritagesFor,equipmentOptions} from './options.js';
@@ -122,7 +123,8 @@
     {#if originKey&&choice.picked?.uuid}
       <!-- Choices the picked origin or specialization asks for, and those of what it grants. -->
       <FeatChoices entry={{uuid:choice.picked.uuid,choices:C.originChoices(creation,originKey,choice.picked.uuid)}} {catalog}
-        context={choiceContext(creation,plan,catalog.get)} {info}
+        context={{...choiceContext(creation,plan,catalog.get),
+          trainedBefore:new Set([...skillRanks(creation,null,catalog.get,1,{grants:false})].filter(([,r])=>r>0).map(([k])=>k))}} {info}
         onChange={choices=>update(c=>C.setOriginChoices(c,originKey,choice.picked.uuid,choices))}/>
     {/if}
   {:else if id==='sanctification'}

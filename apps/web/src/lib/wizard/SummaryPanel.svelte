@@ -19,9 +19,11 @@
   const mods=$derived(result.mods);
   const hp=$derived(hitPoints(creation,lookup,mods.con,level));
   const prof=$derived(proficienciesAt(creation,lookup,level,{plan,variants}));
-  // Feats other items grant (Shield Block from Warpriest…), not class features listed by level.
-  const grantedFeats=$derived(grantsAt(creation,plan,lookup,level,variants).granted
-    .filter(g=>g.item.type==='feat'&&String(g.item.metadata?.featType??'')!=='classfeature'));
+  // Size and land Speed: the ancestry's, plus bonuses from rules (Fleet) and armor's penalty.
+  const SIZES={tiny:'Tiny',sm:'Small',med:'Medium',lg:'Large',huge:'Huge',grg:'Gargantuan'};
+  const ancestryRules=$derived(lookup(creation.ancestry?.uuid)?.metadata?.rules??{});
+  const size=$derived(SIZES[ancestryRules.size]??null);
+  const speed=$derived(Number(ancestryRules.speed)>0?Number(ancestryRules.speed)+grantsAt(creation,plan,lookup,level,variants).speed:null);
   const key=$derived(creation.boosts?.class?.[0]??keyAttributeOptions(creation,lookup(creation.class?.uuid))[0]);
   const skills=$derived([...skillRanks(creation,plan,lookup,level).entries()].filter(([,r])=>r>0)
     .sort((a,b)=>a[0].localeCompare(b[0])));
@@ -80,6 +82,13 @@
     <div><dt>Hit Points</dt><dd class="num">{hp??'—'}</dd></div>
     <div><dt>Class DC</dt><dd class="num">{classDC??'—'}</dd></div>
   </dl>
+  {#if size||speed}
+    <dl class="stats body">
+      <div><dt>Size</dt><dd>{size??'—'}</dd></div>
+      <div title={ac.speedPenalty?ac.armor.name+': '+ac.speedPenalty+' ft.':''}><dt>Speed</dt>
+        <dd class="num">{speed!==null?speed+(ac.speedPenalty||0)+' ft.':'—'}</dd></div>
+    </dl>
+  {/if}
   {#if creation.class}
     <div class="block"><span class="eyebrow">Perception &amp; saves</span>
       <div class="ranks">
@@ -104,11 +113,6 @@
         <div><span class="label">{#if skillGlyph(skill)}<Glyph name={skillGlyph(skill)}/>{:else}<span class="gap"></span>{/if}{titleCase(skill)}{#if skillExtra(skill)}<small class="bonus">{skillExtra(skill)>0?' +':' '}{skillExtra(skill)}</small>{/if}</span>
           <span class="right"><b class="num">{total(SKILL_ATTRIBUTE[skill]??'int',rank,skillExtra(skill))}</b><RankLadder {rank}/></span></div>
       {/each}</div></div>
-  {/if}
-  {#if grantedFeats.length}
-    <div class="block"><span class="eyebrow">Granted feats</span>
-      <ul class="gear">{#each grantedFeats as g (g.item.uuid)}<li title={'From '+g.from}><Icon src={g.item.img} size={20}/><span>{g.item.name}</span>
-        <small class="muted">· {g.from}</small></li>{/each}</ul></div>
   {/if}
   {#if strikes.length&&creation.class}
     <div class="block"><span class="eyebrow">Strikes</span>
@@ -143,6 +147,7 @@
   .attr b{font:800 1.15rem var(--display)}
   .stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0}
   .stats.with-ac{grid-template-columns:auto 1fr 1fr}
+  .stats.body dd{font:700 1rem var(--display)}
   .stats div.ac{background:none;padding:0;display:grid;place-items:center}
   .stats div{background:var(--panel-2);border-radius:8px;padding:8px 10px}
   dt{font-size:.75rem;color:var(--muted)}dd{margin:0;font:700 1.1rem var(--mono)}

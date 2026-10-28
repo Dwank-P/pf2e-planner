@@ -12,6 +12,7 @@
  */
 
 import {skillRanks} from './legality.js';
+import {evaluateFormula} from './formula.js';
 
 const CREATION_FEATS=['ancestryFeat','ancestryParagonFeat','classFeat','dualClassFeat','skillFeat','mythicCalling'];
 const PLAN_FEATS=['classFeats','skillFeats','generalFeats','ancestryFeats','archetypeFeats','mythicFeats','dualClassFeats','customFeats'];
@@ -168,11 +169,12 @@ function context(records,creation,lookup,level,plan=null){
 const withGranter=(ctx,record)=>record.grantedBy?{...ctx,granter:slugOf(record.grantedBy)}:ctx;
 
 /**
- * Everything granted at `level`: {granted:[{item, from}], flags, ranks:{perception, fortitude, …},
- * suppressed: uuids of class features another item replaces}.
+ * Everything granted at `level`: {granted:[{item, from}], flags, ranks:{perception, fortitude, skill:x, …},
+ * lores: Map('catfolk lore' → rank), speed: bonus in feet, suppressed: uuids of class features another
+ * item replaces}.
  * `granted` excludes what the character picked itself.
  */
-export function grantsAt(creation,plan,lookup,level=1,variants={}){
+export function grantsAt(creation,plan,lookup,level=1,variants={},{base=()=>0}={}){
   const all0=sources(creation,plan,lookup,level,variants);
   // Features another owned item replaces (a class archetype's suppressedFeatures) aren't owned.
   const suppressed=new Set(all0.flatMap(r=>(r.item.metadata?.suppressedFeatures??[]).map(u=>lookup(u)?.uuid??u)));
@@ -201,21 +203,59 @@ export function grantsAt(creation,plan,lookup,level=1,variants={}){
     }
     if(!added)break;
   }
-  // Proficiency ranks set by owned items (upgrade = at least this rank).
+  // Proficiency ranks set by owned items (upgrade = at least this rank). `base` gives the ranks the
+  // character has otherwise (class, training), which formulas may read.
   const ctx=context([...owned.values()],creation,lookup,level,plan);
-  const ranks={};
+  const ranks={},lores=new Map();
+  let speed=0;
   // Training an item gives outright (PF2e subfeatures.proficiencies): owned means it applies.
   for(const r of owned.values())for(const [name,rank] of Object.entries(r.item.metadata?.proficiencies??{})){
     const key=SUBFEATURE_KEYS[name]??(SKILLS.has(name)||/-lore$/.test(name)?'skill:'+name:null);
     if(key)ranks[key]=Math.max(ranks[key]??0,Number(rank)||0);
   }
+  // A skill picked because the item would train one the character already has (Leveler's
+  // levelerSkillFallback1… choices: Catfolk Lore with Survival already trained).
+  for(const r of owned.values())for(const [flag,value] of Object.entries(r.choices??{}))
+    if(/^levelerSkillFallback\d+$/.test(flag)&&typeof value==='string'&&value)ranks['skill:'+value]=Math.max(ranks['skill:'+value]??0,1);
+  const rules=[];
   for(const r of owned.values())for(const e of effectsOf(r.item)){
-    if(e.key!=='rank'||!predicateHolds(e.predicate,withGranter(ctx,r)))continue;
-    const key=rankKey(e.path);
-    if(!key)continue;
-    ranks[key]=e.mode==='override'?Number(e.value):Math.max(ranks[key]??0,Number(e.value));
+    if(!['rank','lore','speed'].includes(e.key)||!predicateHolds(e.predicate,withGranter(ctx,r)))continue;
+    if(e.key==='speed'){speed+=Number(e.value)||0;continue;}
+    // "system.skills.{item|flags.system.rulesSelections.skill}.rank": the skill picked on this item.
+    const path=resolvePlaceholders(e.path,{choices:r.choices,flags});
+    if(path)rules.push({e,r,path});
   }
-  return {granted:[...granted.values()].map(({item,from})=>({item,from})),flags,ranks,suppressed};
+  // Plain numbers first, then formulas (which may read ranks: heavy armor = medium armor).
+  rules.sort((a,b)=>(typeof a.e.value==='number'||typeof a.e.rank==='number'?0:1)-(typeof b.e.value==='number'||typeof b.e.rank==='number'?0:1)
+    ||(a.e.priority??50)-(b.e.priority??50));
+  const current=key=>Math.max(Number(base(key))||0,ranks[key]??0);
+  // "@actor.level", "@actor.system…rank", and "@item.flags.system.rulesSelections.rank" (a picked rank).
+  const refFor=r=>path=>{
+    if(path==='actor.level')return level;
+    const pick=/^item\.flags\.(?:pf2e|system)\.rulesSelections\.([\w-]+)$/.exec(path);
+    if(pick){const v=Number(r.choices?.[pick[1]]);return Number.isFinite(v)?v:null;}
+    const key=path.startsWith('actor.system.')?rankKey(path.slice(6)):null;
+    return key?current(key):null;
+  };
+  // A value that is itself a pick ("{item|flags.system.rulesSelections.deceptionRank}": Dandy Dedication).
+  const valueOf=(value,r)=>evaluateFormula(typeof value==='string'&&value.includes('{')
+    ?resolvePlaceholders(value,{choices:r.choices,flags})??'':value,refFor(r));
+  for(const {e,r,path} of rules){
+    if(e.key==='lore'){
+      const rank=valueOf(e.rank,r);
+      if(rank===null)continue;
+      const label=resolvePlaceholders(String(e.label||'').replace('{item|name}',r.item.name),{choices:r.choices,flags})
+        ||path.split('.').pop().replace(/-/g,' ');
+      const name=String(label).toLowerCase().replace(/\s+lore$/,'')+' lore';
+      lores.set(name,Math.max(lores.get(name)??0,rank));
+      continue;
+    }
+    const key=rankKey(path);
+    const value=key?valueOf(e.value,r):null;
+    if(value===null)continue;
+    ranks[key]=e.mode==='override'?value:Math.max(ranks[key]??0,value);
+  }
+  return {granted:[...granted.values()].map(({item,from})=>({item,from})),flags,ranks,lores,speed,suppressed};
 }
 const DEFENSES=['unarmored','light','medium','heavy'],ATTACKS=['unarmed','simple','martial','advanced'];
 // subfeatures.proficiencies keys: saves, Perception, armor and weapon categories, class DC; skills by slug.

@@ -51,11 +51,15 @@ export function skillRanks(creation,plan,lookup,level,{grants=true}={}){
   }
   // Fixed training from rules on owned items (a class archetype's skill, a feat's expert rank…).
   if(!grants)return ranks;
-  for(const [key,rank] of Object.entries(grantsAt(creation,plan,lookup,level).ranks)){
+  const skillOf=key=>SKILL_SHORT[key]??key.replace(/-/g,' ');
+  const result=grantsAt(creation,plan,lookup,level,{},{base:key=>key.startsWith('skill:')?ranks.get(skillOf(key.slice(6)))??0:0});
+  for(const [key,rank] of Object.entries(result.ranks)){
     if(!key.startsWith('skill:'))continue;
-    const skill=SKILL_SHORT[key.slice(6)]??key.slice(6).replace(/-/g,' ');
+    const skill=skillOf(key.slice(6));
     ranks.set(skill,Math.max(ranks.get(skill)??0,Math.min(4,Number(rank)||0)));
   }
+  // Lore skills rules add (Catfolk Lore's, rising with level).
+  for(const [lore,rank] of result.lores)ranks.set(lore,Math.max(ranks.get(lore)??0,Math.min(4,Number(rank)||0)));
   return ranks;
 }
 

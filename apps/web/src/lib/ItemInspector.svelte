@@ -3,7 +3,7 @@
   import Traits from './ui/Traits.svelte';
   import {itemStats} from './builder/item-stats.js';
   import {originSummary} from './builder/origin-summary.js';
-  import {ruleSummary,hasRuleSummary} from './builder/rule-summary.js';
+  import {ruleSummary,hasRuleSummary,nameInUuid} from './builder/rule-summary.js';
   import Icon from './ui/Icon.svelte';
 
   // catalogBase: where catalog-item lives (a campaign, personal character or public link);
@@ -26,10 +26,20 @@
   const rules=$derived(item&&!item.metadata?.advancement?ruleSummary(item):null);
   const RULE_TYPES=['ancestry','heritage','background','class','feat','deity'];
   const rulesMissing=$derived(!!item&&!!rules&&!rules.synced&&RULE_TYPES.includes(item.type)&&!item.metadata?.advancement);
+  // A deity's domains (with their domain spells, from the Bridge) and cleric spells by rank.
+  const deity=$derived.by(()=>{
+    if(item?.type!=='deity')return null;
+    const r=item.metadata?.rules??{},spells=item.metadata?.domainSpells??{};
+    const domain=slug=>({slug,label:spells[slug]?.label??titleCase(slug),spell:spells[slug]?.spell??null,advanced:spells[slug]?.advanced??null});
+    return {primary:(r.domains?.primary??[]).map(domain),alternate:(r.domains?.alternate??[]).map(domain),
+      spells:Object.entries(r.spells??{}).map(([rank,uuid])=>({rank:Number(rank),uuid})).filter(s=>s.uuid).sort((a,b)=>a.rank-b.rank)};
+  });
+  const titleCase=s=>String(s??'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
   // Names for items referenced by id (fetched once; named references show their own name).
   let names=$state({});
   $effect(()=>{
-    const wanted=rules?[...rules.grants,...rules.sets].filter(g=>g.uuid&&!g.name).map(g=>g.uuid):[];
+    const wanted=[...(rules?[...rules.grants,...rules.sets].filter(g=>g.uuid&&!g.name).map(g=>g.uuid):[]),
+      ...(deity?[...deity.primary,...deity.alternate].flatMap(d=>[d.spell,d.advanced]).concat(deity.spells.map(s=>s.uuid)).filter(Boolean):[])];
     for(const uuid of wanted)if(!(uuid in names)){
       names={...names,[uuid]:null};
       lookup({kind:'uuid',value:uuid}).then(found=>names={...names,[uuid]:found?.name??false}).catch(()=>names={...names,[uuid]:false});
@@ -145,6 +155,15 @@
         onpointerover={hoverLink} onpointerout={clearHover} onfocusin={hoverLink} onfocusout={clearHover}>
         {@html html||'<p>No description was imported for this item.</p>'}
       </div>
+      {#if deity&&(deity.primary.length||deity.spells.length)}
+        <dl class="rules" aria-label="Domains and cleric spells">
+          {#snippet spellRef(uuid)}{#if uuid}<button type="button" class="ref" onclick={()=>openUuid(uuid)}>{nameFor({uuid,name:nameInUuid(uuid)})}</button>{/if}{/snippet}
+          {#snippet domains(list)}<ul>{#each list as d (d.slug)}<li><b>{d.label}</b>{#if d.spell}{' — '}{@render spellRef(d.spell)}{/if}{#if d.advanced}{' · advanced: '}{@render spellRef(d.advanced)}{/if}</li>{/each}</ul>{/snippet}
+          {#if deity.primary.length}<div><dt>Domains</dt><dd>{@render domains(deity.primary)}</dd></div>{/if}
+          {#if deity.alternate.length}<div><dt>Alternate</dt><dd>{@render domains(deity.alternate)}</dd></div>{/if}
+          {#if deity.spells.length}<div><dt>Cleric spells</dt><dd><ul>{#each deity.spells as s (s.rank)}<li>Rank {s.rank}:{' '}{@render spellRef(s.uuid)}</li>{/each}</ul></dd></div>{/if}
+        </dl>
+      {/if}
       {#if rules&&hasRuleSummary(rules)}
         <dl class="rules" aria-label="Rules summary">
           {#snippet ref(uuid,label)}{#if uuid}<button type="button" class="ref" onclick={()=>openUuid(uuid)}>{label}</button>{:else}{label}{/if}{/snippet}
@@ -207,11 +226,15 @@
   .inspector-tags{margin:1rem 0}
   .prereq{font-size:.85rem;color:var(--muted);border-left:2px solid var(--accent);padding-left:.85rem}
   .prereq strong{color:var(--text);display:block}
+  .stats+.description,.stats+.notes{margin-top:1rem}
   .description{color:var(--text);line-height:1.65;font:1.02rem/1.65 var(--prose);overflow-wrap:anywhere;max-width:62ch}
   .description :global(a[data-uuid]),.description :global(a[data-pf2e-uuid]),
   .description :global(a[data-pf2e-action]){color:var(--accent);text-decoration:underline;
     text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer}
   .description :global(table){border-collapse:collapse;display:block;overflow:auto}
+  /* Paragraph spacing, and a coloured label for "Title …", "Edicts …", "Trigger …" lines. */
+  .description :global(p){margin:0 0 .7em}
+  .description :global(p > strong:first-child){color:var(--accent);font-family:var(--display);font-weight:800;margin-right:.15em}
   .description :global(td),.description :global(th){border:1px solid var(--line);padding:.4rem}
   .description :global(.pf2e-inline){display:inline;padding:.14rem .37rem;border:1px solid var(--line);
     border-radius:5px;background:var(--surface-hover);font-size:.92em}

@@ -10,6 +10,7 @@
  */
 
 import {effectsOf} from './granted.js';
+import {SKILLS,titleCase} from './rules.js';
 
 const MAX_DEPTH=3;
 const PLACEHOLDER=/\{item\|flags\.(?:pf2e|system)\.rulesSelections\.([^}]+)\}/g;
@@ -132,6 +133,27 @@ function queryOptions(query,catalog,choices){
 }
 
 /**
+ * "If you would automatically become trained in Survival, you instead become trained in a skill of
+ * your choice": one pick per skill the item trains that the character already has (ctx.trainedBefore,
+ * the skills trained before this item). Stored as Leveler stores it (levelerSkillFallback1…).
+ */
+function fallbackSets(source,choices,ctx,seenFlags){
+  if(!source.metadata?.skillFallback||!ctx.trainedBefore)return [];
+  const trains=effectsOf(source).filter(e=>e.key==='rank'&&!e.predicate&&Number(e.value)>=1)
+    .map(e=>/^system\.skills\.([a-z-]+)\.rank$/.exec(e.path)?.[1]).filter(Boolean);
+  const overlaps=trains.filter(skill=>ctx.trainedBefore.has(skill));
+  return overlaps.map((skill,i)=>{
+    const flag='levelerSkillFallback'+(i+1);
+    if(seenFlags.has(flag))return null;
+    seenFlags.add(flag);
+    const options=SKILLS.filter(s=>s===choices?.[flag]||(!ctx.trainedBefore.has(s)&&!trains.includes(s)))
+      .map(s=>({value:s,label:titleCase(s),uuid:null,img:null}));
+    return {flag,prompt:`Already trained in ${titleCase(skill)}: choose another skill`,source:{uuid:source.uuid,name:source.name},
+      depth:0,options,value:choices?.[flag]??null,itemOptions:false};
+  }).filter(Boolean);
+}
+
+/**
  * The choices an item offers (and those of items its picks grant), with the current picks.
  * Returns {sets:[{flag,prompt,source,options,value,itemOptions}], grants:[{uuid,name}]}.
  */
@@ -140,6 +162,7 @@ export function choiceSetsFor(item,choices,catalog,ctx={}){
   const visit=(source,depth)=>{
     if(!source||depth>MAX_DEPTH||seenItems.has(source.uuid))return;
     seenItems.add(source.uuid);
+    sets.push(...fallbackSets(source,choices,ctx,seenFlags));
     for(const set of source.metadata?.choiceSets??[]){
       if(!set?.flag||seenFlags.has(set.flag)||!predicateMet(set.predicate,ctx))continue;
       const options=set.query?queryOptions(set.query,catalog,choices)
