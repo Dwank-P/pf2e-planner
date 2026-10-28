@@ -561,12 +561,38 @@ const toBase64=bytes=>{
  * Upload the icons this world's catalog uses that the website doesn't have yet,
  * read from this Foundry server. Icons are kept per world on the website.
  */
+const MAX_ICON_BYTES=262144;
+const ICON_TYPES={png:'image/png',webp:'image/webp',jpg:'image/jpeg',jpeg:'image/jpeg'};
+/**
+ * Large artwork used as an icon (a module's 1 MB class icon): scaled down here, in the path's own
+ * format, so it fits the website's 256 KB limit. The website shows icons at 64 px at most.
+ */
+async function shrinkIcon(bytes,path){
+  const type=ICON_TYPES[String(path).split('.').pop().toLowerCase()];
+  if(!type)return null;
+  try{
+    const bitmap=await createImageBitmap(new Blob([bytes]));
+    for(const size of [256,160,96]){
+      const scale=Math.min(1,size/Math.max(bitmap.width,bitmap.height));
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+      canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
+      const blob=await new Promise(resolve=>canvas.toBlob(resolve,type,0.85));
+      // A browser that can't write this format would hand back PNG bytes under a .webp name.
+      if(!blob||blob.type!==type)return null;
+      const out=new Uint8Array(await blob.arrayBuffer());
+      if(out.length<=MAX_ICON_BYTES)return out;
+    }
+  }catch(error){console.warn('[PF2e Planner Bridge]','Could not shrink icon',path,error.message);}
+  return null;
+}
 async function readIcon(path){
   try{
     const response=await fetch(foundry.utils.getRoute(path),{cache:'force-cache'});
     if(!response.ok)return null;
-    const bytes=new Uint8Array(await response.arrayBuffer());
-    if(!bytes.length||bytes.length>262144)return null;
+    let bytes=new Uint8Array(await response.arrayBuffer());
+    if(bytes.length>MAX_ICON_BYTES)bytes=await shrinkIcon(bytes,path)??new Uint8Array();
+    if(!bytes.length)return null;
     const hash=await crypto.subtle.digest('SHA-256',bytes);
     return {path,bytes,sha256:Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('')};
   }catch{return null;}

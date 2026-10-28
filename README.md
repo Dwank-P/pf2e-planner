@@ -862,3 +862,12 @@ Website only; the Bridge stays at 0.14.1.
 - The level list marks every level with a planned feat that no longer fits (wrong class, missing
   prerequisite, already granted…) with ⚠; hover it for the reasons.
 - Level-1 feat picks show the same warnings.
+
+### v0.33.3 — Large module icons
+
+**Update the Bridges to 0.33.3 and run Sync Now.**
+
+- Icons over the website's 256 KB limit were skipped — common for modules that use full-size
+  artwork as class icons (e.g. PF2e Team+ Adventures' 0.7–1.1 MB class icons). Both Bridges now
+  scale such images down in Foundry (to at most 256 px, keeping the file's format) before
+  uploading, so they appear on the website.
