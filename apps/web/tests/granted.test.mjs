@@ -204,3 +204,59 @@ test('formulas, picked skills, lores, replacement picks and speed', async () => 
   assert.equal(t.duplicates,2);
   assert.equal(t.choices,4);
 });
+
+test('same-level training: skill increases and earlier feats count as already trained', async () => {
+  const {trainedBefore}=await import('../src/lib/builder/legality.js');
+  const S='Compendium.pf2e.feats-srd.Item.';
+  const trains=(id,name,skill)=>({uuid:S+id,name,type:'feat',level:1,metadata:{featType:'general',skillFallback:true,
+    ruleEffects:[{key:'rank',path:'system.skills.'+skill+'.rank',mode:'upgrade',value:1}]}});
+  const cat=indexCatalog({items:[...items,trains('a1','Acro One','acrobatics'),trains('a2','Acro Two','acrobatics'),trains('sv','Survivor','survival')]});
+  const plan={levels:{3:{skillIncreases:[{skill:'survival',toRank:1}],generalFeats:[{uuid:S+'sv',name:'Survivor'}],
+    ancestryFeats:[{uuid:S+'a1',name:'Acro One'}],skillFeats:[{uuid:S+'a2',name:'Acro Two'}]}}};
+  const c={class:creation.class};
+  // The skill increase trains Survival at 3, so Survivor (also at 3) offers a replacement.
+  const t1=trainedBefore(c,plan,cat.get,3);
+  assert.ok(t1.has('survival'));
+  assert.equal(choiceSetsFor(cat.get(S+'sv'),{},cat,{trainedBefore:t1}).sets.length,1);
+  // Two feats at 3 both training Acrobatics: the first doesn't, the second (after it) does.
+  assert.equal(choiceSetsFor(cat.get(S+'a1'),{},cat,{trainedBefore:trainedBefore(c,plan,cat.get,3)}).sets.length,0);
+  const t2=trainedBefore(c,plan,cat.get,3,{before:[{uuid:S+'a1'}]});
+  assert.equal(choiceSetsFor(cat.get(S+'a2'),{},cat,{trainedBefore:t2}).sets[0]?.prompt,'Already trained in Acrobatics: choose another skill');
+  // A replacement picked on the first feat also counts for the second.
+  const t3=trainedBefore(c,plan,cat.get,3,{before:[{uuid:S+'a1',choices:{levelerSkillFallback1:'arcana'}}]});
+  assert.ok(t3.has('arcana'));
+});
+
+test('repeatable feats, archetype additional feats, Intelligence bonus skills', async () => {
+  const {takeLimit,trainedBefore}=await import('../src/lib/builder/legality.js');
+  const P=await import('../src/lib/builder/plan.js');
+  const S='Compendium.pf2e.feats-srd.Item.';
+  assert.equal(takeLimit({metadata:{rules:{maxTakable:null}}}),Infinity,'PF2e stores unlimited as null');
+  assert.equal(takeLimit({metadata:{rules:{maxTakable:3}}}),3);
+  assert.equal(takeLimit({metadata:{rules:{maxTakable:null,onlyLevel1:true}}}),1);
+  assert.equal(takeLimit({metadata:{}}),1);
+  const C='Compendium.pf2e.classes.Item.';
+  const cat=indexCatalog({items:[...items,
+    {uuid:C+'fighter',name:'Fighter',type:'class',metadata:{slug:'fighter'}},
+    {uuid:S+'lore',name:'Additional Lore',type:'feat',level:1,traits:['general','skill'],metadata:{featType:'skill',rules:{maxTakable:null}}},
+    {uuid:S+'bastion',name:'Bastion Dedication',type:'feat',level:2,traits:['archetype','dedication'],
+      metadata:{featType:'class',additionalFeats:[{level:8,uuid:'Compendium.pf2e.feats-srd.Item.Reflexive Shield'}]}},
+    {uuid:S+'rs',name:'Reflexive Shield',type:'feat',level:6,traits:['fighter'],metadata:{featType:'class'}},
+    {uuid:S+'tp',name:'Twin Parry',type:'feat',level:4,traits:['fighter','ranger'],metadata:{featType:'class'}}]});
+  const cleric={class:{uuid:creation.class.uuid,name:'Cleric'}};
+  const plan={levels:{2:{archetypeFeats:[{uuid:S+'bastion',name:'Bastion Dedication'}],skillFeats:[{uuid:S+'lore',name:'Additional Lore'}]},
+    4:{skillFeats:[{uuid:S+'lore',name:'Additional Lore'}]}}};
+  assert.equal(checkFeat(cat.get(S+'lore'),buildState(cleric,plan,cat.get,4),{kind:'skill',currentUuid:'other'}).blocked,null,'Additional Lore twice is fine');
+  assert.match(checkFeat(cat.get(S+'rs'),buildState(cleric,plan,cat.get,6),{kind:'archetype'}).blocked,/Available from level 8 through Bastion Dedication/);
+  assert.equal(checkFeat(cat.get(S+'rs'),buildState(cleric,plan,cat.get,8),{kind:'archetype'}).blocked,null,'Bastion opens Reflexive Shield at 8');
+  assert.match(checkFeat(cat.get(S+'rs'),buildState(cleric,{levels:{}},cat.get,8),{kind:'archetype'}).blocked,/Fighter feat/,'without the dedication it stays another class’s feat');
+  const fighter={class:{uuid:C+'fighter',name:'Fighter'}};
+  assert.equal(checkFeat(cat.get(S+'tp'),buildState(fighter,plan,cat.get,4),{kind:'class'}).blocked,null,'own class feat, whatever archetypes say');
+  // Raising Intelligence's modifier: picks counted as trained, and as trained before a feat that level.
+  const mods=l=>({int:l>=5?2:1});
+  const p2={levels:{5:{abilityBoosts:['int','str','dex','con'],intBonusSkills:['arcana']}}};
+  assert.equal(P.intBonusCount(p2,5,mods),1);
+  assert.equal(P.intBonusCount({levels:{5:{abilityBoosts:['str']}}},5,mods),0);
+  assert.equal(skillRanks(cleric,p2,cat.get,5).get('arcana'),1);
+  assert.ok(trainedBefore(cleric,p2,cat.get,5).has('arcana'));
+});

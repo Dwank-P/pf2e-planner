@@ -6,7 +6,8 @@
  */
 import {attributeModifiers,skillTraining,isSkill,ATTRIBUTES,RANKS,titleCase} from './rules.js';
 import {ancestryFeatBlock} from '../wizard/options.js';
-import {grantsAt} from './granted.js';
+import {grantsAt,effectsOf,resolvePlaceholders} from './granted.js';
+import {evaluateFormula} from './formula.js';
 
 const FEAT_FIELDS=['ancestryFeat','ancestryParagonFeat','classFeat','dualClassFeat','skillFeat','mythicCalling'];
 const FEAT_CATEGORIES=['classFeats','skillFeats','generalFeats','ancestryFeats','archetypeFeats','dualClassFeats','mythicFeats','customFeats'];
@@ -30,6 +31,44 @@ export function takenFeats(creation,plan){
   return out;
 }
 
+/**
+ * Skills one chosen item trains by itself: its fixed or picked skill rules (at rank 1+), training it
+ * gives outright, and the replacement skills picked on it. Used to order same-level training.
+ */
+export function trainingOf(entry,lookup,level=1){
+  const item=entry?.uuid?lookup(entry.uuid):null;
+  const out=new Set();
+  if(!item)return out;
+  const choices=entry.choices??{};
+  for(const e of effectsOf(item)){
+    if(e.key!=='rank'||e.predicate)continue;
+    const path=resolvePlaceholders(e.path,{choices,flags:{}});
+    const skill=path&&/^system\.skills\.([a-z-]+)\.rank$/.exec(path)?.[1];
+    const value=typeof e.value==='number'?e.value:evaluateFormula(e.value,p=>p==='actor.level'?level:null);
+    if(skill&&value>=1)out.add(SKILL_SHORT[skill]??skill);
+  }
+  for(const [name,rank] of Object.entries(item.metadata?.proficiencies??{}))if(Number(rank)>=1&&isSkill(name))out.add(name);
+  for(const [flag,value] of Object.entries(choices))if(/^levelerSkillFallback\d+$/.test(flag)&&typeof value==='string'&&value)out.add(value);
+  return out;
+}
+/**
+ * Skills already trained when an item at `level` is taken, for "already trained? choose another":
+ * everything from earlier levels, this level's skill increases, and what the items in `before`
+ * (earlier picks at this level — another feat, the background) train. Level 1 starts from class,
+ * background, deity and chosen skills.
+ */
+export function trainedBefore(creation,plan,lookup,level,{before=[]}={}){
+  const ranks=level<=1?skillRanks(creation,null,lookup,1,{grants:false}):skillRanks(creation,plan,lookup,level-1);
+  const out=new Set([...ranks].filter(([,r])=>r>0).map(([k])=>k));
+  if(level>1)for(const skill of plan?.levels?.[level]?.intBonusSkills??[])out.add(norm(skill));
+  if(level>1)for(const inc of [...(plan?.levels?.[level]?.skillIncreases??[]),...(plan?.levels?.[level]?.customSkillIncreases??[])]){
+    const skill=norm(inc?.skill);
+    if(skill&&!/-lore$/.test(skill))out.add(skill);
+  }
+  for(const entry of before)for(const skill of trainingOf(entry,lookup,level))out.add(skill);
+  return out;
+}
+
 /** Skill ranks after level-1 training and planned increases up to `level`. */
 export function skillRanks(creation,plan,lookup,level,{grants=true}={}){
   const {mods}=attributeModifiers(creation,lookup);
@@ -40,6 +79,11 @@ export function skillRanks(creation,plan,lookup,level,{grants=true}={}){
   for(const lore of [...(creation?.lores??[]),...(creation?.selectedLoreSkills??[])])
     ranks.set(norm(lore).replace(/ lore$/,'')+' lore',1);
   for(let l=2;l<=level;l++){
+    // Skills trained for raising Intelligence (Leveler's intBonusSkills).
+    for(const skill of plan?.levels?.[l]?.intBonusSkills??[]){
+      const s=norm(skill).replace(/-lore$/,' lore');
+      if(s&&!ranks.get(s))ranks.set(s,1);
+    }
     for(const inc of [...(plan?.levels?.[l]?.skillIncreases??[]),...(plan?.levels?.[l]?.customSkillIncreases??[])]){
       // Leveler stores lores as slugs ("scribing-lore"); ranks use "scribing lore".
       const raw=norm(inc?.skill);
@@ -81,6 +125,8 @@ export function buildState(creation,plan,lookup,level,variants={}){
     // The class and dual class, by slug (the entry's own, else the synced class item's).
     classSlug:classSlugOf(creation?.class,lookup),dualClassSlug:classSlugOf(creation?.dualClass,lookup),
     classSlugs:[classSlugOf(creation?.class,lookup),classSlugOf(creation?.dualClass,lookup)].filter(Boolean),
+    // Other classes' feats the character's archetypes open (Bastion: Reflexive Shield from 8th…).
+    unlocked:archetypeUnlocks(feats,lookup,level),
     creation};
 }
 
@@ -133,6 +179,30 @@ function checkPrerequisite(text,state,featNames){
   return undefined;
 }
 
+/**
+ * How many times a feat can be taken. PF2e stores "unlimited" as null (Infinity doesn't survive
+ * JSON), so a synced null means any number (Additional Lore, Assurance…); onlyLevel1 feats once.
+ */
+export function takeLimit(feat){
+  const rules=feat?.metadata?.rules??{};
+  if(rules.onlyLevel1===true)return 1;
+  if(!('maxTakable' in rules))return 1;
+  return rules.maxTakable===null?Infinity:Number(rules.maxTakable)||1;
+}
+/** uuid → {level, from}: feats from other classes the dedications taken before `level` open. */
+function archetypeUnlocks(feats,lookup,level){
+  const out=new Map();
+  for(const taken of feats){
+    if(taken.level>level)continue;
+    const item=lookup(taken.uuid);
+    for(const extra of item?.metadata?.additionalFeats??[]){
+      const target=lookup(extra.uuid);
+      const uuid=target?.uuid??extra.uuid;
+      if(!out.has(uuid)||out.get(uuid).level>extra.level)out.set(uuid,{level:Number(extra.level)||1,from:item.name});
+    }
+  }
+  return out;
+}
 const classSlugOf=(entry,lookup)=>{
   if(!entry)return null;
   const item=lookup(entry.uuid);
@@ -155,6 +225,9 @@ export function classFeatBlock(feat,state,kind=''){
   if(!classes.length)return null;
   const own=kind==='class'?[state.classSlug]:kind==='dual-class'?[state.dualClassSlug]:state.classSlugs??[];
   if(classes.some(t=>own.includes(t)))return null;
+  // Another class's feat an archetype opens (from the level its "Additional Feats" list gives).
+  const unlock=state.unlocked?.get(feat.uuid);
+  if(unlock)return unlock.level<=state.level?null:`Available from level ${unlock.level} through ${unlock.from}`;
   const mine=own.filter(Boolean).map(titleCase).join(' or ');
   return `${classes.map(titleCase).join(' or ')} feat${mine?` — this character is a ${mine}`:''}`;
 }
@@ -168,7 +241,7 @@ export function checkFeat(feat,state,{kind='',featNames=new Set(),currentUuid=nu
   if(Number.isFinite(feat.level)&&feat.level>state.level)return {blocked:`Level ${feat.level} feat`,unknown};
   const wrongClass=classFeatBlock(feat,state,kind);
   if(wrongClass)return {blocked:wrongClass,unknown};
-  const maxTakable=Number(feat.metadata?.rules?.maxTakable??1);
+  const maxTakable=takeLimit(feat);
   const takenAt=state.feats.find(f=>f.uuid===feat.uuid&&f.uuid!==currentUuid);
   // Taking a feat twice would add it twice in Foundry, so this one can't be overridden.
   if(takenAt&&maxTakable<=1)return {blocked:`Already taken at level ${takenAt.level}`,unknown,hard:true};

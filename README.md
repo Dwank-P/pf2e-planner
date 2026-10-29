@@ -893,3 +893,23 @@ Website only; the Bridge stays at 0.14.1.
   domains with links to their domain and advanced domain spells; cleric spells by rank; Title,
   Edicts, Anathema and similar lines stand out in descriptions.
 - Checked against PF2e 8.6.1: all 697 rank and Lore rules evaluate.
+
+### v0.35.0 — Same-level training, archetype feats, Intelligence skills
+
+**Update the PF2e Bridge to 0.35 and run Sync Now.**
+
+- **Same-level overlaps**: a feat that trains a skill you trained with this level's skill
+  increase, or that an earlier feat at this level already trains, now offers a replacement skill.
+  Level 1 orders the ancestry, heritage, background, class and the feat slots the same way.
+- **Intelligence bonus skills and languages**: boosting Intelligence's modifier now asks for the
+  extra trained skill and language (Leveler's intBonusSkills/intBonusLanguages); they count as
+  trained and the level isn't complete until picked.
+- **Archetype feats**: other classes' feats an archetype opens (its "Additional Feats" list, e.g.
+  Bastion's Reflexive Shield from 8th) are no longer flagged, and are flagged before their level.
+  Your own class's feats are never flagged by an archetype.
+- **Repeatable feats** (Additional Lore, Assurance…) are no longer reported as already taken —
+  PF2e stores "any number of times" as an empty value, which was read as "once".
+- **Class choices**: classes with their own choice (PF2e 8 Fighter's Acrobatics or Athletics, the
+  Runesmith's skill) offer it on the Class step and count its training.
+- Checked against 662 sample builds from Tarondor's class guides (Bard, Cleric, Fighter,
+  Guardian, Monk, Ranger, Rogue, Wizard; with and without Free Archetype) on PF2e 8.6.1 data.

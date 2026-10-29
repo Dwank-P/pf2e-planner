@@ -4,15 +4,21 @@
   import {setFeat,setFeatChoices} from '../builder/creation.js';
   import FeatChoices from './FeatChoices.svelte';
   import {choiceContext,storedChoiceSets} from '../builder/choice-sets.js';
-  import {buildState,checkFeat,featNameIndex,skillRanks} from '../builder/legality.js';
+  import {buildState,checkFeat,featNameIndex,trainedBefore} from '../builder/legality.js';
   import {featOptions} from './options.js';
   let {creation,plan,catalog,variants,update,info}=$props();
   const slots=$derived(level1FeatSlots(creation,catalog.get,variants));
   const state=$derived(buildState(creation,plan,catalog.get,1,variants));
   const names=$derived(featNameIndex(catalog));
-  // Level-1 training (class, background, deity, chosen skills) a feat's own training can overlap.
-  const featCtx=$derived({...choiceContext(creation,null,catalog.get),
-    trainedBefore:new Set([...skillRanks(creation,null,catalog.get,1,{grants:false})].filter(([,r])=>r>0).map(([k])=>k))});
+  // Level-1 training a feat's own training can overlap: class, background, deity and chosen skills,
+  // the ancestry, heritage and background's own rules, then the feats in earlier slots.
+  const baseCtx=$derived(choiceContext(creation,null,catalog.get));
+  function featCtx(slot){
+    const earlier=slots.slice(0,slots.indexOf(slot)).map(s=>creation[featField(s.slot)]).filter(Boolean);
+    const before=[creation.ancestry,creation.heritage,creation.background,...earlier].filter(Boolean)
+      .map(e=>({...e,choices:{...(creation.grantedFeatChoices?.[e.uuid]??{}),...(e.choices??{})}}));
+    return {...baseCtx,trainedBefore:trainedBefore(creation,null,catalog.get,1,{before})};
+  }
   const kindOf=slot=>slot.slot==='dualClass'?'dual-class':slot.slot==='paragon'?'ancestry':slot.category;
   let open=$state(null);
   $effect(()=>{if(open===null){const first=slots.find(s=>!creation[featField(s.slot)]);open=first?.slot??null;}});
@@ -38,7 +44,7 @@
         {#if verdict?.blocked}<small class="warn">⚠ {verdict.blocked}</small>{/if}
         <span class="state" aria-hidden="true">{chosen?'✓':'○'}</span>
       </button>
-      {#if chosen}<FeatChoices entry={chosen} {catalog} context={featCtx} {info}
+      {#if chosen}<FeatChoices entry={chosen} {catalog} context={featCtx(slot)} {info}
         onChange={choices=>update(c=>setFeatChoices(c,slot.slot,choices,
           storedChoiceSets(catalog.get(chosen.uuid),choices,catalog,choiceContext(c,null,catalog.get))))}/>{/if}
       {#if open===slot.slot}

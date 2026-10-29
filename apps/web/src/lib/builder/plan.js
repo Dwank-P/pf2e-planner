@@ -126,6 +126,26 @@ export function toggleLevelBoost(plan,level,attribute,count,{gradual=false}={}){
   });
 }
 
+/**
+ * Raising Intelligence's modifier trains one more skill and teaches one more language per point
+ * (Leveler's intBonusSkills / intBonusLanguages on the level). `mods(level)` → attribute modifiers.
+ */
+export function intBonusCount(plan,level,mods){
+  if(!planBoosts(plan,level).includes('int'))return 0;
+  return Math.max(0,Math.trunc(mods(level).int??0)-Math.trunc(mods(level-1).int??0));
+}
+export const intBonusSkills=(plan,level)=>plan?.levels?.[level]?.intBonusSkills??[];
+export const intBonusLanguages=(plan,level)=>plan?.levels?.[level]?.intBonusLanguages??[];
+export function toggleIntBonus(plan,level,key,value,max){
+  return edit(plan,level,data=>{
+    const list=[...(data[key]??[])];
+    const index=list.indexOf(value);
+    if(index>=0)list.splice(index,1);
+    else if(list.length<max)list.push(value);
+    data[key]=list;
+  });
+}
+
 const sourceOf=entry=>String(entry?.source??'').trim();
 /** The skill increase stored for a slot: matched by Leveler source, else by position. */
 export function planSkillIncrease(plan,slot){

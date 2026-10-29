@@ -220,6 +220,39 @@ function hasSkillFallbackText(html){
   return /if you would automatically become trained in [^.]+?,?\s+you instead become trained in a skill of your choice/.test(text)
     ||/if you would automatically become trained in one of those skills(?:\s*\([^)]*\))?,?\s+you instead become trained in a skill of your choice/.test(text);
 }
+/**
+ * Dedication → feats from other classes its archetype opens ("Additional Feats: 6th Shielded Stride;
+ * 8th Reflexive Shield…" on the system's Archetypes journal page): [{level, uuid}]. Keyed by the
+ * dedication's uuid and by its lower-case name.
+ */
+let archetypeFeatMap=new Map();
+async function loadArchetypeFeats(){
+  archetypeFeatMap=new Map();
+  try{
+    const pack=game.packs.get(systemId()+'.journals')??game.packs.get('pf2e.journals');
+    const entry=pack?(await pack.getDocuments()).find(d=>/^archetypes$/i.test(d.name)):null;
+    const nameOf=(uuid,label)=>label||(()=>{try{return fromUuidSync(uuid)?.name;}catch{return null;}})()||uuid.split('.').pop();
+    for(const page of entry?.pages?.contents??[]){
+      const html=String(page.text?.content??'');
+      const section=/Additional Feats:?\s*<\/strong>(.*?)<\/p>/is.exec(html)?.[1];
+      if(!section)continue;
+      const feats=[];
+      for(const part of section.split(/<strong>\s*(?=\d+(?:st|nd|rd|th)\s*<\/strong>)/i)){
+        const level=Number(/^(\d+)(?:st|nd|rd|th)/i.exec(part)?.[1]);
+        if(!level)continue;
+        for(const m of part.matchAll(/@UUID\[(Compendium\.[^\]]+)\]/g))feats.push({level,uuid:m[1]});
+      }
+      if(!feats.length)continue;
+      // The page's dedication: a linked feat named "… Dedication".
+      for(const m of html.matchAll(/@UUID\[(Compendium\.[^\]]+)\](?:\{([^}]+)\})?/g)){
+        const name=String(nameOf(m[1],m[2])??'');
+        if(!/dedication$/i.test(name))continue;
+        archetypeFeatMap.set(m[1],feats);archetypeFeatMap.set(name.toLowerCase(),feats);
+        break;
+      }
+    }
+  }catch(error){console.warn('[PF2e Planner Bridge]','Archetype feats unavailable:',error.message);}
+}
 /** Domain slug → {label, spell, advanced}: the uuids the system's Domains journal links. */
 let domainSpellMap=new Map();
 async function loadDomainSpells(){
@@ -302,6 +335,10 @@ function exportItem(doc,pack){
     const grants=(system.rules||[]).filter(r=>r?.key==='GrantItem'&&typeof r.uuid==='string'&&!r.uuid.includes('{'))
       .slice(0,10).map(r=>({uuid:r.uuid.slice(0,200),...(r.predicate?{predicate:r.predicate}:{})}));
     if(grants.length&&JSON.stringify(grants).length<4000)out.grantItems=grants;
+    if((system.traits?.value??[]).includes('dedication')){
+      const extra=archetypeFeatMap.get(doc.uuid)??archetypeFeatMap.get(String(doc.name).toLowerCase());
+      if(extra?.length)out.additionalFeats=extra.slice(0,60);
+    }
     if(system.category==='ancestry'){
       // Same ancestry/creature trait classification used by Leveler's
       // feat-filter, including third-party traits registered with the system.
@@ -329,7 +366,8 @@ function exportItem(doc,pack){
   if(rules)out.rules=rules;
   // ChoiceSets (Order Explorer's druid order, a skill to train…) and the GrantItems that use their
   // picks; the website offers the same choices and stores them as Leveler does (feat.choices).
-  if(type!=='class')Object.assign(out,choiceData(system.rules));
+  // Classes too: PF2e 8's Fighter picks Acrobatics or Athletics, the Runesmith a skill.
+  Object.assign(out,choiceData(system.rules));
   // What the item grants or changes once owned (Warpriest → First Doctrine → Shield Block): the
   // website follows these to know a character's granted feats, features and proficiencies.
   // Always present for these types (empty when there are none), so the website can tell an item
@@ -508,6 +546,7 @@ export async function syncNow({auto=false}={}){
     const byPack=new Map();
     const classDocs=[];
     await loadDomainSpells();
+    await loadArchetypeFeats();
     let bannedSkipped=0;
     for(const pack of available){
       const documents=await pack.getDocuments();

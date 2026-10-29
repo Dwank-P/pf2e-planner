@@ -9,7 +9,7 @@
   import GrantsPanel from './GrantsPanel.svelte';
   import FeatChoices from './FeatChoices.svelte';
   import {choiceContext} from '../builder/choice-sets.js';
-  import {skillRanks} from '../builder/legality.js';
+  import {trainedBefore} from '../builder/legality.js';
   import {creationGrantRequirements,toggleGrantSelection,takenFormulas} from '../builder/grants.js';
   import * as C from '../builder/creation.js';
   import {taggedItems,heritagesFor,equipmentOptions} from './options.js';
@@ -33,8 +33,16 @@
   }
 
   const id=$derived(step.stepId??step.id);
-  // Where an origin's own picks are stored (see originChoices).
-  const originKey=$derived(['ancestry','heritage','background'].includes(id)?id
+  // Level-1 training before an origin: class, deity, chosen skills, and the origins listed before it.
+  const ORIGIN_ORDER=['ancestry','heritage','background','class','dualClass'];
+  function originTrained(key){
+    const earlier=ORIGIN_ORDER.slice(0,Math.max(0,ORIGIN_ORDER.indexOf(key))).map(k=>creation[k]).filter(Boolean)
+      .map(e=>({...e,choices:creation.grantedFeatChoices?.[e.uuid]??{}}));
+    return trainedBefore(creation,null,catalog.get,1,{before:earlier});
+  }
+  // Where an origin's own picks are stored (see originChoices); a class's (Fighter: Acrobatics or
+  // Athletics) are kept like an origin's.
+  const originKey=$derived(ORIGIN_ORDER.includes(id)?id
     :id==='subclass'?(step.target==='dualClass'?'dualSubclass':'subclass'):null);
   const target=$derived(step.target??'class');
   const bucket=$derived(creation.classSelections?.[target]??{});
@@ -123,8 +131,7 @@
     {#if originKey&&choice.picked?.uuid}
       <!-- Choices the picked origin or specialization asks for, and those of what it grants. -->
       <FeatChoices entry={{uuid:choice.picked.uuid,choices:C.originChoices(creation,originKey,choice.picked.uuid)}} {catalog}
-        context={{...choiceContext(creation,plan,catalog.get),
-          trainedBefore:new Set([...skillRanks(creation,null,catalog.get,1,{grants:false})].filter(([,r])=>r>0).map(([k])=>k))}} {info}
+        context={{...choiceContext(creation,plan,catalog.get),trainedBefore:originTrained(originKey)}} {info}
         onChange={choices=>update(c=>C.setOriginChoices(c,originKey,choice.picked.uuid,choices))}/>
     {/if}
   {:else if id==='sanctification'}

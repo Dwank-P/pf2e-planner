@@ -13,14 +13,14 @@
   import {downloadJson} from '../ui/download.js';
   import {loadCatalogAt} from '../builder/catalog.js';
   import {creationSteps} from '../builder/schema.js';
-  import {ensurePlan,repairLevelOne,planFeat,planBoosts,planSkillIncrease,planSpells,planSignature} from '../builder/plan.js';
+  import {ensurePlan,repairLevelOne,planFeat,planBoosts,planSkillIncrease,planSpells,planSignature,intBonusCount,intBonusSkills,intBonusLanguages} from '../builder/plan.js';
   import {stepSummary,levelSummary} from '../builder/summaries.js';
   import {wishlist} from '../builder/equipment.js';
   import {levelerChoiceSlots} from '../leveler-progression.js';
   import {emptyCreation} from '../leveler-format.js';
-  import {setSkillSet} from '../builder/rules.js';
+  import {setSkillSet,attributeModifiers} from '../builder/rules.js';
   import {choiceSetsFor,choicesComplete,choiceContext} from '../builder/choice-sets.js';
-  import {buildState,checkFeat,featNameIndex,skillRanks} from '../builder/legality.js';
+  import {buildState,checkFeat,featNameIndex,trainedBefore} from '../builder/legality.js';
 
   /**
    * The PF2e/SF2e character builder (levels 1–20, equipment). `scope` says where the character
@@ -128,10 +128,17 @@
       const item=feat&&catalog.get(feat.uuid);
       if(!feat||!item)return !!feat;
       // Includes "already trained: choose another skill" picks, against the skills before this level.
-      const trainedBefore=new Set([...skillRanks(creation,plan,catalog.get,slot.level-1)].filter(([,r])=>r>0).map(([k])=>k));
-      return choicesComplete(choiceSetsFor(item,feat.choices??{},catalog,{...choiceContext(creation,plan,catalog.get),trainedBefore}));
+      const here=slotsAt(slot.level);
+      const before=here.slice(0,here.indexOf(slot)).filter(s=>s.type==='feat').map(s=>planFeat(plan,s)).filter(Boolean);
+      const trained=trainedBefore(creation,plan,catalog.get,slot.level,{before});
+      return choicesComplete(choiceSetsFor(item,feat.choices??{},catalog,{...choiceContext(creation,plan,catalog.get),trainedBefore:trained}));
     }
-    if(slot.type==='ability')return planBoosts(plan,slot.level).length>=slot.count;
+    if(slot.type==='ability'){
+      if(planBoosts(plan,slot.level).length<slot.count)return false;
+      // Plus the skill and language a higher Intelligence modifier brings.
+      const n=intBonusCount(plan,slot.level,l=>attributeModifiers(creation,catalog.get,plan?.levels??{},l).mods);
+      return intBonusSkills(plan,slot.level).length>=n&&intBonusLanguages(plan,slot.level).length>=n;
+    }
     if(slot.type==='skill')return !!planSkillIncrease(plan,slot);
     if(slot.type==='spells')return planSpells(plan,slot.level).length>=(slot.allowance?.total??0);
     if(slot.type==='signature')return slot.ranks.every(r=>planSignature(plan,slot.level,r));

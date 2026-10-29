@@ -3,9 +3,9 @@
   import Icon from '../ui/Icon.svelte';
   import RankLadder from '../ui/RankLadder.svelte';
   import * as P from '../builder/plan.js';
-  import {buildState,checkFeat,featNameIndex,skillRanks,maxSkillRank} from '../builder/legality.js';
+  import {buildState,checkFeat,featNameIndex,skillRanks,maxSkillRank,trainedBefore} from '../builder/legality.js';
   import {ATTRIBUTES,ATTRIBUTE_NAMES,SKILLS,RANKS,titleCase,attributeModifiers,formatModifier} from '../builder/rules.js';
-  import {featOptions,spellOptions} from './options.js';
+  import {featOptions,spellOptions,languageRarityMap} from './options.js';
   import {classFeaturesAt} from '../leveler-progression.js';
   import {grantedNewAt,grantsAt} from '../builder/granted.js';
   import {wishlist,formatPrice} from '../builder/equipment.js';
@@ -18,9 +18,14 @@
   const lookup=$derived(catalog.get);
   const state=$derived(buildState(creation,plan,lookup,level,variants));
   const names=$derived(featNameIndex(catalog));
-  const choiceCtx=$derived({...choiceContext(creation,plan,lookup),
-    // Skills already trained before this level: a feat that would train one offers another instead.
-    trainedBefore:new Set([...skillRanks(creation,plan,lookup,level-1)].filter(([,r])=>r>0).map(([k])=>k))});
+  const choiceCtx=$derived(choiceContext(creation,plan,lookup));
+  // Skills trained before a slot's feat: earlier levels, this level's skill increases and the feats in
+  // earlier slots here. A feat that would train one of them offers another skill instead.
+  function slotCtx(slot){
+    const index=slots.indexOf(slot);
+    const before=slots.slice(0,index).filter(s=>s.type==='feat').map(s=>P.planFeat(plan,s)).filter(Boolean);
+    return {...choiceCtx,trainedBefore:trainedBefore(creation,plan,lookup,level,{before})};
+  }
   const suppressed=$derived(grantsAt(creation,plan,lookup,level,variants).suppressed);
   const features=$derived(classFeaturesAt([lookup(creation.class?.uuid),variants.dualClass===true?lookup(creation.dualClass?.uuid):null],level)
     .filter(f=>!f.uuid||!suppressed.has(lookup(f.uuid)?.uuid??f.uuid)));
@@ -29,6 +34,12 @@
   const before=$derived(attributeModifiers(creation,lookup,plan?.levels??{},level-1));
   const ranksBefore=$derived(skillRanks(creation,plan,lookup,level-1));
   const lores=$derived([...ranksBefore.keys()].filter(k=>k.endsWith(' lore')));
+  // Boosting Intelligence's modifier here trains a skill and teaches a language per point.
+  const intBonus=$derived(P.intBonusCount(plan,level,l=>attributeModifiers(creation,lookup,plan?.levels??{},l).mods));
+  const languageChoices=$derived([...languageRarityMap(variants?.languages,[]).entries()].filter(([,r])=>r==='common').map(([l])=>l).sort());
+  const knownLanguages=$derived(new Set([...(creation.languages??[]),
+    ...(lookup(creation.ancestry?.uuid)?.metadata?.rules?.languages?.value??[]),
+    ...Array.from({length:Math.max(0,level-2)},(_,i)=>P.intBonusLanguages(plan,i+2)).flat()]));
   const tradition=$derived(lookup(creation.class?.uuid)?.metadata?.levelerProgression?.spellcasting?.tradition??'');
   let open=$state(null);
 
@@ -110,7 +121,7 @@
             {#if verdict?.blocked}<small class="warn">⚠ {verdict.blocked}</small>{/if}</span>
           <span class="action">{chosen?'Change':'Choose'}</span>
         </button>
-        {#if chosen}<FeatChoices entry={chosen} {catalog} context={choiceCtx} {info}
+        {#if chosen}<FeatChoices entry={chosen} {catalog} context={slotCtx(slot)} {info}
           onChange={choices=>updatePlan(p=>P.setPlanFeatChoices(p,slot,choices))}/>{/if}
         {#if open===slot.key}
           <OptionGrid id={slot.key} items={featOptions(catalog,slot.kind,creation)} selected={chosen?[chosen.uuid]:[]}
@@ -141,6 +152,22 @@
             </button>
           {/each}
         </div>
+        {#if intBonus>0}
+          {@const skillPicks=P.intBonusSkills(plan,level)}
+          {@const languagePicks=P.intBonusLanguages(plan,level)}
+          <div class="int-bonus">
+            <span class="eyebrow">Higher Intelligence: train {intBonus} skill{intBonus>1?'s':''} · {skillPicks.length}/{intBonus}</span>
+            <div class="chips">{#each SKILLS.filter(s=>!(ranksBefore.get(s)>0)||skillPicks.includes(s)) as s}
+              <button class="chip" class:on={skillPicks.includes(s)} aria-pressed={skillPicks.includes(s)}
+                disabled={!skillPicks.includes(s)&&skillPicks.length>=intBonus}
+                onclick={()=>updatePlan(p=>P.toggleIntBonus(p,level,'intBonusSkills',s,intBonus))}>{titleCase(s)}</button>{/each}</div>
+            <span class="eyebrow">…and learn {intBonus} language{intBonus>1?'s':''} · {languagePicks.length}/{intBonus}</span>
+            <div class="chips">{#each languageChoices.filter(l=>!knownLanguages.has(l)||languagePicks.includes(l)) as l}
+              <button class="chip" class:on={languagePicks.includes(l)} aria-pressed={languagePicks.includes(l)}
+                disabled={!languagePicks.includes(l)&&languagePicks.length>=intBonus}
+                onclick={()=>updatePlan(p=>P.toggleIntBonus(p,level,'intBonusLanguages',l,intBonus))}>{titleCase(l)}</button>{/each}</div>
+          </div>
+        {/if}
       </section>
     {:else if slot.type==='skill'}
       {@const chosen=P.planSkillIncrease(plan,slot)}
@@ -277,4 +304,9 @@
   .sig{border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:4px 12px;font-size:.85rem}
   .sig.on{background:var(--brass);border-color:var(--brass);color:var(--on-brass)}
   @media(max-width:520px){.boosts{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  .int-bonus{display:grid;gap:6px;padding:0 14px 14px}
+  .int-bonus .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .int-bonus .chip{border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:3px 10px;font-size:.8rem;color:var(--text)}
+  .int-bonus .chip.on{background:var(--brass);border-color:var(--brass);color:var(--on-brass)}
+  .int-bonus .chip:disabled:not(.on){opacity:.45}
 </style>
