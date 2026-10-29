@@ -1,12 +1,29 @@
-# Bootstrap only: no authentication yet. Accessible on Docker host loopback.
+# Loopback-bound by default; configure PLANNER_BIND_IP as host LAN address only when a separate reverse-proxy container needs access. Configure HTTPS, trusted proxy and PUBLIC_ORIGIN
+# before sharing remotely. BOOTSTRAP_TOKEN MUST be provided via environment.
 services:
   planner-web:
     build:
       context: ./apps/web
     restart: unless-stopped
     ports:
-      - "127.0.0.1:3000:3000"
+      - "${PLANNER_BIND_IP:-127.0.0.1}:3000:3000"
     environment:
       HOST: "0.0.0.0"
+      PLANNER_BIND_IP: "${PLANNER_BIND_IP:-127.0.0.1}"
       PORT: "3000"
       NODE_ENV: "production"
+      PUBLIC_ORIGIN: "${PUBLIC_ORIGIN:-http://localhost:3000}"
+      # Database file inside the container. Keep it under /data (the mount below) so it persists.
+      DB_PATH: "${PLANNER_DB_PATH:-/data/planner.sqlite}"
+      # Verified database backups in /data/backups: every N hours (0 = off), keeping the newest M.
+      PLANNER_BACKUP_HOURS: "${PLANNER_BACKUP_HOURS:-24}"
+      PLANNER_BACKUP_KEEP: "${PLANNER_BACKUP_KEEP:-7}"
+      BOOTSTRAP_TOKEN: "${BOOTSTRAP_TOKEN:?Set a long random bootstrap token in .env}"
+      ALLOW_INSECURE_LOCAL_BRIDGE: "${ALLOW_INSECURE_LOCAL_BRIDGE:-false}"
+    volumes:
+      # PLANNER_DATA_SOURCE: a named volume (default planner-data) or a host folder such as
+      # /srv/pf2e-planner. A host folder must be writable by the container's node user (uid 1000).
+      - ${PLANNER_DATA_SOURCE:-planner-data}:/data
+
+volumes:
+  planner-data:

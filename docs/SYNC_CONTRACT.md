@@ -1,49 +1,27 @@
-# Pairing and synchronization contract (design draft)
+# Synchronization contract
 
-**No endpoints are implemented in the bootstrap.** Paths below are proposed, not promises about current functionality.
+See **[AUTH_AND_SYNC_V1.md](AUTH_AND_SYNC_V1.md)** for authoritative pairing, bearer token, refresh rotation, user onboarding and security details.
 
-## Pairing
+## Currently coded (unverified alpha)
 
-1. Authenticated website admin creates short-lived single-use pairing code, stored hashed on the server.
-2. GM enters HTTPS site URL and code inside Foundry bridge.
-3. Foundry provides world ID/title, system/version, Leveler/version and a local nonce to the pairing endpoint.
-4. Server validates and consumes code, creates/links campaign, issues integration UUID and tightly scoped credentials.
-5. Bridge stores authorized connection state **without leaking a long-lived secret through player-readable world settings**. Support revoke/re-pair and copied-world identity conflicts.
+- One-time website pairing-code creation and Foundry-world pairing.
+- Reauthorization of an existing integration for another authorized GM browser/device.
+- 15-minute opaque access token and rotating 14-day refresh token, stored only in GM browser IndexedDB; server stores hashes.
+- Core PF2e class progression + first 1000 feat-index entries stored as one atomic **preview** snapshot, with idempotency-key collision checking.
+- Website campaign preview read scoped to membership.
 
-Illustrative endpoint: `POST /api/v1/integrations/pair`.
+**Not yet implemented:** all-class third-party normalization, batch/chunk staging for full compendiums, trusted Foundry character import, Leveler plan application, campaign/credential revocation UI, multi-GM write lease, schema evolution, licensing enforcement for private packs, automatic retries/backoffs and broad SF2e testing.
 
-## Catalog snapshot
+## Planned full contract
 
-Illustrative transport shape:
+Each ruleset snapshot is scoped to a unique integration UUID and separate campaign, versioned with PF2e/SF2e and Leveler versions, all allowed packs and their hashes. The GM browser can upload only data authorized by its site GM account. Server validates staged bounded batches, checksum and counts, atomically publishes complete revision, and leaves prior revision active on interruption. Actor refresh, planned choices and wishlists are independent.
 
-~~~json
-{
-  "schemaVersion": 1,
-  "integrationId": "server-assigned-uuid",
-  "snapshotId": "idempotency-key",
-  "world": {"id": "abomination-vaults", "title": "Abomination Vaults"},
-  "system": {"id": "pf2e", "version": "system-version"},
-  "leveler": {"version": "module-version", "settings": {}},
-  "packs": [],
-  "items": [],
-  "checksums": {}
-}
-~~~
+No actor modification or currency deduction is allowed in response to catalog sync.
 
-A production implementation needs authenticated batching, bounded payloads, staging, integrity verification, idempotent publication and per-campaign authorization. Never trust the body-provided integration ID as proof of permission.
+## v0.3.0 full class/feat catalog protocol
 
-## Sync trigger
+An authorized GM bridge calls `POST /api/v1/bridge/{id}/catalog-import/status` to skip redundant GM-login synchronizations. Manual Sync always uploads. Each complete import uses `/catalog-import/start` with expected Item count, selected pack keys, source versions and variant settings, then authenticated `/catalog-import/batch` calls with at most 15 selected Item documents. The server validates pack membership, UUID shape, count bounds and sanitizes descriptions; all batches remain unpublished. `/catalog-import/commit` publishes **only** if the staged row count equals expected count, atomically swaps the active revision and removes superseded entries.
 
-Authorized, active GM `ready` event triggers rules check; unchanged catalog can be skipped. Multiple logged-in GMs cannot race each other. Manual Sync Now is available. Website works from the last complete revision if Foundry is offline.
+The legacy `catalog-preview` endpoint remains for backwards compatibility; new websites prefer `catalog_publications` if a full revision exists. Authenticated campaign members can call `catalog-summary`, `catalog-items` and `catalog-item` while raw GM details are restricted to owner/GM. UI never downloads entire multi-thousand-item JSON in one response. Source licensing is determined by GM pack selection and membership access; future releases need finer per-pack access policies.
 
-## Actor / plan operations are separate
-
-- Explicit actor snapshot refresh (including spells and equipment), with confirmed actor-to-character link.
-- Fetch/export of creation or advancement Leveler-compatible JSON.
-- Explicit apply action after Foundry-side validation and optional GM confirmation.
-- Never automatically apply equipment or spend currency during wishlist changes.
-- Keep future plans and wishlist intact on actor refresh.
-
-## Failures
-
-Distinguish expired pairing code, revoked integration, conflict, incompatible schema, missing pack, incomplete staging and failed Leveler validation. Log no tokens, private actor content or passwords. Handle CORS correctly but **never substitute it for authentication**.
+**Link support:** sanitized HTML stores safe `data-uuid` / `data-pf2e-uuid` references. The website resolves only synchronized Item UUIDs to browser details. It does not execute Foundry inline roll handlers or scripts.

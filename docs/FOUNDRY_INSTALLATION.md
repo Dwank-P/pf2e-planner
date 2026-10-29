@@ -1,11 +1,17 @@
 # Installing and distributing the Foundry module
 
-## Temporary public install from GitHub
+## Temporary public install from GitHub — v0.2.0 alpha prepared
 
-The private monorepo now contains a dedicated `foundry-release` branch with a ready-to-install `module.json` and `module.zip` for **v0.1.0**. If you temporarily change the repo to public, Foundry can install it directly from this Manifest URL:
+The private monorepo now contains a dedicated `foundry-release` branch with a ready-to-install `module.json` and `module.zip` for **v0.2.0 alpha**. If you temporarily change the repo to public, Foundry can install it directly from this Manifest URL:
 
 ```text
 https://raw.githubusercontent.com/Dwank-P/pf2e-planner/foundry-release/module.json
+```
+
+D&D 5e worlds install the separate **Planner Bridge (D&D 5e)** module (v0.20.0+) instead:
+
+```text
+https://raw.githubusercontent.com/Dwank-P/pf2e-planner/foundry-release/dnd5e/module.json
 ```
 
 Steps:
@@ -80,3 +86,8 @@ For production, automate packaging in the web deployment/release pipeline, keep 
 - This module has not been integration-tested in a running Foundry world.
 - The hosted website is not yet secured for general internet access.
 - Do not publish the web app prematurely simply to serve a development module.
+
+
+## Current alpha validation
+
+The web app has passed GitHub Actions: dependency install, SvelteKit checks, SQLite tests, production build and an HTTP smoke test of owner bootstrap, global-user invitation/redemption, pairing, metadata preview, refresh rotation/replay blocking, and revocation. The Foundry scripts passed Node syntax checks and the package-builder self-check. **The module's actual Game Settings dialog, CORS and Foundry v14 operation still require manual testing in a test world**. Do not import plans into a production actor yet.

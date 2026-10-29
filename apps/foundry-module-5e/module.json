@@ -1,0 +1,32 @@
+{
+  "id": "planner-bridge-5e",
+  "title": "Planner Bridge (D&D 5e)",
+  "description": "Sends a dnd5e world's installed Item compendiums and rules settings to the planner website, so players can plan 2014 or 2024 characters with multiclassing and third-party content.",
+  "version": "0.36.0",
+  "authors": [
+    {
+      "name": "Dwank-P"
+    }
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "14"
+  },
+  "relationships": {
+    "systems": [
+      {
+        "id": "dnd5e",
+        "type": "system",
+        "compatibility": {
+          "minimum": "4.0.0"
+        }
+      }
+    ]
+  },
+  "esmodules": [
+    "scripts/main.mjs"
+  ],
+  "url": "https://github.com/Dwank-P/pf2e-planner",
+  "manifest": "https://raw.githubusercontent.com/Dwank-P/pf2e-planner/foundry-release/dnd5e/module.json",
+  "download": "https://raw.githubusercontent.com/Dwank-P/pf2e-planner/foundry-release/dnd5e/module.zip"
+}

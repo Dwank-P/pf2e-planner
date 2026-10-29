@@ -1,0 +1,131 @@
+/**
+ * The campaign's synced compendium catalog in the browser: downloaded once per
+ * sync (catalog-bundle), cached in IndexedDB by snapshot hash, searched locally.
+ */
+const DB_NAME='pf2e-planner-catalog',STORE='bundles';
+
+const COMPENDIUM_REF=/^Compendium\.([^.]+\.[^.]+)\.Item\.(.+)$/;
+export function indexCatalog(bundle){
+  const items=Array.isArray(bundle?.items)?bundle.items:[];
+  const byUuid=new Map(),byType=new Map(),byName=new Map();
+  for(const item of items){
+    byUuid.set(item.uuid,item);
+    const ref=COMPENDIUM_REF.exec(item.uuid);
+    if(ref)byName.set(ref[1]+'|'+String(item.name).toLowerCase(),item);
+    // Items from packs the GM hid still resolve for characters that picked them, but aren't offered.
+    if(item.hidden)continue;
+    if(!byType.has(item.type))byType.set(item.type,[]);
+    byType.get(item.type).push(item);
+  }
+  for(const list of byType.values())list.sort((a,b)=>a.name.localeCompare(b.name));
+  return {sha256:bundle?.sha256??null,variants:bundle?.variants??{},sources:bundle?.sources??{},
+    updatedAt:bundle?.updatedAt??null,count:items.length,
+    // PF2e rules may name an item instead of its id ("…feats-srd.Item.Shield Block").
+    get:uuid=>{
+      if(!uuid)return null;
+      const hit=byUuid.get(uuid);
+      if(hit)return hit;
+      const ref=COMPENDIUM_REF.exec(uuid);
+      return ref?byName.get(ref[1]+'|'+ref[2].toLowerCase())??null:null;
+    },
+    ofType:type=>byType.get(type)??[],
+    types:()=>[...byType.keys()]};
+}
+
+const norm=s=>String(s??'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'');
+/** Words besides the name a search matches: traits, and a deity's domains, favored skill and weapon. */
+function searchKeys(item){
+  const keys=[...(item.traits??[])];
+  if(item.type==='deity'){
+    const r=item.metadata?.rules??{};
+    keys.push(...(r.domains?.primary??[]),...(r.domains?.alternate??[]),...[].concat(r.skill??[]),...[].concat(r.weapons??[]));
+  }
+  return keys;
+}
+/**
+ * Filter and rank items. `query` matches name words (prefix) or traits;
+ * filters: rarity[], maxLevel, traits[] (all), anyTraits[], tags[] (otherTags any), test(item).
+ */
+export function searchItems(items,query='',filters={}){
+  const words=norm(query).split(/\s+/).filter(Boolean);
+  const out=[];
+  for(const item of items){
+    if(filters.rarity?.length&&!filters.rarity.includes(item.rarity??'common'))continue;
+    if(Number.isFinite(filters.maxLevel)&&Number.isFinite(item.level)&&item.level>filters.maxLevel)continue;
+    const traits=item.traits??[];
+    const keys=searchKeys(item);
+    if(filters.traits?.length&&!filters.traits.every(t=>traits.includes(t)))continue;
+    if(filters.anyTraits?.length&&!filters.anyTraits.some(t=>traits.includes(t)))continue;
+    if(filters.tags?.length&&!filters.tags.some(t=>(item.metadata?.otherTags??[]).includes(t)))continue;
+    if(filters.test&&!filters.test(item))continue;
+    let score=0;
+    if(words.length){
+      const name=norm(item.name);
+      const nameWords=name.split(/[^a-z0-9]+/);
+      let matched=true;
+      for(const word of words){
+        if(nameWords.some(w=>w.startsWith(word)))score+=name.startsWith(word)?3:2;
+        else if(name.includes(word))score+=1;
+        else if(keys.some(t=>norm(t).startsWith(word)))score+=0.5;
+        else{matched=false;break;}
+      }
+      if(!matched)continue;
+    }
+    out.push({item,score});
+  }
+  out.sort((a,b)=>b.score-a.score||(a.item.level??0)-(b.item.level??0)||a.item.name.localeCompare(b.item.name));
+  return out.map(x=>x.item);
+}
+
+function openDb(){
+  return new Promise((resolve,reject)=>{
+    const request=indexedDB.open(DB_NAME,1);
+    request.onupgradeneeded=()=>request.result.createObjectStore(STORE);
+    request.onsuccess=()=>resolve(request.result);
+    request.onerror=()=>reject(request.error);
+  });
+}
+async function cached(campaignId){
+  try{
+    const db=await openDb();
+    return await new Promise(resolve=>{
+      const request=db.transaction(STORE).objectStore(STORE).get(campaignId);
+      request.onsuccess=()=>resolve(request.result??null);
+      request.onerror=()=>resolve(null);
+    });
+  }catch{return null;}
+}
+async function store(campaignId,bundle){
+  try{
+    const db=await openDb();
+    db.transaction(STORE,'readwrite').objectStore(STORE).put(bundle,campaignId);
+  }catch{}
+}
+
+const loaded=new Map();
+/** Load the catalog for a campaign, reusing the cached copy when the sync hasn't changed. */
+export function loadCatalog(campaignId){
+  return loadCatalogAt('campaign:'+campaignId,'/api/v1/campaigns/'+encodeURIComponent(campaignId));
+}
+/**
+ * Load a catalog bundle from `base`/catalog-bundle (a campaign, a personal character or a
+ * public link), cached in the browser under `key`.
+ */
+export function loadCatalogAt(key,base){
+  if(!loaded.has(key)){
+    loaded.set(key,(async()=>{
+      const previous=await cached(key);
+      const url=base+'/catalog-bundle'+(previous?.sha256?'?known='+encodeURIComponent(previous.sha256):'');
+      const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+      if(response.status===404)return indexCatalog({items:[]});
+      const body=await response.json().catch(()=>({}));
+      if(!response.ok)throw Error(body.message||'Catalog unavailable (HTTP '+response.status+')');
+      if(body.unchanged&&previous)return indexCatalog(previous);
+      await store(key,body);
+      return indexCatalog(body);
+    })().catch(error=>{loaded.delete(key);throw error;}));
+  }
+  return loaded.get(key);
+}
+/** Forget a loaded catalog (a personal character's sources changed). */
+export function forgetCatalog(key){loaded.delete(key);}

@@ -1,6 +1,6 @@
 # Security and licensing baseline
 
-**Prototype warning:** The current web app has no authentication and no production sync endpoint. The Foundry module has only GM-local diagnostics. Do not publish this app to an internet-facing address yet.
+**Unverified alpha warning:** Basic authentication, pairing and a bounded preview sync are now coded on the feature branch, but have not passed a complete build or real Foundry integration test. Do not publish this to an internet-facing address yet. See [AUTH_AND_SYNC_V1.md](AUTH_AND_SYNC_V1.md).
 
 Before release:
 - Strong admin auth (prefer passkeys); explicit GM/player membership role enforcement on every server operation.

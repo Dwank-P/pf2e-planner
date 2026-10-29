@@ -1,0 +1,196 @@
+import {db} from './db.js';
+import {problem} from './api.js';
+
+/**
+ * Moving a character between places: a personal character into a campaign, or a build exported
+ * from one planner (file or public link) into another. Items are matched by uuid, then by name
+ * and type, against the target's compendiums; anything the target doesn't have is left out and
+ * reported. Variant rules follow the target.
+ */
+export const EXPORT_FORMAT='planner-character';
+const UUIDS=/Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+/g;
+const WHOLE_UUID=/^Compendium\.[\w-]+\.[\w-]+\.Item\.[\w-]+$/;
+/**
+ * The items a document picks: string values that are a uuid, and uuids inside object keys (5e
+ * choice keys). Uuids inside longer text (a description's @UUID links) are not picks.
+ */
+export function uuidsIn(value,out=new Set()){
+  if(typeof value==='string'){if(WHOLE_UUID.test(value))out.add(value);}
+  else if(Array.isArray(value))for(const v of value)uuidsIn(v,out);
+  else if(value&&typeof value==='object')for(const [k,v] of Object.entries(value)){
+    for(const m of k.matchAll(UUIDS))out.add(m[0]);
+    uuidsIn(v,out);
+  }
+  return out;
+}
+const VARIANT_NAMES={freeArchetype:'Free Archetype',dualClass:'Dual Class',ancestralParagon:'Ancestral Paragon',mythic:'Mythic',
+  gradualAbilityBoosts:'Gradual Boosts',proficiencyWithoutLevel:'Proficiency Without Level'};
+const ABP_NAMES={noABP:'off',ABPFundamentalPotency:'fundamental potency',ABPRulesAsWritten:'rules as written'};
+const PF2E_VARIANT_KEYS=[...Object.keys(VARIANT_NAMES),'ignoreArchetypeDedicationLock','automaticBonusProgression'];
+
+/** The rules a character was built with, keeping only the keys that matter for its system. */
+export function variantsFor(system,variants={}){
+  if(system==='dnd5e')return {rulesVersion:variants.rulesVersion==='legacy'?'legacy':'modern',allowFeats:variants.allowFeats!==false};
+  const out=Object.fromEntries(PF2E_VARIANT_KEYS.filter(k=>k!=='automaticBonusProgression').map(k=>[k,variants[k]===true]));
+  out.automaticBonusProgression=['ABPFundamentalPotency','ABPRulesAsWritten'].includes(variants.automaticBonusProgression)
+    ?variants.automaticBonusProgression:'noABP';
+  return out;
+}
+
+/** Drop references to items the target doesn't have (Leveler documents: {uuid,…} entries). */
+function pruneLeveler(value,missing){
+  if(Array.isArray(value))return value.filter(v=>!(v&&typeof v==='object'&&missing.has(v.uuid))&&!missing.has(v)).map(v=>pruneLeveler(v,missing));
+  if(!value||typeof value!=='object')return value;
+  const out={};
+  for(const [key,entry] of Object.entries(value)){
+    if(entry&&typeof entry==='object'&&!Array.isArray(entry)&&missing.has(entry.uuid))out[key]=null;
+    else if(typeof entry==='string'&&missing.has(entry))continue;
+    else out[key]=pruneLeveler(entry,missing);
+  }
+  return out;
+}
+function prune5e(build,missing){
+  const has=text=>[...String(text).matchAll(UUIDS)].some(m=>missing.has(m[0]));
+  const list=v=>Array.isArray(v)?v.filter(x=>!missing.has(x)):v;
+  const object=(o,fn)=>Object.fromEntries(Object.entries(o??{}).filter(([k])=>!has(k)).map(([k,v])=>[k,fn(v)]).filter(([,v])=>v!==undefined));
+  return {...build,speciesUuid:missing.has(build.speciesUuid)?null:build.speciesUuid,
+    backgroundUuid:missing.has(build.backgroundUuid)?null:build.backgroundUuid,
+    levels:list(build.levels??[]),feats:list(build.feats??[]),
+    subclasses:object(build.subclasses,v=>missing.has(v)?undefined:v),
+    spells:object(build.spells,list),
+    choices:object(build.choices,v=>Array.isArray(v)?list(v):v?.mode==='feat'&&missing.has(v.uuid)?undefined:v)};
+}
+
+/**
+ * Rewrite a character document for a target.
+ * source: {system, document, variants, nameOf(uuid) → {name,type}|null}
+ * target: {has(uuid), byName(type,name) → uuid|null, variants|null (null = keep the source's), label}
+ */
+export function transplant(source,target){
+  const text=JSON.stringify(source.document);
+  const map=new Map(),missing=new Set(),missingNames=new Set();
+  let matched=0,renamed=0;
+  for(const uuid of uuidsIn(source.document)){
+    if(target.has(uuid)){matched++;continue;}
+    const item=source.nameOf(uuid);
+    const other=item?target.byName(item.type,item.name):null;
+    if(other){map.set(uuid,other);renamed++;}
+    else{missing.add(uuid);missingNames.add(item?.name??uuid);}
+  }
+  // Renamed uuids are swapped wherever they appear (values, 5e choice keys).
+  let doc=JSON.parse(map.size?text.replace(UUIDS,m=>map.get(m)??m):text);
+  if(source.system==='dnd5e')doc={...doc,build:prune5e(doc.build??{},missing)};
+  else doc={...doc,leveler:pruneLeveler(doc.leveler,missing),
+    planner:{...doc.planner,extraFeats:Object.fromEntries(Object.entries(doc.planner?.extraFeats??{}).filter(([,u])=>!missing.has(u)))}};
+  if(doc.planner?.wishlist)doc.planner.wishlist=doc.planner.wishlist.filter(w=>!missing.has(w.uuid));
+  const differences=[];
+  if(target.variants){
+    const own=source.variants??{},other=target.variants,where=target.label??'in the campaign';
+    if(source.system==='dnd5e'){
+      if(own.rulesVersion&&other.rulesVersion&&own.rulesVersion!==other.rulesVersion)
+        differences.push(`Rules: ${own.rulesVersion==='modern'?'2024':'2014'} in the build, ${other.rulesVersion==='modern'?'2024':'2014'} ${where}`);
+    }else{
+      for(const [k,label] of Object.entries(VARIANT_NAMES))if((own[k]===true)!==(other[k]===true))
+        differences.push(`${label}: ${own[k]===true?'on':'off'} in the build, ${other[k]===true?'on':'off'} ${where}`);
+      const a=own.automaticBonusProgression??'noABP',b=other.automaticBonusProgression??'noABP';
+      if(a!==b)differences.push(`Automatic Bonus Progression: ${ABP_NAMES[a]??a} in the build, ${ABP_NAMES[b]??b} ${where}`);
+      // Boosts planned for a different schedule (gradual or every five levels) don't carry over.
+      if((own.gradualAbilityBoosts===true)!==(other.gradualAbilityBoosts===true)){
+        for(const data of Object.values(doc.leveler?.plan?.levels??{}))if(data&&typeof data==='object')delete data.abilityBoosts;
+        differences.push('Attribute boosts from level 2 were cleared, since the boost schedules differ');
+      }
+    }
+  }
+  return {doc,report:{matched,renamed,missing:[...missingNames].sort(),variantDifferences:differences}};
+}
+
+/** Name lookups in a campaign's published catalog. */
+export function campaignByName(integrationId){
+  const pub=db().prepare('SELECT snapshot_id FROM catalog_publications WHERE integration_id=?').get(integrationId);
+  const find=db().prepare(`SELECT uuid FROM catalog_entries WHERE integration_id=? AND snapshot_id=?
+    AND type=? AND name=? COLLATE NOCASE LIMIT 1`);
+  const anyType=db().prepare(`SELECT uuid FROM catalog_entries WHERE integration_id=? AND snapshot_id=?
+    AND name=? COLLATE NOCASE AND type NOT IN ('condition','effect','action') LIMIT 1`);
+  // Without a type (Leveler plan files only name their items), any item of that name.
+  return (type,name)=>!pub||!name?null:type?find.get(integrationId,pub.snapshot_id,type,name)?.uuid??null
+    :anyType.get(integrationId,pub.snapshot_id,name)?.uuid??null;
+}
+
+/**
+ * A PF2e Leveler plan file (what Leveler's "Export plan" saves) brought into a character: items
+ * are matched by uuid, then by the name stored beside each uuid; the rest are left out.
+ */
+export function readLevelerPlan(value){
+  if(!value||typeof value!=='object'||Array.isArray(value)||!value.levels||typeof value.levels!=='object'||
+     !value.version||JSON.stringify(value).length>500000)problem(400,'not_a_leveler_plan');
+  const names=new Map();
+  const walk=v=>{
+    if(Array.isArray(v))v.forEach(walk);
+    else if(v&&typeof v==='object'){
+      if(typeof v.uuid==='string'&&typeof v.name==='string')names.set(v.uuid,v.name.slice(0,240));
+      Object.values(v).forEach(walk);
+    }
+  };
+  walk(value);
+  return {plan:value,nameOf:uuid=>names.has(uuid)?{name:names.get(uuid),type:null}:null};
+}
+
+/** The portable export: the document plus each item's name and type, for matching elsewhere. */
+export function exportPayload({name,level,system,variants,document,resolve}){
+  const items={};
+  for(const uuid of uuidsIn(document)){
+    const item=resolve(uuid);
+    if(item)items[uuid]={name:item.name,type:item.type};
+  }
+  return {format:EXPORT_FORMAT,version:1,exportedAt:new Date().toISOString(),
+    character:{name,level,system,variants:variantsFor(system,variants)},document,items};
+}
+/** The level a Leveler plan reaches: its highest level with any pick. */
+function planLevel(plan){
+  const levels=Object.entries(plan?.levels??{}).filter(([,d])=>Object.values(d??{}).some(v=>Array.isArray(v)?v.length:v&&typeof v==='object'&&Object.keys(v).length))
+    .map(([l])=>Number(l)).filter(Number.isInteger);
+  return levels.length?Math.min(20,Math.max(...levels)):1;
+}
+/**
+ * An import may be a planner export or a PF2e Leveler plan file (Leveler's "Export plan"). A plan
+ * becomes a new PF2e character named after the file, with the class its plan is for (the route
+ * finds that class in the target's compendiums: classSlug).
+ */
+export function readImport(value,fileName=''){
+  if(value?.format===EXPORT_FORMAT)return readExport(value);
+  if(value&&typeof value==='object'&&value.levels&&value.version&&value.classSlug!==undefined){
+    const {plan,nameOf}=readLevelerPlan(value);
+    const name=String(fileName||'').replace(/\.json$/i,'').replace(/-level-plan$/i,'').replace(/[-_]+/g,' ').trim().slice(0,80)||'Imported plan';
+    return {name,level:planLevel(plan),system:'pf2e',variants:variantsFor('pf2e',{}),classSlug:plan.classSlug||null,
+      document:{leveler:{creation:null,plan},planner:{notes:'',wishlist:[]}},nameOf,levelerPlan:true};
+  }
+  return readExport(value);
+}
+/** Find a class Item by slug among (integrationId, snapshotId, package?) sources. */
+export function classBySlug(sources,slug){
+  if(!slug)return null;
+  const find=db().prepare(`SELECT item_json FROM catalog_entries WHERE integration_id=? AND snapshot_id=? AND type='class'
+    AND (json_extract(item_json,'$.metadata.slug')=? OR json_extract(item_json,'$.metadata.levelerProgression.slug')=?)`);
+  for(const s of sources)for(const row of find.all(s.integrationId,s.snapshotId,slug,slug)){
+    const item=JSON.parse(row.item_json);
+    if(!s.package||item.uuid.split('.')[1]===s.package)return item;
+  }
+  return null;
+}
+/** A Leveler-plan import's creation document: just the class, so the plan applies to it. */
+export function planCreation(classItem){
+  return classItem?{class:{uuid:classItem.uuid,name:classItem.name,img:classItem.img??null,
+    slug:classItem.metadata?.slug??classItem.metadata?.levelerProgression?.slug??null}}:null;
+}
+
+/** Check an uploaded or fetched export. */
+export function readExport(value){
+  if(!value||typeof value!=='object'||value.format!==EXPORT_FORMAT||value.version!==1)problem(400,'not_a_planner_character_export');
+  const c=value.character??{};
+  if(!['pf2e','dnd5e'].includes(c.system)||typeof c.name!=='string'||!c.name.trim()||c.name.length>80)problem(400,'not_a_planner_character_export');
+  if(!value.document||typeof value.document!=='object'||Array.isArray(value.document))problem(400,'not_a_planner_character_export');
+  const items=value.items&&typeof value.items==='object'&&!Array.isArray(value.items)?value.items:{};
+  return {name:c.name.trim(),level:Number.isInteger(c.level)&&c.level>=1&&c.level<=20?c.level:1,system:c.system,
+    variants:variantsFor(c.system,c.variants??{}),document:value.document,
+    nameOf:uuid=>{const i=items[uuid];return i&&typeof i.name==='string'&&typeof i.type==='string'?{name:i.name.slice(0,240),type:i.type.slice(0,40)}:null;}};
+}

@@ -2,7 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      // Apply the saved theme before first paint (see src/lib/ui/theme.js).
+      try{var t=localStorage.getItem('pf2e-planner-theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t;}catch(e){}
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">

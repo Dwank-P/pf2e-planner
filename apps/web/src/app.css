@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap');
+
+/* PF2e Planner design tokens. Dark is the default (it sits beside Foundry);
+   light is a full second theme. Brass is the single accent; trait and rarity
+   colours follow the PF2e system's conventions. */
+:root{
+  --bg:#14161c; --panel:#1c1f27; --panel-2:#242833; --panel-3:#2d3240; --line:#323746; --line-strong:#454c60;
+  --text:#e8e9ee; --text-2:#c3c7d2; --muted:#9aa0b0; --faint:#6f7586;
+  --brass:#d8b25c; --brass-strong:#e7c677; --brass-soft:#3a3122; --on-brass:#1c1608;
+  --trait:#5c1a1b; --trait-line:#8e4a2f; --on-trait:#fff4ef;
+  --uncommon:#98513d; --rare:#0d3a7a; --unique:#54166e;
+  --good:#7fcf9f; --good-soft:#1d3329; --warn:#e2a85a; --warn-soft:#3a2d1a; --bad:#ef8a80; --bad-soft:#3d2224;
+  --shadow:0 18px 44px rgb(0 0 0 / .35); --overlay:rgb(5 6 9 / .62);
+  --display:'Bricolage Grotesque',ui-sans-serif,system-ui,sans-serif;
+  --body:'Atkinson Hyperlegible',ui-sans-serif,system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --prose:'Source Serif 4',Georgia,serif;
+  --radius:10px; --radius-lg:14px;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){
+  --bg:#f3f2ee; --panel:#ffffff; --panel-2:#f2f0ea; --panel-3:#e7e4dc; --line:#dcd8ce; --line-strong:#c4bfb2;
+  --text:#1d1f26; --text-2:#3a3d47; --muted:#5f6370; --faint:#8a8e99;
+  --brass:#8a6418; --brass-strong:#6f4f10; --brass-soft:#f3e8cd; --on-brass:#ffffff;
+  --trait:#5c1a1b; --trait-line:#5c1a1b; --on-trait:#fff4ef;
+  --good:#2f6b4a; --good-soft:#e2f0e7; --warn:#9a5b12; --warn-soft:#f6ead6; --bad:#a3352f; --bad-soft:#f6e1df;
+  --shadow:0 14px 34px rgb(60 50 30 / .14); --overlay:rgb(30 28 24 / .38);
+  color-scheme:light;
+}}
+:root[data-theme="light"]{
+  --bg:#f3f2ee; --panel:#ffffff; --panel-2:#f2f0ea; --panel-3:#e7e4dc; --line:#dcd8ce; --line-strong:#c4bfb2;
+  --text:#1d1f26; --text-2:#3a3d47; --muted:#5f6370; --faint:#8a8e99;
+  --brass:#8a6418; --brass-strong:#6f4f10; --brass-soft:#f3e8cd; --on-brass:#ffffff;
+  --trait:#5c1a1b; --trait-line:#5c1a1b; --on-trait:#fff4ef;
+  --good:#2f6b4a; --good-soft:#e2f0e7; --warn:#9a5b12; --warn-soft:#f6ead6; --bad:#a3352f; --bad-soft:#f6e1df;
+  --shadow:0 14px 34px rgb(60 50 30 / .14); --overlay:rgb(30 28 24 / .38);
+  color-scheme:light;
+}
+/* Names used by the pre-1.0 pages (planner, compendium browser) until they are rebuilt. */
+:root{
+  --page-bg:var(--bg); --surface:var(--panel); --surface-strong:var(--panel-2); --surface-hover:var(--panel-3);
+  --accent:var(--brass); --accent-bg:var(--brass-soft); --danger:var(--bad); --danger-border:var(--bad);
+  --button-text:var(--on-brass);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text)}
+body{font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--display);letter-spacing:-.02em;line-height:1.15;margin:0;text-wrap:balance}
+p{margin:0}
+a{color:var(--brass)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+input,select,textarea{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:.6rem .75rem;outline:none}
+input::placeholder,textarea::placeholder{color:var(--faint)}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+input:focus,select:focus,textarea:focus{border-color:var(--brass)}
+::selection{background:var(--brass-soft)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;border-radius:8px;
+  padding:.5rem .8rem;border:1px solid var(--line);background:var(--panel-2);font-weight:700;font-size:.88rem;
+  text-decoration:none;color:var(--text);white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--panel-3);border-color:var(--line-strong)}
+.btn.primary{background:var(--brass);border-color:var(--brass);color:var(--on-brass)}
+.btn.primary:hover:not(:disabled){background:var(--brass-strong);border-color:var(--brass-strong)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--text-2)}
+.btn.ghost:hover:not(:disabled){background:var(--panel-2)}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:.32rem .55rem;font-size:.8rem}
+.link{background:none;border:0;padding:0;color:var(--brass);font-weight:700;text-align:left}
+.link:hover{text-decoration:underline}
+.link.danger{color:var(--bad)}
+
+/* PF2e trait chips and rarity */
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{display:inline-flex;align-items:center;font:700 .66rem/1 var(--body);text-transform:uppercase;letter-spacing:.06em;
+  padding:4px 6px;border-radius:3px;background:var(--trait);color:var(--on-trait);border:1px solid var(--trait-line);white-space:nowrap}
+.chip.uncommon{background:var(--uncommon);border-color:var(--uncommon)}
+.chip.rare{background:var(--rare);border-color:var(--rare)}
+.chip.unique{background:var(--unique);border-color:var(--unique)}
+.chip.plain{background:var(--panel-3);color:var(--text-2);border-color:var(--line)}
+
+/* Labels, panels, states */
+.eyebrow{font:600 .7rem/1.2 var(--mono);text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.muted{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-lg)}
+.notice{border:1px solid var(--line);background:var(--panel-2);border-radius:var(--radius);padding:.7rem .9rem;color:var(--text-2)}
+.notice.warn{border-color:var(--warn);background:var(--warn-soft);color:var(--text)}
+.notice.bad{border-color:var(--bad);background:var(--bad-soft);color:var(--text)}
+.notice.good{border-color:var(--good);background:var(--good-soft);color:var(--text)}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--faint)}
+.status-dot.good{background:var(--good)}.status-dot.warn{background:var(--warn)}.status-dot.bad{background:var(--bad)}
+.page{max-width:1240px;margin:0 auto;padding:24px max(16px,env(safe-area-inset-right,0px)) 72px max(16px,env(safe-area-inset-left,0px))}
+.field{display:grid;gap:.35rem;font-weight:700;font-size:.85rem}
+.field small{font-weight:400;color:var(--muted)}
+.empty{border:1px dashed var(--line-strong);border-radius:var(--radius);padding:1.4rem;text-align:center;color:var(--muted)}
+
+/* Pre-1.0 page classes kept so unrebuilt pages stay usable. */
+.app-shell{max-width:1520px;margin:auto;padding:26px 30px 90px}
+.primary-action{border:0;background:var(--brass);color:var(--on-brass);border-radius:8px;padding:.6rem 1rem;font-weight:700}
+.secondary-action{border:1px solid var(--line);background:var(--panel-2);color:var(--text);padding:.55rem .9rem;border-radius:8px;font-weight:700}
+.kicker{color:var(--brass);text-transform:uppercase;letter-spacing:.14em;font:600 .7rem var(--mono)}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media(max-width:700px){.app-shell{padding:16px 14px 60px}}

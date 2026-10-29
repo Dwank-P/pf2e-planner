@@ -1,0 +1,50 @@
+name: CI
+on:
+  push:
+    branches: [main, "feature/**", "v1-redesign"]
+  pull_request:
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install dependencies (exact versions from the lockfile)
+        working-directory: apps/web
+        run: npm ci --no-fund
+      - name: Audit production dependencies
+        working-directory: apps/web
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high
+      - name: Validate app types and Svelte components
+        working-directory: apps/web
+        run: npm run check
+      - name: Test database
+        working-directory: apps/web
+        run: npm test
+      - name: Build production website
+        working-directory: apps/web
+        run: npm run build
+      - name: Smoke test production auth, pairing and player onboarding
+        working-directory: apps/web
+        run: npm run smoke
+      - name: Validate Foundry JavaScript
+        run: |
+          for js in apps/foundry-module/scripts/*.mjs; do
+            node --check "$js"
+          done
+          node -e "const m=require('./apps/foundry-module/module.json'); if(!m.relationships.requires.some(d=>d.id==='pf2e-leveler')) process.exit(1);"
+      - name: Validate D&D 5e Foundry JavaScript
+        run: |
+          for js in apps/foundry-module-5e/scripts/*.mjs; do
+            node --check "$js"
+          done
+          node -e "const m=require('./apps/foundry-module-5e/module.json'); if(m.id!=='planner-bridge-5e'||!m.relationships.systems.some(s=>s.id==='dnd5e')) process.exit(1);"
+      - name: Test Foundry bridge URL normalization
+        run: node --test tests/foundry-url.test.mjs
+      - name: Package Foundry module
+        run: python scripts/build_module_release.py --base-url https://example.invalid/foundry
