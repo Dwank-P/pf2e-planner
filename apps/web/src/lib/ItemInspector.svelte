@@ -30,10 +30,14 @@
   const deity=$derived.by(()=>{
     if(item?.type!=='deity')return null;
     const r=item.metadata?.rules??{},spells=item.metadata?.domainSpells??{};
-    const domain=slug=>({slug,label:spells[slug]?.label??titleCase(slug),spell:spells[slug]?.spell??null,advanced:spells[slug]?.advanced??null});
+    const domain=slug=>({slug,label:spells[slug]?.label??titleCase(slug),text:spells[slug]?.text??null,
+      spell:spells[slug]?.spell??null,advanced:spells[slug]?.advanced??null});
     return {primary:(r.domains?.primary??[]).map(domain),alternate:(r.domains?.alternate??[]).map(domain),
       spells:Object.entries(r.spells??{}).map(([rank,uuid])=>({rank:Number(rank),uuid})).filter(s=>s.uuid).sort((a,b)=>a.rank-b.rank)};
   });
+  // The domain opened under Domains (its description and domain spells).
+  let openDomain=$state(null);
+  $effect(()=>{item;openDomain=null;});
   const titleCase=s=>String(s??'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
   // Names for items referenced by id (fetched once; named references show their own name).
   let names=$state({});
@@ -158,7 +162,12 @@
       {#if deity&&(deity.primary.length||deity.spells.length)}
         <dl class="rules" aria-label="Domains and cleric spells">
           {#snippet spellRef(uuid)}{#if uuid}<button type="button" class="ref" onclick={()=>openUuid(uuid)}>{nameFor({uuid,name:nameInUuid(uuid)})}</button>{/if}{/snippet}
-          {#snippet domains(list)}<ul>{#each list as d (d.slug)}<li><b>{d.label}</b>{#if d.spell}{' — '}{@render spellRef(d.spell)}{/if}{#if d.advanced}{' · advanced: '}{@render spellRef(d.advanced)}{/if}</li>{/each}</ul>{/snippet}
+          {#snippet domains(list)}<ul>{#each list as d (d.slug)}<li>
+            <button type="button" class="ref domain" aria-expanded={openDomain===d.slug} onclick={()=>openDomain=openDomain===d.slug?null:d.slug}>{d.label}</button>
+            {#if openDomain===d.slug}<div class="domain-card">{#if d.text}<p>{d.text}</p>{/if}
+              {#if d.spell}<p><b>Domain spell</b>{' '}{@render spellRef(d.spell)}</p>{/if}
+              {#if d.advanced}<p><b>Advanced domain spell</b>{' '}{@render spellRef(d.advanced)}</p>{/if}
+              {#if !d.text&&!d.spell}<p class="muted">Sync with Bridge 0.35.2 or later to see this domain's description and spells.</p>{/if}</div>{/if}</li>{/each}</ul>{/snippet}
           {#if deity.primary.length}<div><dt>Domains</dt><dd>{@render domains(deity.primary)}</dd></div>{/if}
           {#if deity.alternate.length}<div><dt>Alternate</dt><dd>{@render domains(deity.alternate)}</dd></div>{/if}
           {#if deity.spells.length}<div><dt>Cleric spells</dt><dd><ul>{#each deity.spells as s (s.rank)}<li>Rank {s.rank}:{' '}{@render spellRef(s.uuid)}</li>{/each}</ul></dd></div>{/if}
@@ -265,6 +274,10 @@
   .rules dt{font:700 .7rem var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--accent);padding-top:.2em}
   .rules dd{margin:0}
   .rules ul{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+  .domain{font-weight:700}
+  .rules div.domain-card{margin:4px 0 6px;padding:6px 10px;border-left:2px solid var(--accent);font-size:.86rem;
+    display:grid;grid-template-columns:minmax(0,1fr);gap:3px}
+  .domain-card p{margin:0}
   .ref{background:none;border:0;padding:0;color:var(--accent);font:inherit;text-decoration:underline;
     text-decoration-style:dotted;text-underline-offset:3px;cursor:pointer}
   .links-off .ref{color:inherit;text-decoration:none;pointer-events:none}

@@ -919,3 +919,14 @@ Website only; the Bridge stays at 0.14.1.
 - Choosing a deity (cleric, champion…) now trains its skill — Torag's Crafting, Abadar's Society.
   The skill was stored as a single value and dropped when the website read it as a list; the
   same fix applies to the deity details and the D&D 5e planner.
+
+### v0.35.2 — Deity domains and search
+
+**Update the PF2e Bridge to 0.35.2 and run Sync Now.**
+
+- Domains in a deity's details are links: each opens the domain's description, domain spell and
+  advanced domain spell. (The Bridge's domain spell lookup never matched before; checked against
+  all 61 domains in PF2e 8.6.1.)
+- The deity's skill is labelled **Favored skill**.
+- The deity step's search also matches domains (primary and alternate), favored skill and
+  favored weapon — type "earth" or "healing" — and each deity card lists its domains.

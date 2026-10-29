@@ -274,3 +274,14 @@ test('the deity’s skill is trained as setDeity stores it (a single string)', a
   assert.equal(t.granted.get('crafting'),'Torag');
   assert.equal(skillRanks(c,null,cat.get,1).get('crafting'),1);
 });
+
+test('deities can be searched by domain, favored skill and weapon', async () => {
+  const {searchItems}=await import('../src/lib/builder/catalog.js');
+  const deities=[{uuid:'a',name:'Torag',type:'deity',metadata:{rules:{domains:{primary:['creation','earth'],alternate:['metal']},skill:['crafting'],weapons:['warhammer']}}},
+    {uuid:'b',name:'Sarenrae',type:'deity',metadata:{rules:{domains:{primary:['fire','healing']},skill:['medicine'],weapons:['scimitar']}}}];
+  assert.deepEqual(searchItems(deities,'earth').map(d=>d.name),['Torag']);
+  assert.deepEqual(searchItems(deities,'metal').map(d=>d.name),['Torag'],'alternate domains too');
+  assert.deepEqual(searchItems(deities,'heal').map(d=>d.name),['Sarenrae']);
+  assert.deepEqual(searchItems(deities,'warhammer').map(d=>d.name),['Torag']);
+  assert.deepEqual(searchItems(deities,'tor').map(d=>d.name),['Torag']);
+});

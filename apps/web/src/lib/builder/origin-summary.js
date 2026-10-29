@@ -43,7 +43,7 @@ function pf2e(item){
     case 'deity':{
       const font=list(r.font).map(f=>/harm/.test(f)?'Harm':/heal/.test(f)?'Heal':title(f));
       fact('Divine font',font.join(' or '));
-      fact('Skill',list(r.skill).map(title).join(', '));
+      fact('Favored skill',list(r.skill).map(title).join(', '));
       fact('Favored weapon',list(r.weapons).map(title).join(', '));
       fact('Divine attribute',list(r.attribute).map(a=>ATTR[a]??title(a)).join(' or '));
       const sanct=r.sanctification;

@@ -262,10 +262,14 @@ async function loadDomainSpells(){
     const entry=pack?(await pack.getDocuments()).find(d=>/^domains$/i.test(d.name)):null;
     for(const page of entry?.pages?.contents??[]){
       const html=String(page.text?.content??'');
-      const link=label=>new RegExp('<strong>'+label+'</strong>\s*@UUID\[([^\]]+)\]','i').exec(html)?.[1]??null;
+      const link=label=>new RegExp('<strong>'+label+String.raw`:?</strong>\s*@UUID\[([^\]]+)\]`,'i').exec(html)?.[1]??null;
       const label=String(page.name).replace(/\s+domain$/i,'').trim();
       const slug=label.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-      if(slug)domainSpellMap.set(slug,{label,spell:link('Domain Spell'),advanced:link('Advanced Domain Spell')});
+      // What the domain is about: the page's opening text, as plain text (before its spells).
+      const intro=html.split(/<p>\s*<strong>(?:Advanced )?Domain Spell|<hr/i)[0]
+        .replace(/@UUID\[[^\]]+\]\{([^}]+)\}/g,'$1').replace(/@UUID\[[^\]]*\.([^.\]]+)\]/g,'$1')
+        .replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,600);
+      if(slug)domainSpellMap.set(slug,{label,text:intro||null,spell:link('Domain Spell'),advanced:link('Advanced Domain Spell')});
     }
   }catch(error){console.warn('[PF2e Planner Bridge]','Domain spells unavailable:',error.message);}
 }

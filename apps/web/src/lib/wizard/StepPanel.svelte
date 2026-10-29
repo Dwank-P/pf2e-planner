@@ -59,7 +59,9 @@
   const deityDetail=item=>{
     const r=item.metadata?.rules??{};
     const font=(r.font??[]).map(f=>/harm/.test(f)?'harm':/heal/.test(f)?'heal':f);
-    return [font.length?'Font: '+font.join('/'):'',r.skill?titleCase([].concat(r.skill)[0]):''].filter(Boolean).join(' · ');
+    const domains=[...(r.domains?.primary??[])].map(titleCase);
+    return [font.length?'Font: '+font.join('/'):'',r.skill?titleCase([].concat(r.skill)[0]):'',
+      domains.length?'Domains: '+domains.join(', '):''].filter(Boolean).join(' · ');
   };
   // Item-choice steps: options, current picks and how to apply a pick.
   const choice=$derived.by(()=>{
@@ -126,7 +128,7 @@
     <OptionGrid id={step.id} items={choice.items} {selected} max={choice.multi??1}
       onToggle={pick} onInfo={item=>info(item.uuid)} detail={choice.detail??(()=> '')}
       test={id==='background'?backgroundTest:null} filters={id==='background'?backgroundFilters:undefined}
-      placeholder={'Search '+choice.items.length+' options'}
+      placeholder={id==='deity'?'Search '+choice.items.length+' deities by name, domain, skill or weapon':'Search '+choice.items.length+' options'}
       empty={'No options for this step are in the synced compendiums. Ask the GM to include the right packs in Leveler’s Compendium Manager, and to check none are hidden in campaign settings.'}/>
     {#if originKey&&choice.picked?.uuid}
       <!-- Choices the picked origin or specialization asks for, and those of what it grants. -->

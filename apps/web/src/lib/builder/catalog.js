@@ -33,6 +33,15 @@ export function indexCatalog(bundle){
 }
 
 const norm=s=>String(s??'').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g,'');
+/** Words besides the name a search matches: traits, and a deity's domains, favored skill and weapon. */
+function searchKeys(item){
+  const keys=[...(item.traits??[])];
+  if(item.type==='deity'){
+    const r=item.metadata?.rules??{};
+    keys.push(...(r.domains?.primary??[]),...(r.domains?.alternate??[]),...[].concat(r.skill??[]),...[].concat(r.weapons??[]));
+  }
+  return keys;
+}
 /**
  * Filter and rank items. `query` matches name words (prefix) or traits;
  * filters: rarity[], maxLevel, traits[] (all), anyTraits[], tags[] (otherTags any), test(item).
@@ -44,6 +53,7 @@ export function searchItems(items,query='',filters={}){
     if(filters.rarity?.length&&!filters.rarity.includes(item.rarity??'common'))continue;
     if(Number.isFinite(filters.maxLevel)&&Number.isFinite(item.level)&&item.level>filters.maxLevel)continue;
     const traits=item.traits??[];
+    const keys=searchKeys(item);
     if(filters.traits?.length&&!filters.traits.every(t=>traits.includes(t)))continue;
     if(filters.anyTraits?.length&&!filters.anyTraits.some(t=>traits.includes(t)))continue;
     if(filters.tags?.length&&!filters.tags.some(t=>(item.metadata?.otherTags??[]).includes(t)))continue;
@@ -56,7 +66,7 @@ export function searchItems(items,query='',filters={}){
       for(const word of words){
         if(nameWords.some(w=>w.startsWith(word)))score+=name.startsWith(word)?3:2;
         else if(name.includes(word))score+=1;
-        else if(traits.some(t=>norm(t).startsWith(word)))score+=0.5;
+        else if(keys.some(t=>norm(t).startsWith(word)))score+=0.5;
         else{matched=false;break;}
       }
       if(!matched)continue;
