@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import {SKILLS,SKILL_ATTRIBUTE,skillTraining,attributeModifiers,titleCase,formatModifier,loreName} from '../builder/rules.js';
   import {toggleSkill,toggleLore} from '../builder/creation.js';
   let {creation,lookup,update}=$props();
@@ -22,12 +23,12 @@
 <div class="skills">
   <div class="counter" class:met={used===training.choices&&training.choices>0} class:over={used>training.choices}>
     <b class="num">{used}<span>/{training.choices}</span></b>
-    <span><strong>{full?'All picks used':(training.choices-used)+' left to choose'}</strong>
-      <small class="muted">Skills or extra lores. {training.choices} = class picks{mods.int?` ${mods.int>0?'+':'−'} ${Math.abs(mods.int)} from Intelligence`:''}{training.duplicates?` + ${training.duplicates} because your background repeats a class skill`:''}.</small></span>
+    <span><strong>{full?tr('All picks used'):(training.choices-used)+tr(' left to choose')}</strong>
+      <small class="muted">{tr("Skills or extra lores. {0} = class picks{1}{2}.", training.choices, mods.int?` ${mods.int>0?'+':'−'} ${Math.abs(mods.int)} from Intelligence`:'', training.duplicates?tr(" + {0} because your background repeats a class skill",training.duplicates):'')}</small></span>
   </div>
 
   <section>
-    <span class="eyebrow">Choose skills</span>
+    <span class="eyebrow">{tr("Choose skills")}</span>
     <div class="list">
       {#each open as skill}
         {@const on=chosen.includes(skill)}
@@ -35,35 +36,35 @@
           onclick={()=>update(c=>toggleSkill(c,skill,training))}>
           <span class="name">{titleCase(skill)}</span>
           <span class="meta"><span class="num">{SKILL_ATTRIBUTE[skill].toUpperCase()} {formatModifier(mods[SKILL_ATTRIBUTE[skill]])}</span>
-            {#if on}<small>trained</small>{/if}</span>
+            {#if on}<small>{tr("trained")}</small>{/if}</span>
         </button>
       {/each}
     </div>
   </section>
 
   <section>
-    <span class="eyebrow">Lores</span>
+    <span class="eyebrow">{tr("Lores")}</span>
     <div class="lores">
-      {#each training.lores as l}<span class="chip auto">{loreName(l)} <small>from background</small></span>{/each}
+      {#each training.lores as l}<span class="chip auto">{loreName(l)} <small>{tr("from background")}</small></span>{/each}
       {#each training.chosenLores as l}<span class="chip on">{l}
-        <button class="x" aria-label={'Remove '+l} onclick={()=>update(c=>toggleLore(c,l,training))}>×</button></span>{/each}
+        <button class="x" aria-label={tr('Remove {0}',l)} onclick={()=>update(c=>toggleLore(c,l,training))}>×</button></span>{/each}
     </div>
     <form class="add" onsubmit={e=>{e.preventDefault();addLore(lore);}}>
-      <input list="lore-suggestions" maxlength="40" placeholder="Add a lore, e.g. Warfare" aria-label="Lore name" bind:value={lore} disabled={full}/>
+      <input list="lore-suggestions" maxlength="40" placeholder={tr("Add a lore, e.g. Warfare")} aria-label={tr("Lore name")} bind:value={lore} disabled={full}/>
       <datalist id="lore-suggestions">{#each SUGGESTED as s}<option value={s+' Lore'}></option>{/each}</datalist>
-      <button class="btn small" disabled={full||!lore.trim()}>Add lore</button>
+      <button class="btn small" disabled={full||!lore.trim()}>{tr("Add lore")}</button>
     </form>
-    <p class="muted small">Feats such as Additional Lore add more; Leveler asks for those in Foundry.</p>
+    <p class="muted small">{tr("Feats such as Additional Lore add more; Leveler asks for those in Foundry.")}</p>
   </section>
 
   {#if granted.length}
     <section>
-      <span class="eyebrow">Trained automatically</span>
+      <span class="eyebrow">{tr("Trained automatically")}</span>
       <div class="list">
         {#each granted as skill}
           <div class="skill on granted"><span class="name">{titleCase(skill)}</span>
             <span class="meta"><span class="num">{SKILL_ATTRIBUTE[skill].toUpperCase()} {formatModifier(mods[SKILL_ATTRIBUTE[skill]])}</span>
-              <small>from {training.granted.get(skill)}</small></span></div>
+              <small>{tr("from {0}", training.granted.get(skill))}</small></span></div>
         {/each}
       </div>
     </section>

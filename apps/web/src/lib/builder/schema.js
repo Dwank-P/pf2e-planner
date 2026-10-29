@@ -5,6 +5,7 @@
  * a fixed per-class layout. Class-specific steps come from the Bridge's export of
  * Leveler's class handlers (levelerProgression.creationSteps).
  */
+import {tr} from '../i18n/index.js';
 import {boostSources,skillTraining,languageAllowance,attributeModifiers} from './rules.js';
 import {spellAllowance} from '../leveler-progression.js';
 import {creationGrantRequirements,grantSelections} from './grants.js';
@@ -55,14 +56,14 @@ const featLevels=(item,field)=>(Array.isArray(item?.metadata?.[field])?item.meta
 /** Level-1 feat slots: built from the class Items and variants, never fixed. */
 export function level1FeatSlots(creation,lookup,variants={}){
   const primary=lookup(creation?.class?.uuid),second=lookup(creation?.dualClass?.uuid);
-  const slots=[{slot:'ancestry',label:'Ancestry feat',category:'ancestry'}];
-  if(variants.ancestralParagon===true)slots.push({slot:'paragon',label:'Ancestral Paragon feat',category:'ancestry'});
+  const slots=[{slot:'ancestry',label:tr('Ancestry feat'),category:'ancestry'}];
+  if(variants.ancestralParagon===true)slots.push({slot:'paragon',label:tr('Ancestral Paragon feat'),category:'ancestry'});
   if(featLevels(primary,'classFeatLevels').includes(1))
-    slots.push({slot:'class',label:(creation.class?.name??'Class')+' feat',category:'class',classEntry:creation.class});
+    slots.push({slot:'class',label:tr('{0} feat',creation.class?.name??tr('Class')),category:'class',classEntry:creation.class});
   if(creation?.dualClass&&featLevels(second,'classFeatLevels').includes(1))
-    slots.push({slot:'dualClass',label:creation.dualClass.name+' feat',category:'class',classEntry:creation.dualClass});
-  if(featLevels(primary,'skillFeatLevels').includes(1))slots.push({slot:'skill',label:'Skill feat',category:'skill'});
-  if(variants.mythic===true)slots.push({slot:'mythic',label:'Mythic calling',category:'mythic'});
+    slots.push({slot:'dualClass',label:tr('{0} feat',creation.dualClass.name),category:'class',classEntry:creation.dualClass});
+  if(featLevels(primary,'skillFeatLevels').includes(1))slots.push({slot:'skill',label:tr('Skill feat'),category:'skill'});
+  if(variants.mythic===true)slots.push({slot:'mythic',label:tr('Mythic calling'),category:'mythic'});
   return slots;
 }
 const FEAT_FIELD={ancestry:'ancestryFeat',paragon:'ancestryParagonFeat',class:'classFeat',
@@ -83,7 +84,7 @@ export function level1Spells(creation,lookup,target='class'){
 export function creationSteps(creation,lookup,variants={}){
   const c=creation??{};
   const steps=[];
-  const add=(id,label,complete,extra={})=>steps.push({id,label,complete:!!complete,...extra});
+  const add=(id,label,complete,extra={})=>steps.push({id,label:tr(label),complete:!!complete,...extra});
   add('ancestry','Ancestry',c.ancestry);
   add('heritage','Heritage',c.heritage);
   add('background','Background',c.background);
@@ -100,7 +101,7 @@ export function creationSteps(creation,lookup,variants={}){
       const def=HANDLER_STEPS[id];
       if(!def||!ids.includes(id))return;
       if(def.visible&&!def.visible(bucket,subclass))return;
-      add(id+(target==='dualClass'?'-dual':''),def.label+suffix,stepComplete(id,def,bucket,subclass),{target,def,stepId:id});
+      add(id+(target==='dualClass'?'-dual':''),tr(def.label)+suffix,stepComplete(id,def,bucket,subclass),{target,def,stepId:id});
     };
     // Leveler's order: deity, sanctification, divine font, subclass, then other handler steps.
     for(const id of ['deity','sanctification','divineFont'])handler(id);
@@ -126,8 +127,8 @@ export function creationSteps(creation,lookup,variants={}){
   const spells=level1Spells(c,lookup);
   const dualSpells=variants.dualClass===true&&c.dualClass?level1Spells(c,lookup,'dualClass'):null;
   const spellsDone=(store,n)=>(store?.cantrips?.length??0)>=n.cantrips&&(store?.rank1?.length??0)>=n.rank1;
-  if(spells)add('spells',dualSpells?'Spells ('+c.class.name+')':'Spells',spellsDone(c.spells,spells),{target:'class',stepId:'spells'});
-  if(dualSpells)add('spells-dual','Spells ('+c.dualClass.name+')',spellsDone(c.dualSpells,dualSpells),{target:'dualClass',stepId:'spells'});
+  if(spells)add('spells',dualSpells?tr('Spells ({0})',c.class.name):'Spells',spellsDone(c.spells,spells),{target:'class',stepId:'spells'});
+  if(dualSpells)add('spells-dual',tr('Spells ({0})',c.dualClass.name),spellsDone(c.dualSpells,dualSpells),{target:'dualClass',stepId:'spells'});
   add('equipment','Equipment',true,{optional:true});
   add('review','Review',steps.every(s=>s.complete));
   return steps;

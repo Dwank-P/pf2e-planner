@@ -5,6 +5,7 @@
  * strength, damage, range, runes; metadata.itemBonuses: FlatModifiers of type "item"); runes the
  * player planned on an entry (entry.runes) replace the item's own.
  */
+import {tr} from '../i18n/index.js';
 import {wishlist} from './equipment.js';
 
 const EQUIP_TYPES=new Set(['armor','shield','weapon']);
@@ -75,8 +76,8 @@ export function itemBonuses(gear,{level=1,variants={}}={}){
     }
   }
   if(abp){
-    offer('ac',abpDefense(level),'Automatic bonus progression');
-    for(const save of SAVES)offer(save,abpSaves(level),'Automatic bonus progression');
+    offer('ac',abpDefense(level),tr('Automatic bonus progression'));
+    for(const save of SAVES)offer(save,abpSaves(level),tr('Automatic bonus progression'));
   }
   return best;
 }

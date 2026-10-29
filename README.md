@@ -930,3 +930,17 @@ Website only; the Bridge stays at 0.14.1.
 - The deity's skill is labelled **Favored skill**.
 - The deity step's search also matches domains (primary and alternate), favored skill and
   favored weapon — type "earth" or "healing" — and each deity card lists its domains.
+
+### v0.36.0 — Languages and image zoom
+
+- The website is available in the languages Pathfinder Second Edition is published in: English,
+  Deutsch, Español, Français, Italiano, 日本語, Polski and Português (Brasil). Pick one from the
+  account menu (or the sign-in card); it's remembered per browser, and a new visitor gets their
+  browser's language when it's one of these.
+- Game terms the website shows itself — skills, attributes, proficiency ranks, saves, armor and
+  weapon categories, sizes, traits, languages, class names — use each edition's own terms.
+- Content synced from Foundry (feat names, descriptions) stays in the language of the world's
+  compendiums. (A Foundry translation module such as Babele may change what the Bridge syncs;
+  that hasn't been tested.)
+- Images in the details panel open full size: click an item's icon or a picture in its
+  description (Escape or a click closes it).

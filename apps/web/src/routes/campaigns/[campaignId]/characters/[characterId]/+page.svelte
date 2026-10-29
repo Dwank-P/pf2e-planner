@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../../../../../lib/i18n/index.js';
   import {page} from '$app/state';
   import BuilderPf2e from '../../../../../lib/wizard/BuilderPf2e.svelte';
   import Builder5e from '../../../../../lib/wizard5e/Builder5e.svelte';
@@ -26,5 +27,5 @@
 {:else if error}
   <main class="page"><p class="notice bad" role="alert">{error}</p></main>
 {:else}
-  <p class="muted" style="padding:32px">Loading the character…</p>
+  <p class="muted" style="padding:32px">{tr("Loading the character…")}</p>
 {/if}

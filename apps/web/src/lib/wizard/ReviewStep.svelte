@@ -1,27 +1,26 @@
 <script>
+  import {tr} from '../i18n/index.js';
   let {steps,creation,go,onPlan}=$props();
   const required=$derived(steps.filter(s=>s.id!=='review'&&!s.optional));
   const missing=$derived(required.filter(s=>!s.complete));
 </script>
 <div class="review">
   {#if missing.length}
-    <p class="notice warn">{missing.length===1?'One step still needs a choice.':missing.length+' steps still need choices.'}
-      You can plan ahead anyway; Leveler checks everything when you apply it in Foundry.</p>
+    <p class="notice warn">{tr("{0} You can plan ahead anyway; Leveler checks everything when you apply it in Foundry.", missing.length===1?tr('One step still needs a choice.'):missing.length+tr(' steps still need choices.'))}</p>
   {:else}
-    <p class="notice good">Level 1 is complete. Plan levels 2–20 next, or pull this build into Foundry.</p>
+    <p class="notice good">{tr("Level 1 is complete. Plan levels 2–20 next, or pull this build into Foundry.")}</p>
   {/if}
   <ol class="list">
     {#each required as step}
       <li><button class="row" onclick={()=>go(step.id)}>
         <span class="mark" class:done={step.complete} aria-hidden="true">{step.complete?'✓':'!'}</span>
         <span class="label">{step.label}</span>
-        <span class="state">{step.complete?'Done':'Needs a choice'}</span></button></li>
+        <span class="state">{step.complete?tr('Done'):tr('Needs a choice')}</span></button></li>
     {/each}
   </ol>
   <div class="next panel">
-    <div><b>In Foundry</b><p class="muted">Open the character's Level Planner or Character Wizard, click <i>Pull from Planner</i> and pick this build.
-      {creation.class?'':'Choose a class first: Leveler plans are tied to it.'}</p></div>
-    <button class="btn primary" disabled={!creation.class} onclick={onPlan}>Plan levels 2–20 →</button>
+    <div><b>{tr("In Foundry")}</b><p class="muted">{tr("Open the character's Level Planner or Character Wizard, click")} <i>{tr("Pull from Planner")}</i> {tr("and pick this build. {0}", creation.class?'':tr('Choose a class first: Leveler plans are tied to it.'))}</p></div>
+    <button class="btn primary" disabled={!creation.class} onclick={onPlan}>{tr("Plan levels 2–20 →")}</button>
   </div>
 </div>
 <style>

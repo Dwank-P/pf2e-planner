@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import Icon from '../ui/Icon.svelte';
   /** A collapsible box: the header shows what's chosen (and its icon); click to open or close. */
   let {title,summary='',img=null,done=false,open=$bindable(false),children}=$props();
@@ -6,8 +7,8 @@
 <section class="fold" class:done>
   <button class="head" aria-expanded={open} onclick={()=>open=!open}>
     <span class="mark" aria-hidden="true">{#if img}<Icon src={img} size={28}/>{:else}{done?'✓':'·'}{/if}</span>
-    <span class="text"><span class="eyebrow">{title}</span><b>{summary||'Choose'}</b></span>
-    <span class="toggle">{open?'Close':done?'Change':'Choose'}</span>
+    <span class="text"><span class="eyebrow">{title}</span><b>{summary||tr('Choose')}</b></span>
+    <span class="toggle">{open?tr('Close'):done?tr('Change'):tr('Choose')}</span>
   </button>
   {#if open}<div class="body">{@render children()}</div>{/if}
 </section>

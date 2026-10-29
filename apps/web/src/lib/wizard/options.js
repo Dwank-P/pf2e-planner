@@ -1,4 +1,5 @@
 /** Option lists for each Character Wizard step, from the synced catalog. */
+import {tr} from '../i18n/index.js';
 import {titleCase} from '../builder/rules.js';
 
 const slug=v=>String(v??'').toLowerCase();
@@ -32,12 +33,12 @@ export function heritagesFor(catalog,creation){
 /** Why an ancestry feat isn't available to this ancestry/heritage, or null. */
 export function ancestryFeatBlock(feat,creation){
   const ancestry=slug(creation?.ancestry?.slug),heritage=slug(creation?.heritage?.slug);
-  if(!ancestry)return 'Choose an ancestry first';
+  if(!ancestry)return tr('Choose an ancestry first');
   const access=meta(feat).ancestryAccess;
   const own=new Set([ancestry,heritage,...(creation?.ancestry?.traits??[]).map(slug)].filter(Boolean));
   if(access?.universal)return null;
   const needed=(access?.restrictedTo??[]).map(slug);
-  if(needed.length&&!needed.some(t=>own.has(t)))return 'Requires '+needed.map(titleCase).join(' or ');
+  if(needed.length&&!needed.some(t=>own.has(t)))return tr('Requires {0}',needed.map(titleCase).join(tr(' or ')));
   return null;
 }
 const category=item=>meta(item).category??meta(item).featType;

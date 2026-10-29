@@ -4,6 +4,7 @@
  * block; anything else is reported as "check with your GM" and never blocks,
  * because this is a planner. Leveler re-validates against the actor in Foundry.
  */
+import {tr} from '../i18n/index.js';
 import {attributeModifiers,skillTraining,isSkill,ATTRIBUTES,RANKS,titleCase} from './rules.js';
 import {ancestryFeatBlock} from '../wizard/options.js';
 import {grantsAt,effectsOf,resolvePlaceholders} from './granted.js';
@@ -161,20 +162,20 @@ function checkPrerequisite(text,state,featNames){
     const need=RANK_WORDS[skill[1]];
     const names=skill[2].split(/,\s*|\s+or\s+/).map(s=>s.replace(/^(?:a|an|the)\s+/,'').trim()).filter(Boolean);
     if(names.some(n=>/at least one skill|any skill/.test(n)))
-      return [...state.skills.values()].some(r=>r>=need)?null:`Needs ${RANKS[need]} in a skill`;
+      return [...state.skills.values()].some(r=>r>=need)?null:tr('Needs {0} in a skill',RANKS[need]);
     const known=names.filter(n=>isSkill(n)||n.endsWith(' lore'));
     if(!known.length)return undefined;
-    return known.some(n=>(state.skills.get(n)??0)>=need)?null:`Needs ${RANKS[need]} in ${known.map(titleCase).join(' or ')}`;
+    return known.some(n=>(state.skills.get(n)??0)>=need)?null:tr('Needs {0} in {1}',RANKS[need],known.map(titleCase).join(tr(' or ')));
   }
   const attribute=/^(strength|dexterity|constitution|intelligence|wisdom|charisma)\s*\+?(\d+)/.exec(p);
   if(attribute){
     const key=ATTRIBUTE_WORDS[attribute[1]];
-    return state.mods[key]>=Number(attribute[2])?null:`Needs ${attribute[1][0].toUpperCase()+attribute[1].slice(1)} +${attribute[2]}`;
+    return state.mods[key]>=Number(attribute[2])?null:tr("Needs {0} +{1}",attribute[1][0].toUpperCase()+attribute[1].slice(1),attribute[2]);
   }
   if(hasGranted(state,p))return null;
   if(featNames.has(p)){
     const before=state.feats.some(f=>norm(f.name)===p&&f.level<state.level);
-    return before?null:`Needs the feat ${text.trim()} first`;
+    return before?null:tr('Needs the feat {0} first',text.trim());
   }
   return undefined;
 }
@@ -227,9 +228,10 @@ export function classFeatBlock(feat,state,kind=''){
   if(classes.some(t=>own.includes(t)))return null;
   // Another class's feat an archetype opens (from the level its "Additional Feats" list gives).
   const unlock=state.unlocked?.get(feat.uuid);
-  if(unlock)return unlock.level<=state.level?null:`Available from level ${unlock.level} through ${unlock.from}`;
-  const mine=own.filter(Boolean).map(titleCase).join(' or ');
-  return `${classes.map(titleCase).join(' or ')} feat${mine?` — this character is a ${mine}`:''}`;
+  if(unlock)return unlock.level<=state.level?null:tr('Available from level {0} through {1}',unlock.level,unlock.from);
+  const mine=own.filter(Boolean).map(titleCase).join(tr(' or '));
+  const label=tr('{0} feat',classes.map(titleCase).join(tr(' or ')));
+  return mine?tr('{0} — this character is a {1}',label,mine):label;
 }
 /**
  * Check a feat for a slot at `state.level`. Returns {blocked, unknown}:
@@ -238,16 +240,16 @@ export function classFeatBlock(feat,state,kind=''){
  */
 export function checkFeat(feat,state,{kind='',featNames=new Set(),currentUuid=null}={}){
   const unknown=[];
-  if(Number.isFinite(feat.level)&&feat.level>state.level)return {blocked:`Level ${feat.level} feat`,unknown};
+  if(Number.isFinite(feat.level)&&feat.level>state.level)return {blocked:tr("Level {0} feat",feat.level),unknown};
   const wrongClass=classFeatBlock(feat,state,kind);
   if(wrongClass)return {blocked:wrongClass,unknown};
   const maxTakable=takeLimit(feat);
   const takenAt=state.feats.find(f=>f.uuid===feat.uuid&&f.uuid!==currentUuid);
   // Taking a feat twice would add it twice in Foundry, so this one can't be overridden.
-  if(takenAt&&maxTakable<=1)return {blocked:`Already taken at level ${takenAt.level}`,unknown,hard:true};
+  if(takenAt&&maxTakable<=1)return {blocked:tr('Already taken at level {0}',takenAt.level),unknown,hard:true};
   const grantedBy=state.granted?.get(feat.uuid)??[...(state.granted?.values()??[])].find(g=>norm(g.item.name)===norm(feat.name)&&g.item.type===feat.type);
   // Picking it anyway would add it twice in Foundry; a pick made before the grant shows a warning.
-  if(grantedBy&&maxTakable<=1)return {blocked:`Already granted by ${grantedBy.from}`,unknown,hard:feat.uuid!==currentUuid};
+  if(grantedBy&&maxTakable<=1)return {blocked:tr('Already granted by {0}',grantedBy.from),unknown,hard:feat.uuid!==currentUuid};
   if(kind==='ancestry'){
     const reason=ancestryFeatBlock(feat,state.creation);
     if(reason)return {blocked:reason,unknown};
@@ -257,7 +259,7 @@ export function checkFeat(feat,state,{kind='',featNames=new Set(),currentUuid=nu
     const before=state.feats.filter(f=>f.level<state.level&&f.uuid!==currentUuid);
     const dedications=before.filter(f=>(f.traits??[]).map(norm).includes('dedication')).length;
     const archetype=before.filter(f=>{const t=(f.traits??[]).map(norm);return t.includes('archetype')&&!t.includes('dedication');}).length;
-    if(dedications&&archetype<2*dedications)return {blocked:'Take two feats from your current archetype first',unknown};
+    if(dedications&&archetype<2*dedications)return {blocked:tr('Take two feats from your current archetype first'),unknown};
   }
   for(const text of feat.metadata?.prerequisites??[]){
     const result=checkPrerequisite(text,state,featNames);

@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   /**
    * Choose a character picture: pick a file, drag to position it, zoom, save. The square crop is
    * scaled to 320×320 and compressed (WebP, or JPEG where the browser can't make WebP) here, so
@@ -21,7 +22,7 @@
   function load(file){
     error='';
     if(!file)return;
-    if(!file.type.startsWith('image/')){error='Choose an image file.';return;}
+    if(!file.type.startsWith('image/')){error=tr('Choose an image file.');return;}
     const url=URL.createObjectURL(file);
     const img=new Image();
     img.onload=()=>{
@@ -30,7 +31,7 @@
       const s=Math.max(FRAME/img.naturalWidth,FRAME/img.naturalHeight);
       offset={x:(FRAME-img.naturalWidth*s)/2,y:(FRAME-img.naturalHeight*s)/2};
     };
-    img.onerror=()=>{error='That image couldn’t be read. Try a PNG, JPEG or WebP.';URL.revokeObjectURL(url);};
+    img.onerror=()=>{error=tr('That image couldn’t be read. Try a PNG, JPEG or WebP.');URL.revokeObjectURL(url);};
     img.src=url;
   }
   function setZoom(next){
@@ -68,7 +69,7 @@
       if(!url.startsWith('data:image/webp'))url=canvas.toDataURL('image/jpeg',quality);
       if(url.length*.75<=MAX_BYTES)return url;
     }
-    throw Error('That picture is too detailed to compress. Try another.');
+    throw Error(tr('That picture is too detailed to compress. Try another.'));
   }
   async function save(){
     busy=true;error='';
@@ -86,10 +87,10 @@
 <svelte:window onkeydown={e=>{if(e.key==='Escape')onClose();}}/>
 <div class="scrim" role="presentation" onclick={onClose}></div>
 <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="portrait-title">
-  <h2 id="portrait-title">Character picture</h2>
+  <h2 id="portrait-title">{tr("Character picture")}</h2>
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <div class="frame" class:empty={!image} style:--frame={FRAME+'px'} role={image?'application':undefined}
-    aria-label={image?'Drag or use the arrow keys to position the picture':undefined} tabindex={image?0:undefined}
+    aria-label={image?tr('Drag or use the arrow keys to position the picture'):undefined} tabindex={image?0:undefined}
     onpointerdown={down} onpointermove={move} onpointerup={()=>drag=null} onpointercancel={()=>drag=null}
     onwheel={e=>{if(image){e.preventDefault();setZoom(zoom-Math.sign(e.deltaY)*.1);}}} onkeydown={key}
     ondragover={e=>e.preventDefault()} ondrop={e=>{e.preventDefault();load(e.dataTransfer?.files?.[0]);}}>
@@ -97,24 +98,24 @@
       <img src={image.src} alt="" draggable="false" style:width={natural.w*scale+'px'} style:height={natural.h*scale+'px'}
         style:transform={`translate(${offset.x}px,${offset.y}px)`}/>
     {:else if current}
-      <img class="current" src={current} alt="Current picture"/>
+      <img class="current" src={current} alt={tr("Current picture")}/>
     {:else}
-      <button class="pick" onclick={()=>fileInput.click()}>Choose a picture<small>or drop one here</small></button>
+      <button class="pick" onclick={()=>fileInput.click()}>{tr("Choose a picture")}<small>{tr("or drop one here")}</small></button>
     {/if}
   </div>
   {#if image}
-    <label class="zoom">Zoom <input type="range" min="1" max="4" step="0.01" value={zoom} oninput={e=>setZoom(Number(e.currentTarget.value))}/></label>
-    <p class="muted small">Drag to move the picture inside the square.</p>
+    <label class="zoom">{tr("Zoom")} <input type="range" min="1" max="4" step="0.01" value={zoom} oninput={e=>setZoom(Number(e.currentTarget.value))}/></label>
+    <p class="muted small">{tr("Drag to move the picture inside the square.")}</p>
   {/if}
   <input bind:this={fileInput} class="sr" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
     onchange={e=>{load(e.currentTarget.files?.[0]);e.currentTarget.value='';}}/>
   {#if error}<p class="notice bad">{error}</p>{/if}
   <div class="actions">
-    {#if current&&!image}<button class="link danger" disabled={busy} onclick={remove}>Remove picture</button>{/if}
+    {#if current&&!image}<button class="link danger" disabled={busy} onclick={remove}>{tr("Remove picture")}</button>{/if}
     <span class="grow"></span>
-    {#if image||current}<button class="btn small ghost" disabled={busy} onclick={()=>fileInput.click()}>{image?'Choose another':'Change'}</button>{/if}
-    <button class="btn small ghost" disabled={busy} onclick={onClose}>Cancel</button>
-    {#if image}<button class="btn small" disabled={busy} onclick={save}>{busy?'Saving…':'Save picture'}</button>{/if}
+    {#if image||current}<button class="btn small ghost" disabled={busy} onclick={()=>fileInput.click()}>{image?tr('Choose another'):tr('Change')}</button>{/if}
+    <button class="btn small ghost" disabled={busy} onclick={onClose}>{tr("Cancel")}</button>
+    {#if image}<button class="btn small" disabled={busy} onclick={save}>{busy?tr('Saving…'):tr('Save picture')}</button>{/if}
   </div>
 </div>
 <style>

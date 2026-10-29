@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../../../../lib/i18n/index.js';
   import ThemePicker from '../../../../lib/ThemePicker.svelte';
   import ItemInspector from '../../../../lib/ItemInspector.svelte';
   import { onMount } from 'svelte';
@@ -26,7 +27,7 @@
   async function get(path) {
     const response = await fetch(path, {credentials:'same-origin',cache:'no-store'});
     const result = await response.json().catch(()=>({}));
-    if (!response.ok) throw Error(result.message || 'Request failed (HTTP ' + response.status + ')');
+    if (!response.ok) throw Error(result.message || tr('Request failed (HTTP {0})', response.status));
     return result;
   }
   async function load(reset=false) {
@@ -103,82 +104,80 @@
   const badge=(value)=>value === null||value === undefined||value===''?'—':String(value);
 </script>
 
-<svelte:head><title>Feat Compendium Browser — PF2e Planner</title></svelte:head>
+<svelte:head><title>{tr("Feat Compendium Browser — PF2e Planner")}</title></svelte:head>
 <main>
-  <nav><a href={'/campaigns/'+encodeURIComponent(campaignId)+'/ruleset'}>← Ruleset details</a>
-    <a href="/">Campaigns</a> <ThemePicker/></nav>
-  <h1>Feat Compendium Browser</h1>
-  <label class="preview-level">Preview calculations at level
+  <nav><a href={'/campaigns/'+encodeURIComponent(campaignId)+'/ruleset'}>{tr("← Ruleset details")}</a>
+    <a href="/">{tr("Campaigns")}</a> <ThemePicker/></nav>
+  <h1>{tr("Feat Compendium Browser")}</h1>
+  <label class="preview-level">{tr("Preview calculations at level")}
     <select bind:value={previewLevel}>
       {#each Array.from({length:20},(_,i)=>i+1) as n}<option value={n}>{n}</option>{/each}
     </select>
   </label>
-  <p>Search the feat Items imported from this Foundry world's selected compendiums.</p>
+  <p>{tr("Search the feat Items imported from this Foundry world's selected compendiums.")}</p>
   {#if report?.synced}
-    <p class="small">System: <strong>{report.ruleset.systemId} {report.ruleset.systemVersion}</strong> ·
-    Saved feats: <strong>{report.totals.feats}</strong> · Last imported:
-      {new Date(report.updatedAt*1000).toLocaleString()}</p>
+    <p class="small">{tr("System:")} <strong>{report.ruleset.systemId} {report.ruleset.systemVersion}</strong> {tr("· Saved feats:")} <strong>{report.totals.feats}</strong> {tr("· Last imported: {0}", new Date(report.updatedAt*1000).toLocaleString())}</p>
   {/if}
   <section class="search">
-    <label class="wide">Name
-      <input type="search" placeholder="Search for a feat…" bind:value={q} oninput={searchChanged}/>
+    <label class="wide">{tr("Name")}
+      <input type="search" placeholder={tr("Search for a feat…")} bind:value={q} oninput={searchChanged}/>
     </label>
-    <label>Level
+    <label>{tr("Level")}
       <select bind:value={level} onchange={()=>load(true)}>
-        <option value="">All levels</option>
+        <option value="">{tr("All levels")}</option>
         {#each Array.from({length:21},(_,i)=>i) as n}<option value={n}>{n}</option>{/each}
       </select>
     </label>
-    <label>Rarity
+    <label>{tr("Rarity")}
       <select bind:value={rarity} onchange={()=>load(true)}>
-        <option value="">All rarities</option>
+        <option value="">{tr("All rarities")}</option>
         {#each ['common','uncommon','rare','unique'] as r}<option value={r}>{r}</option>{/each}
       </select>
     </label>
-    <label>Feat category
+    <label>{tr("Feat category")}
       <select bind:value={featType} onchange={()=>load(true)}>
-        <option value="">All categories</option>
+        <option value="">{tr("All categories")}</option>
         {#each ['class','ancestry','skill','general','archetype','bonus','feature'] as t}
           <option value={t}>{t}</option>
         {/each}
       </select>
     </label>
-    <label>Compendium
+    <label>{tr("Compendium")}
       <select bind:value={pack} onchange={()=>load(true)}>
-        <option value="">All imported packs</option>
+        <option value="">{tr("All imported packs")}</option>
         {#each packs as p}<option value={p}>{p}</option>{/each}
       </select>
     </label>
-    <label class="wide">Trait
-      <input type="search" placeholder="e.g. fighter, archetype, skill" bind:value={trait}
+    <label class="wide">{tr("Trait")}
+      <input type="search" placeholder={tr("e.g. fighter, archetype, skill")} bind:value={trait}
         oninput={searchChanged}/>
     </label>
     <button type="button" class="quiet" onclick={()=>{
       q='';level='';rarity='';pack='';trait='';featType='';load(true);
-    }}>Clear filters</button>
+    }}>{tr("Clear filters")}</button>
   </section>
   {#if errorText}<p role="alert" class="error">{errorText}</p>{/if}
   {#if !report?.complete}
-    <p class="warning">The full compendium is not yet published. Use Sync Now in the updated Foundry module.</p>
+    <p class="warning">{tr("The full compendium is not yet published. Use Sync Now in the updated Foundry module.")}</p>
   {/if}
   <section>
-    <div class="header"><h2>Feats ({total})</h2><span>{loading?'Loading…':'Page '+page+' of '+pages}</span></div>
+    <div class="header"><h2>{tr("Feats ({0})", total)}</h2><span>{loading?tr('Loading…'):tr('Page {0}',page)+' of '+pages}</span></div>
     {#if feats.length}
       <div class="results">
       {#each feats as feat (feat.uuid)}
         <button class="feat" type="button" onclick={()=>openItem(feat.uuid)}>
           <span><strong>{feat.name}</strong><small>{feat.pack} · {feat.traits.join(', ')}</small></span>
-          <span class="rank">Lv {badge(feat.level)}<small>{badge(feat.rarity)}</small></span>
+          <span class="rank">{tr("Lv {0}", badge(feat.level))}<small>{badge(feat.rarity)}</small></span>
         </button>
       {/each}
       </div>
     {:else if !loading}
-      <p>No matching feats have been synchronized.</p>
+      <p>{tr("No matching feats have been synchronized.")}</p>
     {/if}
     <div class="pager"><button type="button" disabled={page<=1||loading}
-      onclick={()=>{page--;load();}}>← Previous</button>
+      onclick={()=>{page--;load();}}>{tr("← Previous")}</button>
       <button type="button" disabled={page>=pages||loading}
-        onclick={()=>{page++;load();}}>Next →</button></div>
+        onclick={()=>{page++;load();}}>{tr("Next →")}</button></div>
   </section>
 
   {#if selected}

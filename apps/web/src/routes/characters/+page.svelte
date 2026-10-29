@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../../lib/i18n/index.js';
   import AppBar from '../../lib/ui/AppBar.svelte';
   import Portrait from '../../lib/ui/Portrait.svelte';
   import ImportCharacter from '../../lib/ui/ImportCharacter.svelte';
@@ -31,66 +32,63 @@
   }
   const line=c=>[c.summary?.ancestry??c.summary?.background,c.summary?.className].filter(Boolean).join(' · ');
 </script>
-<svelte:head><title>My characters · PF2e Planner</title></svelte:head>
-{#if session}<AppBar me={session.user} campaigns={session.campaigns} crumb="My characters" personal/>{/if}
+<svelte:head><title>{tr("My characters · PF2e Planner")}</title></svelte:head>
+{#if session}<AppBar me={session.user} campaigns={session.campaigns} crumb={tr("My characters")} personal/>{/if}
 <main class="page">
   {#if error}<p class="notice bad" role="alert">{error}</p>{/if}
   <section class="head">
-    <span class="eyebrow">Personal</span>
-    <h1>My characters</h1>
-    <p class="muted">Characters of your own, outside any campaign. Each picks its rules and the compendiums it uses
-      from worlds that share them with you — mix a module from one world with a system from another. Only you
-      and the people you share with can see them; copy one into a campaign when it’s ready.</p>
+    <span class="eyebrow">{tr("Personal")}</span>
+    <h1>{tr("My characters")}</h1>
+    <p class="muted">{tr("Characters of your own, outside any campaign. Each picks its rules and the compendiums it uses from worlds that share them with you — mix a module from one world with a system from another. Only you and the people you share with can see them; copy one into a campaign when it’s ready.")}</p>
   </section>
   {#if list}
     {#if !list.sharedWorlds.pf2e&&!list.sharedWorlds.dnd5e}
-      <p class="notice">No synced world is available to you yet. Join a campaign whose GM has synced it, or ask a GM to share
-        their compendiums with every account (campaign settings).</p>
+      <p class="notice">{tr("No synced world is available to you yet. Join a campaign whose GM has synced it, or ask a GM to share their compendiums with every account (campaign settings).")}</p>
     {/if}
-    <section class="grid" aria-label="Your personal characters">
+    <section class="grid" aria-label={tr("Your personal characters")}>
       {#each mine as c (c.id)}
         <a class="card" href={'/characters/'+encodeURIComponent(c.id)}>
           <span class="top"><span class="who"><Portrait src={c.portrait} name={c.name} size={44}/><b>{c.name}</b></span><span class="badge">{SYSTEM[c.system]}</span></span>
-          <span class="muted">{line(c)||'Not started'}</span>
-          <small class="muted">Level {c.level} · updated {timeAgo(c.updatedAt)}</small>
+          <span class="muted">{line(c)||tr('Not started')}</span>
+          <small class="muted">{tr("Level {0} · updated {1}", c.level, timeAgo(c.updatedAt))}</small>
         </a>
       {/each}
       {#if creating}
         <form class="card new-form" onsubmit={create}>
-          <label class="field" for="new-name">Character name
-            <input id="new-name" required maxlength="80" bind:value={name} placeholder="e.g. Ezren"/></label>
-          <div class="seg" role="radiogroup" aria-label="Game system">
+          <label class="field" for="new-name">{tr("Character name")}
+            <input id="new-name" required maxlength="80" bind:value={name} placeholder={tr("e.g. Ezren")}/></label>
+          <div class="seg" role="radiogroup" aria-label={tr("Game system")}>
             {#each Object.entries(SYSTEM) as [value,label]}
-              <label class:on={system===value}><input type="radio" {value} bind:group={system}/> {label}</label>
+              <label class:on={system===value}><input type="radio" {value} bind:group={system}/> {tr(label)}</label>
             {/each}
           </div>
-          <div class="row"><button type="button" class="btn ghost" onclick={()=>creating=false}>Cancel</button>
-            <button class="btn primary" disabled={busy||!name.trim()}>Create</button></div>
+          <div class="row"><button type="button" class="btn ghost" onclick={()=>creating=false}>{tr("Cancel")}</button>
+            <button class="btn primary" disabled={busy||!name.trim()}>{tr("Create")}</button></div>
         </form>
       {:else if importing}
         <ImportCharacter importUrl="/api/v1/personal/import" personal onCancel={()=>importing=false}
           onImported={c=>list={...list,characters:[c,...list.characters]}}/>
       {:else}
-        <button class="card new" onclick={()=>creating=true}><span class="plus" aria-hidden="true">+</span><b>New character</b>
-          <small>Choose rules and sources next</small></button>
-        <button class="card new" onclick={()=>importing=true}><span class="plus" aria-hidden="true">⇄</span><b>Import a character</b>
-          <small>A public link from any planner, or an exported file</small></button>
+        <button class="card new" onclick={()=>creating=true}><span class="plus" aria-hidden="true">+</span><b>{tr("New character")}</b>
+          <small>{tr("Choose rules and sources next")}</small></button>
+        <button class="card new" onclick={()=>importing=true}><span class="plus" aria-hidden="true">⇄</span><b>{tr("Import a character")}</b>
+          <small>{tr("A public link from any planner, or an exported file")}</small></button>
       {/if}
     </section>
     {#if shared.length}
-      <h2>Shared with me</h2>
-      <section class="grid" aria-label="Shared with me">
+      <h2>{tr("Shared with me")}</h2>
+      <section class="grid" aria-label={tr("Shared with me")}>
         {#each shared as c (c.id)}
           <a class="card" href={'/characters/'+encodeURIComponent(c.id)}>
             <span class="top"><span class="who"><Portrait src={c.portrait} name={c.name} size={44}/><b>{c.name}</b></span><span class="badge">{SYSTEM[c.system]}</span></span>
-            <span class="muted">{line(c)||'Not started'}</span>
-            <small class="muted">{c.ownerName} · {c.access.edit?'can edit':'view only'}</small>
+            <span class="muted">{line(c)||tr('Not started')}</span>
+            <small class="muted">{c.ownerName} · {c.access.edit?tr('can edit'):tr('view only')}</small>
           </a>
         {/each}
       </section>
     {/if}
   {:else if !error}
-    <p class="muted">Loading…</p>
+    <p class="muted">{tr("Loading…")}</p>
   {/if}
 </main>
 <style>

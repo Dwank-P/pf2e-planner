@@ -1,4 +1,5 @@
 <script>
+  import {tr} from './i18n/index.js';
   import { renderLevelDescription } from './level-formulas.js';
   import Traits from './ui/Traits.svelte';
   import {itemStats} from './builder/item-stats.js';
@@ -37,6 +38,9 @@
   });
   // The domain opened under Domains (its description and domain spells).
   let openDomain=$state(null);
+  // An image opened full size: the item's icon or a picture in its description.
+  let zoom=$state(null);
+  $effect(()=>{item;zoom=null;});
   $effect(()=>{item;openDomain=null;});
   const titleCase=s=>String(s??'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
   // Names for items referenced by id (fetched once; named references show their own name).
@@ -77,7 +81,7 @@
     const key=ref.kind+':'+ref.value;
     if(cache.has(key))return cache.get(key);
     const response=await fetch(itemUrl(ref),{credentials:'same-origin'});
-    if(!response.ok)throw Error('Reference not in synchronized packs');
+    if(!response.ok)throw Error(tr('Reference not in synchronized packs'));
     const result=await response.json();
     cache.set(key,result.item);
     return result.item;
@@ -110,6 +114,7 @@
     hoverState='';
   }
   async function follow(event) {
+    if(event.target?.tagName==='IMG'&&event.target.src&&!event.target.closest('a,[data-uuid]')){zoom={src:event.target.src,alt:event.target.alt||item.name};return;}
     const ref=getRef(event.target);
     if(!ref)return;
     event.preventDefault();event.stopPropagation();
@@ -134,14 +139,14 @@
   <div class:compact class:links-off={linksDisabled} class="inspector">
     <div class="inspector-bar">
       <div class="inspector-nav">
-        <button type="button" class="ghost" disabled={!canBack} onclick={onBack}>← Back</button>
-        {#if canPop}<button type="button" class="ghost" onclick={popThis} title="Open separate item window">↗ Pop out</button>{/if}
+        <button type="button" class="ghost" disabled={!canBack} onclick={onBack}>{tr("← Back")}</button>
+        {#if canPop}<button type="button" class="ghost" onclick={popThis} title={tr("Open separate item window")}>{tr("↗ Pop out")}</button>{/if}
       </div>
-      <button type="button" class="ghost" onclick={onClose} aria-label="Close details">✕</button>
+      <button type="button" class="ghost" onclick={onClose} aria-label={tr("Close details")}>✕</button>
     </div>
     <div class="inspector-main">
-      <div class="eyebrow">{item.type==='race'?'species':item.type||'Item'}{#if item.level!=null&&!ORIGINS.includes(item.type)} <span>·</span> Level {item.level}{/if}</div>
-      <div class="heading"><Icon src={item.img} size={56}/><h2>{item.name}</h2></div>
+      <div class="eyebrow">{item.type==='race'?'species':item.type||tr('Item')}{#if item.level!=null&&!ORIGINS.includes(item.type)} <span>·</span> {tr("Level {0}", item.level)}{/if}</div>
+      <div class="heading"><Icon src={item.img} size={56} onzoom={src=>zoom={src,alt:item.name}}/><h2>{item.name}</h2></div>
       <div class="inspector-tags"><Traits traits={item.traits||[]} rarity={item.rarity||'common'} max={20}/></div>
       {#if stats.length}
         <dl class="stats">{#each stats as [label,value]}<div><dt>{label}</dt><dd>{value}</dd></div>{/each}</dl>
@@ -153,75 +158,88 @@
         <dl class="notes">{#each origin.notes as [label,value]}<div><dt>{label}</dt><dd>{value}</dd></div>{/each}</dl>
       {/if}
       {#if item.metadata?.prerequisites?.length}
-        <p class="prereq"><strong>Prerequisites</strong> {item.metadata.prerequisites.join(', ')}</p>
+        <p class="prereq"><strong>{tr("Prerequisites")}</strong> {item.metadata.prerequisites.join(', ')}</p>
       {/if}
       <div class="description" role="presentation" onclick={follow}
         onpointerover={hoverLink} onpointerout={clearHover} onfocusin={hoverLink} onfocusout={clearHover}>
-        {@html html||'<p>No description was imported for this item.</p>'}
+        {@html html||tr('<p>No description was imported for this item.</p>')}
       </div>
       {#if deity&&(deity.primary.length||deity.spells.length)}
-        <dl class="rules" aria-label="Domains and cleric spells">
+        <dl class="rules" aria-label={tr("Domains and cleric spells")}>
           {#snippet spellRef(uuid)}{#if uuid}<button type="button" class="ref" onclick={()=>openUuid(uuid)}>{nameFor({uuid,name:nameInUuid(uuid)})}</button>{/if}{/snippet}
           {#snippet domains(list)}<ul>{#each list as d (d.slug)}<li>
             <button type="button" class="ref domain" aria-expanded={openDomain===d.slug} onclick={()=>openDomain=openDomain===d.slug?null:d.slug}>{d.label}</button>
             {#if openDomain===d.slug}<div class="domain-card">{#if d.text}<p>{d.text}</p>{/if}
-              {#if d.spell}<p><b>Domain spell</b>{' '}{@render spellRef(d.spell)}</p>{/if}
-              {#if d.advanced}<p><b>Advanced domain spell</b>{' '}{@render spellRef(d.advanced)}</p>{/if}
-              {#if !d.text&&!d.spell}<p class="muted">Sync with Bridge 0.35.2 or later to see this domain's description and spells.</p>{/if}</div>{/if}</li>{/each}</ul>{/snippet}
-          {#if deity.primary.length}<div><dt>Domains</dt><dd>{@render domains(deity.primary)}</dd></div>{/if}
-          {#if deity.alternate.length}<div><dt>Alternate</dt><dd>{@render domains(deity.alternate)}</dd></div>{/if}
-          {#if deity.spells.length}<div><dt>Cleric spells</dt><dd><ul>{#each deity.spells as s (s.rank)}<li>Rank {s.rank}:{' '}{@render spellRef(s.uuid)}</li>{/each}</ul></dd></div>{/if}
+              {#if d.spell}<p><b>{tr("Domain spell")}</b> {@render spellRef(d.spell)}</p>{/if}
+              {#if d.advanced}<p><b>{tr("Advanced domain spell")}</b> {@render spellRef(d.advanced)}</p>{/if}
+              {#if !d.text&&!d.spell}<p class="muted">{tr("Sync with Bridge 0.35.2 or later to see this domain's description and spells.")}</p>{/if}</div>{/if}</li>{/each}</ul>{/snippet}
+          {#if deity.primary.length}<div><dt>{tr("Domains")}</dt><dd>{@render domains(deity.primary)}</dd></div>{/if}
+          {#if deity.alternate.length}<div><dt>{tr("Alternate")}</dt><dd>{@render domains(deity.alternate)}</dd></div>{/if}
+          {#if deity.spells.length}<div><dt>{tr("Cleric spells")}</dt><dd><ul>{#each deity.spells as s (s.rank)}<li>{tr("Rank {0}:", s.rank)} {@render spellRef(s.uuid)}</li>{/each}</ul></dd></div>{/if}
         </dl>
       {/if}
       {#if rules&&hasRuleSummary(rules)}
-        <dl class="rules" aria-label="Rules summary">
+        <dl class="rules" aria-label={tr("Rules summary")}>
           {#snippet ref(uuid,label)}{#if uuid}<button type="button" class="ref" onclick={()=>openUuid(uuid)}>{label}</button>{:else}{label}{/if}{/snippet}
-          {#snippet either(options,more)}{#each options as o,j}{#if j}{' or '}{/if}{@render ref(o.uuid,o.label)}{/each}{#if more}{' '}<small class="muted">or {more} more</small>{/if}{/snippet}
-          {#snippet when(condition)}{#if condition}{' '}<small class="cond">({condition})</small>{/if}{/snippet}
-          {#if rules.grants.length}<div><dt>Grants</dt><dd><ul>
+          {#snippet either(options,more)}{#each options as o,j}{#if j} {tr("or")} {/if}{@render ref(o.uuid,o.label)}{/each}{#if more} <small class="muted">{tr("or {0} more", more)}</small>{/if}{/snippet}
+          {#snippet when(condition)}{#if condition} <small class="cond">({condition})</small>{/if}{/snippet}
+          {#if rules.grants.length}<div><dt>{tr("Grants")}</dt><dd><ul>
             {#each rules.grants as g}<li>
-              {#if g.decidedBy}<em>{g.name}</em>{' '}<small class="muted">(decided by your other choices)</small>
+              {#if g.decidedBy}<em>{g.name}</em> <small class="muted">{tr("(decided by your other choices)")}</small>
               {:else if g.uuid}{@render ref(g.uuid,nameFor(g))}
-              {:else if g.options?.length}{@render either(g.options,g.more)}{' '}<small class="muted">(your choice)</small>
-              {:else}<em>a {g.query?.toLowerCase()??'item'} you choose</em>{/if}{@render when(g.condition)}</li>{/each}</ul></dd></div>{/if}
-          {#if rules.choices.length}<div><dt>Choose</dt><dd><ul>
-            {#each rules.choices as c}<li>{#if c.prompt}<span class="muted">{c.prompt}:</span>{' '}{/if}
+              {:else if g.options?.length}{@render either(g.options,g.more)} <small class="muted">{tr("(your choice)")}</small>
+              {:else}<em>{tr("a {0} you choose", g.query?.toLowerCase()??'item')}</em>{/if}{@render when(g.condition)}</li>{/each}</ul></dd></div>{/if}
+          {#if rules.choices.length}<div><dt>{tr("Choose")}</dt><dd><ul>
+            {#each rules.choices as c}<li>{#if c.prompt}<span class="muted">{c.prompt}:</span> {/if}
               {#if c.options.length}{@render either(c.options,c.more)}{:else}<em>a {c.query?.toLowerCase()??'option'}</em>{/if}{@render when(c.condition)}</li>{/each}</ul></dd></div>{/if}
-          {#if rules.training.length}<div><dt>Training</dt><dd><ul>
-            {#each rules.training as t}<li>{t.rank} in {t.what}{@render when(t.condition)}</li>{/each}</ul></dd></div>{/if}
-          {#if rules.sets.length}<div><dt>Passes on</dt><dd><ul>
-            {#each rules.sets as s}<li>{s.label}:{' '}{@render ref(s.uuid,nameFor(s))}</li>{/each}</ul></dd></div>{/if}
+          {#if rules.training.length}<div><dt>{tr("Training")}</dt><dd><ul>
+            {#each rules.training as t}<li>{tr("{0} in {1}", t.rank, t.what)}{@render when(t.condition)}</li>{/each}</ul></dd></div>{/if}
+          {#if rules.sets.length}<div><dt>{tr("Passes on")}</dt><dd><ul>
+            {#each rules.sets as s}<li>{s.label}: {@render ref(s.uuid,nameFor(s))}</li>{/each}</ul></dd></div>{/if}
         </dl>
       {:else if rulesMissing}
-        <p class="rules-missing">No rule data was synced for this item, so the website can't see what it grants. Update the
-          PF2e Bridge in Foundry and run Sync Now.</p>
+        <p class="rules-missing">{tr("No rule data was synced for this item, so the website can't see what it grants. Update the PF2e Bridge in Foundry and run Sync Now.")}</p>
       {/if}
       <div class="inspector-footer">
-        <span>Displayed at character level <strong>{level}</strong>.</span>
-        <span>Level-based damage is estimated; no roll or Rule Elements are executed.</span>
+        <span>{tr("Displayed at character level")} <strong>{level}</strong>.</span>
+        <span>{tr("Level-based damage is estimated; no roll or Rule Elements are executed.")}</span>
       </div>
     </div>
   </div>
+  {#if zoom}
+    <div class="lightbox" role="dialog" aria-modal="true" aria-label={tr("Enlarged image")} tabindex="-1"
+      onclick={()=>zoom=null} onkeydown={e=>{if(e.key==='Escape')zoom=null;}}>
+      <img src={zoom.src} alt={zoom.alt}/>
+      <button type="button" class="close" aria-label={tr("Close image")} onclick={()=>zoom=null}>✕</button>
+    </div>
+  {/if}
   {#if hoverItem && hoverState==='ready'}
     <div class="hover-preview" role="tooltip" style:left={hoverPos.x+'px'} style:top={hoverPos.y+'px'}>
-      <div class="eyebrow">{hoverItem.type} · Level {hoverItem.level??'—'}</div>
+      <div class="eyebrow">{tr("{0} · Level {1}", hoverItem.type, hoverItem.level??'—')}</div>
       <strong>{hoverItem.name}</strong>
-      <p>{hoverItem.metadata?.prerequisites?.length?'Prerequisites: '+hoverItem.metadata.prerequisites.join(', '):''}</p>
-      <small>Click to open · Ctrl+click for a separate window</small>
+      <p>{hoverItem.metadata?.prerequisites?.length?tr('Prerequisites: {0}',hoverItem.metadata.prerequisites.join(', ')):''}</p>
+      <small>{tr("Click to open · Ctrl+click for a separate window")}</small>
     </div>
   {:else if hoverState==='unavailable'}
     <div class="hover-preview" role="tooltip" style:left={hoverPos.x+'px'} style:top={hoverPos.y+'px'}>
-      This reference is not in the selected compendium import.
+      {tr("This reference is not in the selected compendium import.")}
     </div>
   {/if}
 {:else}
   <div class="inspector-empty">
     <span class="spark">✧</span>
-    <h3>Explore an option</h3>
-    <p>Select a feat, feature, item or link to see its rules here. Hover linked references for a quick preview.</p>
+    <h3>{tr("Explore an option")}</h3>
+    <p>{tr("Select a feat, feature, item or link to see its rules here. Hover linked references for a quick preview.")}</p>
   </div>
 {/if}
+<svelte:window onkeydown={e=>{if(zoom&&e.key==='Escape')zoom=null;}}/>
 <style>
+  .lightbox{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:24px;background:rgb(0 0 0 / .78);cursor:zoom-out}
+  .lightbox img{width:min(88vw,82vh,720px);max-height:88vh;height:auto;object-fit:contain;border-radius:8px;
+    box-shadow:0 12px 40px rgb(0 0 0 / .5);background:var(--panel-2);image-rendering:auto}
+  .lightbox .close{position:absolute;top:max(12px,env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));
+    width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:1rem}
+  .description :global(img){cursor:zoom-in}
   .inspector{height:100%;display:flex;flex-direction:column;min-width:0;color:var(--text)}
   .inspector-bar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;
     padding:.8rem 1.1rem;border-bottom:1px solid var(--line);background:var(--surface)}

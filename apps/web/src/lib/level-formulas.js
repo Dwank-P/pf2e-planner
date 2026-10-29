@@ -1,3 +1,4 @@
+import {tr} from './i18n/index.js';
 /**
  * Side-effect-free arithmetic evaluator for narrowly supported level formulas.
  * It does NOT execute JavaScript, PF2e Rule Elements, dice or actor macros.
@@ -70,7 +71,7 @@ export function renderLevelDescription(html,level) {
     const result=resolveDamageFormula(formula,level);
     if(result){
       marker.textContent='⚄ '+result.text;
-      marker.title='At character level '+level+': '+result.text+' • original: '+formula;
+      marker.title=tr('At character level {0}: {1} • original: {2}',level,result.text,formula);
     }
   }
   return root.innerHTML;

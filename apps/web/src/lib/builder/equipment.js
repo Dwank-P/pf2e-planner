@@ -1,3 +1,4 @@
+import {tr,labels} from '../i18n/index.js';
 /**
  * Equipment wishlist: items a player plans to buy, with the character level they
  * want them at. Stored in the character document's planner extras (not sent to
@@ -6,8 +7,8 @@
 const COIN_GP={pp:10,gp:1,sp:0.1,cp:0.01};
 // PF2e types, then the extra D&D 5e ones (5e armor is an 'equipment' item).
 const ITEM_TYPES=['weapon','armor','shield','equipment','consumable','backpack','treasure','kit','tool','loot','container'];
-export const TYPE_LABELS={weapon:'Weapon',armor:'Armor',shield:'Shield',equipment:'Worn & held',
-  consumable:'Consumable',backpack:'Container',treasure:'Treasure',kit:'Kit',tool:'Tool',loot:'Loot',container:'Container'};
+export const TYPE_LABELS=labels({weapon:'Weapon',armor:'Armor',shield:'Shield',equipment:'Worn & held',
+  consumable:'Consumable',backpack:'Container',treasure:'Treasure',kit:'Kit',tool:'Tool',loot:'Loot',container:'Container'});
 
 /** Price in gp (fractional), or null when the sync carried no price (Bridge < 0.11). */
 export function priceGp(item){

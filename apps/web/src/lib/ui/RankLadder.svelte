@@ -1,9 +1,10 @@
 <script>
+  import {tr} from '../i18n/index.js';
   /** PF2e proficiency rank as the T/E/M/L ladder (0 = untrained). */
   import {RANKS} from '../builder/rules.js';
   let {rank=0}=$props();
 </script>
-<span class="ladder" role="img" aria-label={RANKS[rank]??'Untrained'} title={RANKS[rank]??'Untrained'}>
+<span class="ladder" role="img" aria-label={RANKS[rank]??tr('Untrained')} title={RANKS[rank]??tr('Untrained')}>
   {#each ['T','E','M','L'] as letter,i}<i class:on={rank>i}>{letter}</i>{/each}
 </span>
 <style>

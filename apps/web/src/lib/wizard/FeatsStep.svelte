@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import OptionGrid from './OptionGrid.svelte';
   import {level1FeatSlots,featField} from '../builder/schema.js';
   import {setFeat,setFeatChoices} from '../builder/creation.js';
@@ -32,15 +33,15 @@
   }
 </script>
 <div class="feats">
-  <p class="muted">Level 1 grants {slots.length===1?'one feat':slots.length+' feats'} for this build.
-    {#if !slots.some(s=>s.slot==='class')&&creation.class} {creation.class.name}s take their first class feat at level 2.{/if}</p>
+  <p class="muted">{tr("Level 1 grants {0} for this build.", slots.length===1?tr('one feat'):slots.length+' feats')}
+    {#if !slots.some(s=>s.slot==='class')&&creation.class} {tr("{0}s take their first class feat at level 2.", creation.class.name)}{/if}</p>
   {#each slots as slot (slot.slot)}
     {@const chosen=creation[featField(slot.slot)]}
     {@const verdict=chosen?checkFeat(catalog.get(chosen.uuid)??chosen,state,{kind:kindOf(slot),featNames:names,currentUuid:chosen.uuid}):null}
     <section class="slot" class:open={open===slot.slot}>
       <button class="head" aria-expanded={open===slot.slot} onclick={()=>open=open===slot.slot?'':slot.slot}>
         <span class="kind eyebrow">{slot.label}</span>
-        <span class="value" class:unset={!chosen}>{chosen?.name??'Choose a feat'}</span>
+        <span class="value" class:unset={!chosen}>{chosen?.name??tr('Choose a feat')}</span>
         {#if verdict?.blocked}<small class="warn">⚠ {verdict.blocked}</small>{/if}
         <span class="state" aria-hidden="true">{chosen?'✓':'○'}</span>
       </button>
@@ -51,8 +52,8 @@
         <OptionGrid id={'feat-'+slot.slot} items={featOptions(catalog,kindOf(slot),creation)} selected={chosen?[chosen.uuid]:[]}
           onToggle={item=>pick(slot,item)} onInfo={item=>info(item.uuid)}
           check={item=>checkFeat(item,state,{kind:kindOf(slot),featNames:names,currentUuid:chosen?.uuid})}
-          detail={item=>item.metadata?.prerequisites?.length?'Requires '+item.metadata.prerequisites.join('; '):''}
-          placeholder={'Search '+slot.label.toLowerCase()+'s'} empty="No feats of this kind are in the synced compendiums."/>
+          detail={item=>item.metadata?.prerequisites?.length?tr('Requires {0}',item.metadata.prerequisites.join('; ')):''}
+          placeholder={tr('Search {0}',slot.label.toLowerCase())} empty={tr("No feats of this kind are in the synced compendiums.")}/>
       {/if}
     </section>
   {/each}

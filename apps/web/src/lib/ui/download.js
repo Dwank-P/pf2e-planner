@@ -1,7 +1,8 @@
+import {tr} from '../i18n/index.js';
 /** Fetch a JSON file and save it (works for same-site downloads and public exports alike). */
 export async function downloadJson(url,name){
   const response=await fetch(url,{credentials:'same-origin'});
-  if(!response.ok)throw Error('Export failed (HTTP '+response.status+')');
+  if(!response.ok)throw Error(tr('Export failed (HTTP {0})',response.status));
   const blob=new Blob([await response.text()],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);

@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../../../../lib/i18n/index.js';
   import ThemePicker from '../../../../lib/ThemePicker.svelte';
   import { onMount } from 'svelte';
 
@@ -35,70 +36,70 @@
     finally { loading = false; }
   }
   onMount(load);
-  const when = (seconds) => seconds ? new Date(seconds * 1000).toLocaleString() : 'Never';
+  const when = (seconds) => seconds ? new Date(seconds * 1000).toLocaleString() : tr('Never');
 </script>
 
-<svelte:head><title>Ruleset Sync Details — PF2e Planner</title></svelte:head>
+<svelte:head><title>{tr("Ruleset Sync Details — PF2e Planner")}</title></svelte:head>
 <main>
-  <nav><a href="/">← Back to campaigns</a> <button type="button" onclick={load} disabled={loading}>Refresh report</button> <ThemePicker/></nav>
-  <h1>Ruleset &amp; Synchronization</h1>
-  <p>Administrator view of what this site's SQLite database actually received from the Foundry bridge.</p>
+  <nav><a href="/">{tr("← Back to campaigns")}</a> <button type="button" onclick={load} disabled={loading}>{tr("Refresh report")}</button> <ThemePicker/></nav>
+  <h1>{tr("Ruleset & Synchronization")}</h1>
+  <p>{tr("Administrator view of what this site's SQLite database actually received from the Foundry bridge.")}</p>
   {#if loading}
-    <section>Loading received data…</section>
+    <section>{tr("Loading received data…")}</section>
   {:else if errorText}
     <section class="error" role="alert">{errorText}</section>
   {:else if !report?.synced}
-    <section><h2>No snapshot yet</h2><p>{report?.message || 'Sync the world from Foundry first.'}</p></section>
+    <section><h2>{tr("No snapshot yet")}</h2><p>{report?.message || tr('Sync the world from Foundry first.')}</p></section>
   {:else}
     <section>
       <div class="badges">
-        <span class="badge">{report.ruleset.systemId?.toUpperCase() || 'Unknown system'} {report.ruleset.systemVersion || '?'}</span>
-        <span class="badge">PF2e Leveler {report.ruleset.levelerVersion || 'unknown'}</span>
-        <span class="badge amber">{report.complete ? 'Selected packs imported' : 'Partial preview'}</span>
+        <span class="badge">{report.ruleset.systemId?.toUpperCase() || tr('Unknown system')} {report.ruleset.systemVersion || '?'}</span>
+        <span class="badge">{tr("PF2e Leveler {0}", report.ruleset.levelerVersion || 'unknown')}</span>
+        <span class="badge amber">{report.complete ? tr('Selected packs imported') : tr('Partial preview')}</span>
       </div>
-      <h2>Last accepted snapshot</h2>
+      <h2>{tr("Last accepted snapshot")}</h2>
       <div class="stats">
-        <div><strong>{report.totals.classes}</strong><span>Class items saved</span></div>
-        <div><strong>{report.totals.feats}</strong><span>Feat entries saved</span></div>
-        <div><strong>{report.totals.savedItems}</strong><span>Total saved items</span></div>
+        <div><strong>{report.totals.classes}</strong><span>{tr("Class items saved")}</span></div>
+        <div><strong>{report.totals.feats}</strong><span>{tr("Feat entries saved")}</span></div>
+        <div><strong>{report.totals.savedItems}</strong><span>{tr("Total saved items")}</span></div>
       </div>
       <dl class="metadata">
-        <dt>Last received</dt><dd>{when(report.updatedAt)}</dd>
-        <dt>World ID</dt><dd><code>{report.ruleset.worldId || 'Unknown'}</code></dd>
-        <dt>Snapshot ID</dt><dd><code>{report.snapshotId}</code></dd>
-        <dt>Stored SHA-256</dt><dd><code>{report.sha256}</code></dd>
-        <dt>Schema version</dt><dd>{report.schemaVersion}</dd>
+        <dt>{tr("Last received")}</dt><dd>{when(report.updatedAt)}</dd>
+        <dt>{tr("World ID")}</dt><dd><code>{report.ruleset.worldId || tr('Unknown')}</code></dd>
+        <dt>{tr("Snapshot ID")}</dt><dd><code>{report.snapshotId}</code></dd>
+        <dt>{tr("Stored SHA-256")}</dt><dd><code>{report.sha256}</code></dd>
+        <dt>{tr("Schema version")}</dt><dd>{report.schemaVersion}</dd>
       </dl>
       {#if report.variants}
-        <h3>Campaign variant rules</h3>
+        <h3>{tr("Campaign variant rules")}</h3>
         <div class="chips">
           {#each Object.entries(report.variants) as [key,value]}
-            <span class="chip">{key.replace(/([A-Z])/g,' $1')}: <strong>{value === null ? 'Unknown' : String(value)}</strong></span>
+            <span class="chip">{key.replace(/([A-Z])/g,' $1')}: <strong>{value === null ? tr('Unknown') : String(value)}</strong></span>
           {/each}
         </div>
       {/if}
       {#if report.itemTypes?.length}
-        <h3>Imported Item types</h3>
+        <h3>{tr("Imported Item types")}</h3>
         <div class="chips">
           {#each report.itemTypes as itemType}
             <span class="chip">{itemType.type}: <strong>{itemType.count}</strong></span>
           {/each}
         </div>
       {/if}
-      <h3>Import coverage &amp; limitations</h3>
+      <h3>{tr("Import coverage & limitations")}</h3>
       <ul>{#each report.limits as limit}<li>{limit}</li>{/each}</ul>
-      {#if report.note}<p class="muted">Bridge note: {report.note}</p>{/if}
+      {#if report.note}<p class="muted">{tr("Bridge note: {0}", report.note)}</p>{/if}
     </section>
     <section>
-      <h2>Source compendiums</h2>
-      <p>These pack names were derived from the UUIDs actually saved in this snapshot.</p>
+      <h2>{tr("Source compendiums")}</h2>
+      <p>{tr("These pack names were derived from the UUIDs actually saved in this snapshot.")}</p>
       <div class="cols">
-        <div><h3>Classes</h3>
+        <div><h3>{tr("Classes")}</h3>
           {#each report.sources.classes as source}
             <div class="metric"><code>{source.label}</code><strong>{source.count}</strong></div>
           {/each}
         </div>
-        <div><h3>Feats</h3>
+        <div><h3>{tr("Feats")}</h3>
           {#each report.sources.feats as source}
             <div class="metric"><code>{source.label}</code><strong>{source.count}</strong></div>
           {/each}
@@ -106,11 +107,11 @@
       </div>
     </section>
     <section>
-      <h2>Class progression received ({report.classes?.length ?? 0})</h2>
-      <p>Based on the actual Foundry class Item schedules, not predefined website class names.</p>
+      <h2>{tr("Class progression received ({0})", report.classes?.length ?? 0)}</h2>
+      <p>{tr("Based on the actual Foundry class Item schedules, not predefined website class names.")}</p>
       <div class="scroll">
         <table>
-          <thead><tr><th>Class</th><th>Class feats</th><th>Skill feats</th><th>General feats</th><th>Skill increases</th></tr></thead>
+          <thead><tr><th>{tr("Class")}</th><th>{tr("Class feats")}</th><th>{tr("Skill feats")}</th><th>{tr("General feats")}</th><th>{tr("Skill increases")}</th></tr></thead>
           <tbody>
             {#each report.classes || [] as cls (cls.uuid)}
               <tr>
@@ -127,29 +128,29 @@
     </section>
     {#if report.complete}
       <section>
-        <h2>Compendium Feat Browser</h2>
-        <p>All synchronized feat Items from the selected compendiums are available with descriptions and filters.</p>
-        <a class="badge" href={'/campaigns/' + encodeURIComponent(window.location.pathname.split('/')[2]) + '/feats'}>Browse feats &amp; descriptions →</a>
+        <h2>{tr("Compendium Feat Browser")}</h2>
+        <p>{tr("All synchronized feat Items from the selected compendiums are available with descriptions and filters.")}</p>
+        <a class="badge" href={'/campaigns/' + encodeURIComponent(window.location.pathname.split('/')[2]) + '/feats'}>{tr("Browse feats & descriptions →")}</a>
       </section>
     {:else}
     <section>
-      <h2>Feat metadata received ({report.feats?.length ?? 0})</h2>
-      <p>This is a searchable view of the first 1,000 indexed feat entries received. It is not the complete feats catalogue.</p>
+      <h2>{tr("Feat metadata received ({0})", report.feats?.length ?? 0)}</h2>
+      <p>{tr("This is a searchable view of the first 1,000 indexed feat entries received. It is not the complete feats catalogue.")}</p>
       <div class="filters">
-        <label>Search <input type="search" placeholder="Name, slug or UUID" bind:value={searchText} oninput={() => page = 1}/></label>
-        <label>Feat level
+        <label>{tr("Search")} <input type="search" placeholder={tr("Name, slug or UUID")} bind:value={searchText} oninput={() => page = 1}/></label>
+        <label>{tr("Feat level")}
           <select bind:value={featLevel} onchange={() => page = 1}>
-            <option value="all">All levels</option>
+            <option value="all">{tr("All levels")}</option>
             {#each report.featLevels as level}
               <option value={level.label}>{level.label}</option>
             {/each}
           </select>
         </label>
       </div>
-      <p class="muted">{filteredFeats.length} matching entries · Page {Math.min(page,maxPage)} of {maxPage}</p>
+      <p class="muted">{tr("{0} matching entries · Page {1} of {2}", filteredFeats.length, Math.min(page,maxPage), maxPage)}</p>
       <div class="scroll">
         <table>
-          <thead><tr><th>Feat</th><th>Level</th><th>Rarity</th><th>Compendium UUID</th></tr></thead>
+          <thead><tr><th>{tr("Feat")}</th><th>{tr("Level")}</th><th>{tr("Rarity")}</th><th>{tr("Compendium UUID")}</th></tr></thead>
           <tbody>
             {#each visibleFeats as feat (feat.uuid)}
               <tr><td><strong>{feat.name}</strong></td><td>{feat.level ?? '—'}</td>
@@ -159,12 +160,12 @@
         </table>
       </div>
       <div class="pagination">
-        <button type="button" disabled={page<=1} onclick={() => page--}>Previous</button>
-        <button type="button" disabled={page>=maxPage} onclick={() => page++}>Next</button>
+        <button type="button" disabled={page<=1} onclick={() => page--}>{tr("Previous")}</button>
+        <button type="button" disabled={page>=maxPage} onclick={() => page++}>{tr("Next")}</button>
       </div>
-      <h3>Feat level distribution</h3>
-      <div class="chips">{#each report.featLevels as level}<span class="chip">Level {level.label}: {level.count}</span>{/each}</div>
-      <h3>Rarities</h3>
+      <h3>{tr("Feat level distribution")}</h3>
+      <div class="chips">{#each report.featLevels as level}<span class="chip">{tr("Level {0}: {1}", level.label, level.count)}</span>{/each}</div>
+      <h3>{tr("Rarities")}</h3>
       <div class="chips">{#each report.featRarities as rarity}<span class="chip">{rarity.label}: {rarity.count}</span>{/each}</div>
     </section>
     {/if}

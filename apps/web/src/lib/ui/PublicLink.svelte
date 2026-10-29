@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   /** A character's public view link: create, copy, replace or turn off. onChange('on'|'regenerate'|'off'). */
   let {token=null,busy=false,onChange}=$props();
   let copied=$state(false);
@@ -8,16 +9,15 @@
   }
 </script>
 <section class="group">
-  <h3>Public link</h3>
-  <p class="hint">Anyone with the link can view the build without signing in, and can read the items it uses (not
-    follow links in their text). Another planner can import the character from it, too.</p>
+  <h3>{tr("Public link")}</h3>
+  <p class="hint">{tr("Anyone with the link can view the build without signing in, and can read the items it uses (not follow links in their text). Another planner can import the character from it, too.")}</p>
   {#if token}
-    <div class="linkrow"><input readonly value={link} aria-label="Public link" onfocus={e=>e.currentTarget.select()}/>
-      <button class="btn small" onclick={copy}>{copied?'Copied':'Copy'}</button></div>
-    <div class="row"><button class="btn small ghost" disabled={busy} onclick={()=>onChange('regenerate')}>New link</button>
-      <button class="btn small ghost danger" disabled={busy} onclick={()=>onChange('off')}>Turn off</button></div>
+    <div class="linkrow"><input readonly value={link} aria-label={tr("Public link")} onfocus={e=>e.currentTarget.select()}/>
+      <button class="btn small" onclick={copy}>{copied?tr('Copied'):tr('Copy')}</button></div>
+    <div class="row"><button class="btn small ghost" disabled={busy} onclick={()=>onChange('regenerate')}>{tr("New link")}</button>
+      <button class="btn small ghost danger" disabled={busy} onclick={()=>onChange('off')}>{tr("Turn off")}</button></div>
   {:else}
-    <button class="btn small" disabled={busy} onclick={()=>onChange('on')}>Create a public link</button>
+    <button class="btn small" disabled={busy} onclick={()=>onChange('on')}>{tr("Create a public link")}</button>
   {/if}
 </section>
 <style>

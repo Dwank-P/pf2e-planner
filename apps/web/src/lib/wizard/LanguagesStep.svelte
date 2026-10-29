@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import {languageAllowance,attributeModifiers,titleCase} from '../builder/rules.js';
   import {toggleListValue} from '../builder/creation.js';
   import {languageRarityMap} from './options.js';
@@ -17,34 +18,34 @@
 <div class="langs">
   <div class="counter" class:met={chosen.length===allowance.count&&allowance.count>0} class:over={chosen.length>allowance.count}>
     <b class="num">{chosen.length}<span>/{allowance.count}</span></b>
-    <span><strong>{!allowance.count?'No extra languages':chosen.length>allowance.count?'Over your allowance':
-      chosen.length===allowance.count?'All chosen':(allowance.count-chosen.length)+' left to choose'}</strong>
-      <small class="muted">You speak {allowance.granted.map(titleCase).join(', ')||'your ancestry’s languages'}. Extra languages come from your ancestry and Intelligence.</small></span>
+    <span><strong>{!allowance.count?tr('No extra languages'):chosen.length>allowance.count?tr('Over your allowance'):
+      chosen.length===allowance.count?tr('All chosen'):(allowance.count-chosen.length)+tr(' left to choose')}</strong>
+      <small class="muted">{tr("You speak {0}. Extra languages come from your ancestry and Intelligence.", allowance.granted.map(titleCase).join(', ')||tr('your ancestry’s languages'))}</small></span>
   </div>
   <div class="toggles">
     {#each ['uncommon','rare','secret'] as r}
       {#if groups.some(g=>g.rarity===r)}
-        <label><input type="checkbox" bind:checked={show[r]}/> Show {r}</label>
+        <label><input type="checkbox" bind:checked={show[r]}/> {tr("Show {0}", titleCase(r))}</label>
       {/if}
     {/each}
-    {#if !variants?.languages}<small class="muted">Rarities follow the PF2e remaster until the GM syncs with Bridge 0.9.</small>{/if}
+    {#if !variants?.languages}<small class="muted">{tr("Rarities follow the PF2e remaster until the GM syncs with Bridge 0.9.")}</small>{/if}
   </div>
   {#each groups as group (group.rarity)}
     {#if visible(group)||group.languages.some(l=>chosen.includes(l)||allowance.options.includes(l))}
       <section class="group">
-        <span class="eyebrow">{group.rarity}</span>
+        <span class="eyebrow">{titleCase(group.rarity)}</span>
         <div class="list">
           {#each group.languages.filter(l=>visible(group)||chosen.includes(l)||allowance.options.includes(l)) as language}
             {@const on=chosen.includes(language)}
             <button class="lang {group.rarity}" class:on aria-pressed={on}
               onclick={()=>update(c=>toggleListValue(c,'languages',language,99))}>{titleCase(language)}
-              {#if allowance.options.includes(language)}<small>ancestry</small>{/if}</button>
+              {#if allowance.options.includes(language)}<small>{tr("ancestry")}</small>{/if}</button>
           {/each}
         </div>
       </section>
     {/if}
   {/each}
-  {#if chosen.length>allowance.count}<p class="notice warn">That’s {chosen.length-allowance.count} more than your level-1 allowance. Fine for planning; you’ll need a feat or GM approval for the extra.</p>{/if}
+  {#if chosen.length>allowance.count}<p class="notice warn">{tr("That’s {0} more than your level-1 allowance. Fine for planning; you’ll need a feat or GM approval for the extra.", chosen.length-allowance.count)}</p>{/if}
 </div>
 <style>
   .langs{display:grid;gap:12px}

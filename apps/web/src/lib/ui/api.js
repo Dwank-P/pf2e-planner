@@ -1,3 +1,4 @@
+import {tr} from '../i18n/index.js';
 /** Same-origin JSON API calls with plain-language errors. */
 const MESSAGES={
   login_required:'Your session has ended. Sign in again.',
@@ -57,7 +58,7 @@ const MESSAGES={
   picture_too_large:'That picture is too large even after compressing. Try a simpler image.'
 };
 export class ApiError extends Error{
-  constructor(code,status){super(MESSAGES[code]??code??'Request failed (HTTP '+status+')');this.code=code;this.status=status;}
+  constructor(code,status){super(MESSAGES[code]?tr(MESSAGES[code]):code??tr('Request failed (HTTP {0})',status));this.code=code;this.status=status;}
 }
 export async function api(path,{method='GET',body}={}){
   // Changes always send JSON: SvelteKit treats a body-less DELETE as a form post and may block it.
@@ -71,10 +72,10 @@ export async function api(path,{method='GET',body}={}){
 }
 export const campaignPath=(id,rest='')=>'/campaigns/'+encodeURIComponent(id)+rest;
 export function timeAgo(seconds){
-  if(!seconds)return 'never';
+  if(!seconds)return tr('never');
   const diff=Math.max(0,Date.now()/1000-seconds);
-  if(diff<90)return 'just now';
-  if(diff<3600)return Math.round(diff/60)+' min ago';
-  if(diff<86400)return Math.round(diff/3600)+' h ago';
-  return Math.round(diff/86400)+' days ago';
+  if(diff<90)return tr('just now');
+  if(diff<3600)return tr('{0} min ago',Math.round(diff/60));
+  if(diff<86400)return tr('{0} h ago',Math.round(diff/3600));
+  return tr('{0} days ago',Math.round(diff/86400));
 }

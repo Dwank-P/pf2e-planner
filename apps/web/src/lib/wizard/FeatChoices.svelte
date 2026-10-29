@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import OptionGrid from './OptionGrid.svelte';
   import {choiceSetsFor,setChoice} from '../builder/choice-sets.js';
   /**
@@ -22,10 +23,10 @@
       {@const chosen=labelOf(set)}
       <div class="choice" class:nested={set.depth>0}>
         <span class="text"><span class="eyebrow">{set.prompt}{set.depth>0?' · '+set.source.name:''}</span>
-          <b class:unset={!chosen}>{chosen??'Not chosen'}</b></span>
+          <b class:unset={!chosen}>{chosen??tr('Not chosen')}</b></span>
         {#if !readonly}
           {#if set.itemOptions&&set.options.length>8}
-            <button class="btn small ghost" onclick={()=>open=open===set.flag?null:set.flag}>{open===set.flag?'Close':chosen?'Change':'Choose'}</button>
+            <button class="btn small ghost" onclick={()=>open=open===set.flag?null:set.flag}>{open===set.flag?tr('Close'):chosen?tr('Change'):tr('Choose')}</button>
           {:else}
             <select aria-label={set.prompt} value={set.value??''} onchange={e=>pick(set.flag,e.currentTarget.value||null)}>
               <option value="">—</option>
@@ -34,17 +35,17 @@
           {/if}
         {/if}
         {#if chosen&&set.itemOptions}{@const o=set.options.find(o=>String(o.value)===String(set.value))}
-          {#if o?.uuid}<button class="link" onclick={()=>info(o.uuid)}>Details</button>{/if}{/if}
+          {#if o?.uuid}<button class="link" onclick={()=>info(o.uuid)}>{tr("Details")}</button>{/if}{/if}
       </div>
       {#if open===set.flag}
         <OptionGrid id={'choice-'+set.flag} items={set.options.map(o=>catalog.get(o.uuid)).filter(Boolean)}
           selected={set.value?[set.options.find(o=>String(o.value)===String(set.value))?.uuid].filter(Boolean):[]}
           onToggle={it=>{const o=set.options.find(x=>x.uuid===it.uuid);pick(set.flag,String(o?.value)===String(set.value)?null:o?.value);}}
-          onInfo={it=>info(it.uuid)} placeholder={'Search: '+set.prompt}/>
+          onInfo={it=>info(it.uuid)} placeholder={tr('Search: {0}',set.prompt)}/>
       {/if}
     {/each}
     {#if result.grants.length}
-      <p class="grants">Grants {#each result.grants as g,i}{i?', ':''}<button class="link" onclick={()=>info(g.uuid)}>{g.name}</button>{/each}</p>
+      <p class="grants">{tr("Grants")} {#each result.grants as g,i}{i?', ':''}<button class="link" onclick={()=>info(g.uuid)}>{g.name}</button>{/each}</p>
     {/if}
   </div>
 {/if}

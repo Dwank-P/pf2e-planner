@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import OptionGrid from './OptionGrid.svelte';
   import BoostsStep from './BoostsStep.svelte';
   import SkillsStep from './SkillsStep.svelte';
@@ -54,7 +55,7 @@
   };
   const ancestryDetail=item=>{
     const r=item.metadata?.rules??{};
-    return [r.hp?'HP '+r.hp:'',r.speed?r.speed+' ft':'',titleCase(r.size??'')].filter(Boolean).join(' · ');
+    return [r.hp?tr('HP')+' '+r.hp:'',r.speed?tr('{0} ft.',r.speed):'',r.size==='med'?tr('Medium|size'):titleCase(r.size??'')].filter(Boolean).join(' · ');
   };
   const deityDetail=item=>{
     const r=item.metadata?.rules??{};
@@ -69,7 +70,7 @@
       case 'ancestry':return {items:catalog.ofType('ancestry'),picked:creation.ancestry,detail:ancestryDetail,
         set:item=>C.setAncestry(creation,item),hint:'Your ancestry sets your Hit Points, size, speed and starting languages.'};
       case 'heritage':return {items:heritagesFor(catalog,creation),picked:creation.heritage,
-        set:item=>C.setHeritage(creation,item),hint:creation.ancestry?`Heritages for ${creation.ancestry.name}, plus versatile heritages anyone can take.`:'Choose an ancestry first.'};
+        set:item=>C.setHeritage(creation,item),hint:creation.ancestry?tr('Heritages for {0}, plus versatile heritages anyone can take.',creation.ancestry.name):tr('Choose an ancestry first.')};
       case 'background':return {items:catalog.ofType('background'),picked:creation.background,
         detail:item=>(item.metadata?.trainedSkills??[]).map(titleCase).join(', '),
         set:item=>C.setBackground(creation,item),hint:'Your background adds two attribute boosts, a trained skill, a Lore skill and a skill feat.'};
@@ -87,7 +88,7 @@
         const items=def.source.type==='deity'?catalog.ofType('deity')
           :taggedItems(catalog,def.source.tags??[],def.source.type??null);
         if(def.pick>1)return {items,multi:def.pick,picked:bucket[def.key]??[],
-          set:item=>C.toggleHandlerItem(creation,def.key,item,def.pick,target),hint:`Choose ${def.pick}.`};
+          set:item=>C.toggleHandlerItem(creation,def.key,item,def.pick,target),hint:tr('Choose {0}.',def.pick)};
         return {items,picked:bucket[def.key],set:item=>C.setHandlerItem(creation,def.key,item,target)};
       }
     }
@@ -111,16 +112,16 @@
   }
 </script>
 {#snippet backgroundFilters()}
-  <div class="bg-boosts" role="group" aria-label="Attribute boost">
+  <div class="bg-boosts" role="group" aria-label={tr("Attribute boost")}>
     {#each ATTRIBUTES as a}<button class:on={bgBoosts.includes(a)} aria-pressed={bgBoosts.includes(a)}
       onclick={()=>bgBoosts=bgBoosts.includes(a)?bgBoosts.filter(x=>x!==a):[...bgBoosts,a]}>{a.toUpperCase()}</button>{/each}
   </div>
-  <select aria-label="Trained skill" bind:value={bgSkill}>
-    <option value="">Any trained skill</option>
+  <select aria-label={tr("Trained skill")} bind:value={bgSkill}>
+    <option value="">{tr("Any trained skill")}</option>
     {#each SKILLS as s}<option value={s}>{titleCase(s)}</option>{/each}
   </select>
-  <input type="search" aria-label="Granted feat" placeholder="Granted feat…" bind:value={bgFeat}/>
-  {#if bgBoosts.length||bgSkill||bgFeat}<button class="link" onclick={()=>{bgBoosts=[];bgSkill='';bgFeat='';}}>Clear filters</button>{/if}
+  <input type="search" aria-label={tr("Granted feat")} placeholder={tr("Granted feat…")} bind:value={bgFeat}/>
+  {#if bgBoosts.length||bgSkill||bgFeat}<button class="link" onclick={()=>{bgBoosts=[];bgSkill='';bgFeat='';}}>{tr("Clear filters")}</button>{/if}
 {/snippet}
 <div class="step">
   {#if choice}
@@ -128,8 +129,8 @@
     <OptionGrid id={step.id} items={choice.items} {selected} max={choice.multi??1}
       onToggle={pick} onInfo={item=>info(item.uuid)} detail={choice.detail??(()=> '')}
       test={id==='background'?backgroundTest:null} filters={id==='background'?backgroundFilters:undefined}
-      placeholder={id==='deity'?'Search '+choice.items.length+' deities by name, domain, skill or weapon':'Search '+choice.items.length+' options'}
-      empty={'No options for this step are in the synced compendiums. Ask the GM to include the right packs in Leveler’s Compendium Manager, and to check none are hidden in campaign settings.'}/>
+      placeholder={id==='deity'?tr('Search {0} deities by name, domain, skill or weapon',choice.items.length):tr('Search {0} options',choice.items.length)}
+      empty={tr('No options for this step are in the synced compendiums. Ask the GM to include the right packs in Leveler’s Compendium Manager, and to check none are hidden in campaign settings.')}/>
     {#if originKey&&choice.picked?.uuid}
       <!-- Choices the picked origin or specialization asks for, and those of what it grants. -->
       <FeatChoices entry={{uuid:choice.picked.uuid,choices:C.originChoices(creation,originKey,choice.picked.uuid)}} {catalog}
@@ -137,43 +138,43 @@
         onChange={choices=>update(c=>C.setOriginChoices(c,originKey,choice.picked.uuid,choices))}/>
     {/if}
   {:else if id==='sanctification'}
-    <p class="muted">{bucket.deity?.name} allows {sanctOptions.join(' or ')} sanctification{bucket.deity?.sanctification?.modal==='must'?'':' (or none)'}.</p>
+    <p class="muted">{tr("{0} allows {1} sanctification{2}.", bucket.deity?.name, sanctOptions.join(' or '), bucket.deity?.sanctification?.modal==='must'?'':tr(' (or none)'))}</p>
     <div class="choices">
       {#if bucket.deity?.sanctification?.modal!=='must'}
-        <button class:on={bucket.sanctification==='none'} onclick={()=>update(c=>C.setSanctification(c,'none',target))}>None</button>
+        <button class:on={bucket.sanctification==='none'} onclick={()=>update(c=>C.setSanctification(c,'none',target))}>{tr("None")}</button>
       {/if}
       {#each sanctOptions as value}
         <button class:on={bucket.sanctification===value} onclick={()=>update(c=>C.setSanctification(c,value,target))}>{titleCase(value)}</button>
       {/each}
     </div>
   {:else if id==='divineFont'}
-    <p class="muted">{bucket.deity?.name} grants either font. Choose the one you'll prepare.</p>
+    <p class="muted">{tr("{0} grants either font. Choose the one you'll prepare.", bucket.deity?.name)}</p>
     <div class="choices">
       {#each fontOptions as value}
-        <button class:on={bucket.divineFont===value} onclick={()=>update(c=>C.setDivineFont(c,value,target))}>{value==='healing'?'Heal (healing font)':'Harm (harmful font)'}</button>
+        <button class:on={bucket.divineFont===value} onclick={()=>update(c=>C.setDivineFont(c,value,target))}>{value==='healing'?tr('Heal (healing font)'):tr('Harm (harmful font)')}</button>
       {/each}
     </div>
   {:else if id==='kineticGate'}
-    <p class="muted">Channel one element deeply, or open a second gate.</p>
+    <p class="muted">{tr("Channel one element deeply, or open a second gate.")}</p>
     <div class="choices">
-      <button class:on={bucket.kineticGateMode==='single-gate'} onclick={()=>update(c=>C.setKineticGateMode(c,'single-gate',target))}>Single gate</button>
-      <button class:on={bucket.kineticGateMode==='dual-gate'} onclick={()=>update(c=>C.setKineticGateMode(c,'dual-gate',target))}>Dual gate</button>
+      <button class:on={bucket.kineticGateMode==='single-gate'} onclick={()=>update(c=>C.setKineticGateMode(c,'single-gate',target))}>{tr("Single gate")}</button>
+      <button class:on={bucket.kineticGateMode==='dual-gate'} onclick={()=>update(c=>C.setKineticGateMode(c,'dual-gate',target))}>{tr("Dual gate")}</button>
     </div>
     {#if bucket.kineticGateMode==='dual-gate'}
-      <h3>Second element</h3>
+      <h3>{tr("Second element")}</h3>
       <OptionGrid id="second-element" items={elements} selected={bucket.secondElement?[bucket.secondElement.uuid]:[]}
         onToggle={item=>update(c=>C.setHandlerItem(c,'secondElement',bucket.secondElement?.uuid===item.uuid?null:item,target))}
         onInfo={item=>info(item.uuid)}/>
     {/if}
     {#if bucket.kineticGateMode}
-      <h3>Two impulses</h3>
+      <h3>{tr("Two impulses")}</h3>
       <OptionGrid id="impulses" items={impulses} selected={(bucket.kineticImpulses??[]).map(i=>i.uuid)} max={2}
         onToggle={item=>update(c=>C.toggleHandlerItem(c,'kineticImpulses',item,2,target,
           {element:(item.traits??[]).find(t=>[element(subclass),element(bucket.secondElement)].includes(t))??null}))}
-        onInfo={item=>info(item.uuid)} empty="No level-1 impulses for your elements are synced."/>
+        onInfo={item=>info(item.uuid)} empty={tr("No level-1 impulses for your elements are synced.")}/>
     {/if}
   {:else if step.def?.kind==='foundryOnly'}
-    <p class="notice">Innovation details (base item and modification) are chosen in Leveler’s Character Wizard in Foundry. Pull this build into Foundry and finish there.</p>
+    <p class="notice">{tr("Innovation details (base item and modification) are chosen in Leveler’s Character Wizard in Foundry. Pull this build into Foundry and finish there.")}</p>
   {:else if id==='boosts'}
     <BoostsStep {creation} lookup={catalog.get} {update}/>
   {:else if id==='skills'}
@@ -181,7 +182,7 @@
   {:else if id==='feats'}
     <FeatsStep {creation} {plan} {catalog} {variants} {update} {info}/>
   {:else if id==='grants'}
-    <p class="muted">Choices your class and feats grant. Leveler adds them to the character when you apply the wizard in Foundry.</p>
+    <p class="muted">{tr("Choices your class and feats grant. Leveler adds them to the character when you apply the wizard in Foundry.")}</p>
     <div class="grants"><GrantsPanel requirements={creationGrantRequirements(creation,catalog.get)} store={creation} {catalog} level={1}
       maxLevelCap={1} taken={takenFormulas(creation,plan)} {info}
       onToggle={(requirement,item)=>update(c=>toggleGrantSelection(c,requirement,item))}/></div>
@@ -190,9 +191,9 @@
   {:else if id==='spells'}
     <SpellsStep {creation} {plan} {catalog} {update} {info} {target}/>
   {:else if id==='equipment'}
-    <p class="muted">Optional: note starting gear. Leveler adds it to the actor when you apply the wizard in Foundry.</p>
+    <p class="muted">{tr("Optional: note starting gear. Leveler adds it to the actor when you apply the wizard in Foundry.")}</p>
     <OptionGrid id="equipment" items={equipmentOptions(catalog)} selected={(creation.equipment??[]).map(e=>e.uuid)} max={60}
-      onToggle={item=>update(c=>C.toggleEquipment(c,item))} onInfo={item=>info(item.uuid)} placeholder="Search level 0–1 gear"/>
+      onToggle={item=>update(c=>C.toggleEquipment(c,item))} onInfo={item=>info(item.uuid)} placeholder={tr("Search level 0–1 gear")}/>
   {:else if id==='review'}
     <ReviewStep {steps} {creation} {go} {onPlan}/>
   {/if}

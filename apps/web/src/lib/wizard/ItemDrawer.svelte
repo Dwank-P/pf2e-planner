@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import ItemInspector from '../ItemInspector.svelte';
   import {api} from '../ui/api.js';
   /** Side drawer with an item's full rules text; follows inline links with a back history. */
@@ -22,14 +23,14 @@
 </script>
 {#if uuid}
   <div class="scrim" role="presentation" onclick={onClose}></div>
-  <aside class="drawer" aria-label="Item details">
+  <aside class="drawer" aria-label={tr("Item details")}>
     {#if error}
-      <div class="pad"><p class="notice bad">{error}</p><button class="btn" onclick={onClose}>Close</button></div>
+      <div class="pad"><p class="notice bad">{error}</p><button class="btn" onclick={onClose}>{tr("Close")}</button></div>
     {:else if current}
       <ItemInspector item={current} {level} campaignId={campaignId??''} {catalogBase} {linksDisabled} {variants} canBack={stack.length>1}
         onOpen={item=>stack=[...stack,item]} onBack={()=>stack=stack.slice(0,-1)} onClose={onClose}/>
     {:else}
-      <div class="pad muted">Loading…</div>
+      <div class="pad muted">{tr("Loading…")}</div>
     {/if}
   </aside>
 {/if}

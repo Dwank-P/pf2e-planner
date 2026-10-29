@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   /** A character's picture. Editors (onEdit set) click it to change it, or the empty slot to add one. */
   let {src=null,size=56,name='',onEdit=null}=$props();
   let failed=$state(false);
@@ -7,11 +8,11 @@
 </script>
 {#if onEdit}
   <button type="button" class="portrait edit" class:empty={!src||failed} style:--size={size+'px'} onclick={onEdit}
-    title={src?'Change picture':'Add a picture'} aria-label={src?'Change picture':'Add a picture'}>
+    title={src?tr('Change picture'):tr('Add a picture')} aria-label={src?tr('Change picture'):tr('Add a picture')}>
     {#if src&&!failed}<img {src} alt="" onerror={()=>failed=true}/>{:else}<span class="add">+</span>{/if}
   </button>
 {:else if src&&!failed}
-  <span class="portrait" style:--size={size+'px'}><img {src} alt={name?'Picture of '+name:''} onerror={()=>failed=true}/></span>
+  <span class="portrait" style:--size={size+'px'}><img {src} alt={name?tr('Picture of {0}',name):''} onerror={()=>failed=true}/></span>
 {:else if size<56}
   <span class="portrait empty initial" style:--size={size+'px'} aria-hidden="true">{initial}</span>
 {/if}

@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import {api,campaignPath} from '../ui/api.js';
   /** Copy a personal character into one of the player's campaigns (checked against its compendiums). */
   let {character,campaigns=[],onClose}=$props();
@@ -17,29 +18,27 @@
 </script>
 <div class="scrim" role="presentation" onclick={onClose}></div>
 <div class="dialog panel" role="dialog" aria-modal="true" aria-labelledby="copy-title">
-  <h2 id="copy-title">Copy into a campaign</h2>
+  <h2 id="copy-title">{tr("Copy into a campaign")}</h2>
   {#if result}
-    <p>Copied <b>{result.character.name}</b>. {result.report.matched+result.report.renamed} picks matched
-      {result.report.renamed?`(${result.report.renamed} by name)`:''}.</p>
+    <p>{tr("Copied")} <b>{result.character.name}</b>{tr(". {0} picks matched {1}.", result.report.matched+result.report.renamed, result.report.renamed?`(${result.report.renamed} by name)`:'')}</p>
     {#if result.report.missing.length}
-      <p class="notice">Not in that world’s compendiums, so left out: {result.report.missing.join(', ')}.</p>
+      <p class="notice">{tr("Not in that world’s compendiums, so left out: {0}.", result.report.missing.join(', '))}</p>
     {/if}
     {#if result.report.variantDifferences.length}
-      <p class="notice">The campaign’s rules apply: {result.report.variantDifferences.join('; ')}.</p>
+      <p class="notice">{tr("The campaign’s rules apply: {0}.", result.report.variantDifferences.join('; '))}</p>
     {/if}
-    <div class="row"><button class="btn ghost" onclick={onClose}>Close</button>
-      <a class="btn primary" href={campaignPath(result.character.campaignId,'/characters/'+result.character.id)}>Open it</a></div>
+    <div class="row"><button class="btn ghost" onclick={onClose}>{tr("Close")}</button>
+      <a class="btn primary" href={campaignPath(result.character.campaignId,'/characters/'+result.character.id)}>{tr("Open it")}</a></div>
   {:else if !options.length}
-    <p class="muted">You’re not in a {character.system==='dnd5e'?'D&D 5e':'PF2e/SF2e'} campaign.</p>
-    <div class="row"><button class="btn ghost" onclick={onClose}>Close</button></div>
+    <p class="muted">{tr("You’re not in a {0} campaign.", character.system==='dnd5e'?'D&D 5e':'PF2e/SF2e')}</p>
+    <div class="row"><button class="btn ghost" onclick={onClose}>{tr("Close")}</button></div>
   {:else}
-    <p class="hint">Makes a normal campaign character (the GM can see it, and it can go to Foundry). Each pick is matched
-      against the campaign’s compendiums; anything the world doesn’t have is left out. This character stays as it is.</p>
-    <label class="field" for="copy-target">Campaign
+    <p class="hint">{tr("Makes a normal campaign character (the GM can see it, and it can go to Foundry). Each pick is matched against the campaign’s compendiums; anything the world doesn’t have is left out. This character stays as it is.")}</p>
+    <label class="field" for="copy-target">{tr("Campaign")}
       <select id="copy-target" bind:value={target}>{#each options as c}<option value={c.id}>{c.title}</option>{/each}</select></label>
     {#if error}<p class="notice bad" role="alert">{error}</p>{/if}
-    <div class="row"><button class="btn ghost" onclick={onClose}>Cancel</button>
-      <button class="btn primary" disabled={busy||!target} onclick={copy}>{busy?'Copying…':'Copy'}</button></div>
+    <div class="row"><button class="btn ghost" onclick={onClose}>{tr("Cancel")}</button>
+      <button class="btn primary" disabled={busy||!target} onclick={copy}>{busy?tr('Copying…'):tr('Copy')}</button></div>
   {/if}
 </div>
 <style>

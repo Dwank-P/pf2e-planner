@@ -1,4 +1,6 @@
 <script>
+  import {tr} from '../i18n/index.js';
+  import LanguagePicker from './LanguagePicker.svelte';
   /** Centered card for sign-in, setup and invitation screens. */
   let {title,subtitle='',children,footer}=$props();
 </script>
@@ -9,6 +11,7 @@
     {@render children()}
   </div>
   {#if footer}<div class="footer">{@render footer()}</div>{/if}
+  <LanguagePicker/>
 </main>
 <style>
   .auth{min-height:100vh;display:grid;place-content:center;gap:16px;

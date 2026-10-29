@@ -9,6 +9,7 @@
  * Leveler's planner does).
  */
 
+import {tr} from '../i18n/index.js';
 import {effectsOf} from './granted.js';
 import {SKILLS,titleCase} from './rules.js';
 
@@ -148,7 +149,7 @@ function fallbackSets(source,choices,ctx,seenFlags){
     seenFlags.add(flag);
     const options=SKILLS.filter(s=>s===choices?.[flag]||(!ctx.trainedBefore.has(s)&&!trains.includes(s)))
       .map(s=>({value:s,label:titleCase(s),uuid:null,img:null}));
-    return {flag,prompt:`Already trained in ${titleCase(skill)}: choose another skill`,source:{uuid:source.uuid,name:source.name},
+    return {flag,prompt:tr('Already trained in {0}: choose another skill',titleCase(skill)),source:{uuid:source.uuid,name:source.name},
       depth:0,options,value:choices?.[flag]??null,itemOptions:false};
   }).filter(Boolean);
 }
@@ -171,7 +172,7 @@ export function choiceSetsFor(item,choices,catalog,ctx={}){
             return {value:o.value,label:o.label||hit?.name||String(o.value),uuid:hit?.uuid??null,img:hit?.img??null};});
       if(!options.length)continue;
       seenFlags.add(set.flag);
-      sets.push({flag:set.flag,prompt:set.prompt||'Choose',source:{uuid:source.uuid,name:source.name},depth,
+      sets.push({flag:set.flag,prompt:set.prompt||tr('Choose'),source:{uuid:source.uuid,name:source.name},depth,
         options,value:choices?.[set.flag]??null,itemOptions:options.every(o=>o.uuid)});
     }
     // Picked items: granted by a placeholder GrantItem, or picked directly; follow their choices.

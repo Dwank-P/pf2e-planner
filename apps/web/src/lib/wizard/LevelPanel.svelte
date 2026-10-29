@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import OptionGrid from './OptionGrid.svelte';
   import Icon from '../ui/Icon.svelte';
   import RankLadder from '../ui/RankLadder.svelte';
@@ -47,8 +48,10 @@
   /** The slot's source as an icon: class feats show the class, dual-class the second class, ancestry the ancestry. */
   const entryImg=entry=>entry?.uuid?lookup(entry.uuid)?.img??entry.img??null:null;
   // With two classes, name them: "Bard feat" and "Barbarian feat" instead of "Class feat".
-  const slotLabel=slot=>creation.dualClass&&slot.kind==='class'?creation.class.name+' feat'
-    :slot.kind==='dual-class'&&creation.dualClass?creation.dualClass.name+' feat':slot.label;
+  // Leveler's slot names translate; automatic bonus progression lists its benefits.
+  const slotLabel=slot=>creation.dualClass&&slot.kind==='class'?tr('{0} feat',creation.class.name)
+    :slot.kind==='dual-class'&&creation.dualClass?tr('{0} feat',creation.dualClass.name)
+    :slot.benefits?tr('Automatic bonus progression: {0}',slot.benefits.map(b=>tr(b)).join(', ')):tr(slot.label);
   function sourceIcon(kind){
     if(kind==='class')return entryImg(creation.class);
     if(kind==='dual-class')return entryImg(creation.dualClass);
@@ -90,21 +93,21 @@
   }
 </script>
 <div class="level">
-  {#if level>currentLevel}<p class="future muted">Planned. This becomes active when the character reaches level {level}.</p>{/if}
+  {#if level>currentLevel}<p class="future muted">{tr("Planned. This becomes active when the character reaches level {0}.", level)}</p>{/if}
   {#if wishes.length}
     <div class="gained">
-      <span class="eyebrow">Equipment planned for level {level} · {formatPrice(wishes.reduce((n,w)=>n+(w.price??0)*(w.quantity||1),0))}</span>
+      <span class="eyebrow">{tr("Equipment planned for level {0} · {1}", level, formatPrice(wishes.reduce((n,w)=>n+(w.price??0)*(w.quantity||1),0)))}</span>
       <ul>{#each wishes as w (w.id)}<li class:bought={w.status==='bought'}><button class="link" onclick={()=>info(w.uuid)}>{w.quantity>1?w.quantity+'× ':''}{w.name}</button>
         <small class="muted">{formatPrice(w.price)}</small></li>{/each}
-        <li><button class="link" onclick={onEquipment}>Edit plan →</button></li></ul>
+        <li><button class="link" onclick={onEquipment}>{tr("Edit plan →")}</button></li></ul>
     </div>
   {/if}
   {#if features.length||grantedHere.length}
     <div class="gained">
-      <span class="eyebrow">Gained automatically</span>
+      <span class="eyebrow">{tr("Gained automatically")}</span>
       <ul>{#each features as f}<li>{#if f.uuid}<button class="link" onclick={()=>info(f.uuid)}>{f.name}</button>{:else}{f.name}{/if}</li>{/each}
         {#each grantedHere as g (g.item.uuid)}<li><button class="link" onclick={()=>info(g.item.uuid)}>{g.item.name}</button>
-          <small class="muted">from {g.from}</small></li>{/each}</ul>
+          <small class="muted">{tr("from {0}", g.from)}</small></li>{/each}</ul>
     </div>
   {/if}
   {#each slots as slot (slot.key)}
@@ -117,9 +120,9 @@
           {#if src}<span class="icon pic" aria-hidden="true"><Icon {src} size={30}/></span>
           {:else}<span class="icon" aria-hidden="true">{slot.kind==='class'?'C':slot.kind==='skill'?'S':slot.kind==='general'?'G':slot.kind==='ancestry'?'A':slot.kind==='archetype'?'Ar':slot.kind==='mythic'?'M':'D'}</span>{/if}
           <span class="text"><span class="eyebrow">{slotLabel(slot)}</span>
-            <span class="value" class:unset={!chosen}>{chosen?.name??'Choose a feat'}</span>
+            <span class="value" class:unset={!chosen}>{chosen?.name??tr('Choose a feat')}</span>
             {#if verdict?.blocked}<small class="warn">⚠ {verdict.blocked}</small>{/if}</span>
-          <span class="action">{chosen?'Change':'Choose'}</span>
+          <span class="action">{chosen?tr('Change'):tr('Choose')}</span>
         </button>
         {#if chosen}<FeatChoices entry={chosen} {catalog} context={slotCtx(slot)} {info}
           onChange={choices=>updatePlan(p=>P.setPlanFeatChoices(p,slot,choices))}/>{/if}
@@ -127,8 +130,8 @@
           <OptionGrid id={slot.key} items={featOptions(catalog,slot.kind,creation)} selected={chosen?[chosen.uuid]:[]}
             onToggle={item=>setFeat(slot,item)} onInfo={item=>info(item.uuid)}
             check={item=>checkFeat(item,state,{kind:slot.kind,featNames:names,currentUuid:chosen?.uuid})}
-            detail={item=>item.metadata?.prerequisites?.length?'Requires '+item.metadata.prerequisites.join('; '):''}
-            placeholder={'Search '+slot.label.toLowerCase()+'s'}/>
+            detail={item=>item.metadata?.prerequisites?.length?tr('Requires {0}',item.metadata.prerequisites.join('; ')):''}
+            placeholder={tr('Search {0}',slotLabel(slot).toLowerCase())}/>
         {/if}
       </section>
     {:else if slot.type==='ability'}
@@ -137,18 +140,18 @@
       {@const usedInSet=gradual?P.boostsUsedInSet(plan,level):new Map()}
       <section class="slot" class:done={picks.length>=slot.count}>
         <div class="head static"><span class="icon" aria-hidden="true">◈</span>
-          <span class="text"><span class="eyebrow">{gradual?'Gradual attribute boost':'Attribute boosts'} · {picks.length}/{slot.count}</span>
-            <span class="muted small">{gradual?`One boost a level; levels ${P.gradualSet(level).join(', ')} boost four different attributes.`:'Four different attributes.'} At +4 or higher a boost is partial: two make +1.</span></span></div>
+          <span class="text"><span class="eyebrow">{gradual?tr('Gradual attribute boost'):tr('Attribute boosts')} · {picks.length}/{slot.count}</span>
+            <span class="muted small">{tr("{0} At +4 or higher a boost is partial: two make +1.", gradual?tr("One boost a level; levels {0} boost four different attributes.",P.gradualSet(level).join(', ')):tr('Four different attributes.'))}</span></span></div>
         <div class="boosts">
           {#each ATTRIBUTES as a}
             {@const on=picks.includes(a)}
             {@const from=before.mods[a]}
             {@const takenAt=usedInSet.get(a)}
             <button class="attr" class:on aria-pressed={on} disabled={!on&&(picks.length>=slot.count||!!takenAt)}
-              title={takenAt?`Boosted at level ${takenAt} in this set`:''}
+              title={takenAt?tr("Boosted at level {0} in this set",takenAt):''}
               onclick={()=>updatePlan(p=>P.toggleLevelBoost(p,level,a,slot.count,{gradual}))}>
               <b>{a.toUpperCase()}</b>
-              <small class="num">{takenAt&&!on?'Level '+takenAt:formatModifier(from)+(on?(from>=4?(before.partial[a]?' → '+formatModifier(from+1):' → ½'):' → '+formatModifier(from+1)):'')}</small>
+              <small class="num">{takenAt&&!on?tr('Level {0}',takenAt):formatModifier(from)+(on?(from>=4?(before.partial[a]?' → '+formatModifier(from+1):' → ½'):' → '+formatModifier(from+1)):'')}</small>
             </button>
           {/each}
         </div>
@@ -156,12 +159,12 @@
           {@const skillPicks=P.intBonusSkills(plan,level)}
           {@const languagePicks=P.intBonusLanguages(plan,level)}
           <div class="int-bonus">
-            <span class="eyebrow">Higher Intelligence: train {intBonus} skill{intBonus>1?'s':''} · {skillPicks.length}/{intBonus}</span>
+            <span class="eyebrow">{tr(intBonus>1?'Higher Intelligence: train {0} skills · {1}/{2}':'Higher Intelligence: train {0} skill · {1}/{2}', intBonus, skillPicks.length, intBonus)}</span>
             <div class="chips">{#each SKILLS.filter(s=>!(ranksBefore.get(s)>0)||skillPicks.includes(s)) as s}
               <button class="chip" class:on={skillPicks.includes(s)} aria-pressed={skillPicks.includes(s)}
                 disabled={!skillPicks.includes(s)&&skillPicks.length>=intBonus}
                 onclick={()=>updatePlan(p=>P.toggleIntBonus(p,level,'intBonusSkills',s,intBonus))}>{titleCase(s)}</button>{/each}</div>
-            <span class="eyebrow">…and learn {intBonus} language{intBonus>1?'s':''} · {languagePicks.length}/{intBonus}</span>
+            <span class="eyebrow">{tr(intBonus>1?'…and learn {0} languages · {1}/{2}':'…and learn {0} language · {1}/{2}', intBonus, languagePicks.length, intBonus)}</span>
             <div class="chips">{#each languageChoices.filter(l=>!knownLanguages.has(l)||languagePicks.includes(l)) as l}
               <button class="chip" class:on={languagePicks.includes(l)} aria-pressed={languagePicks.includes(l)}
                 disabled={!languagePicks.includes(l)&&languagePicks.length>=intBonus}
@@ -175,9 +178,9 @@
       <section class="slot" class:open={open===slot.key} class:done={!!chosen}>
         <button class="head" aria-expanded={open===slot.key} onclick={()=>open=open===slot.key?null:slot.key}>
           <span class="icon" aria-hidden="true">↑</span>
-          <span class="text"><span class="eyebrow">{slot.label}</span>
-            <span class="value" class:unset={!chosen}>{chosen?titleCase(chosen.skill)+' → '+(RANKS[chosen.toRank]??'+1'):'Choose a skill'}</span></span>
-          <span class="action">{chosen?'Change':'Choose'}</span>
+          <span class="text"><span class="eyebrow">{slotLabel(slot)}</span>
+            <span class="value" class:unset={!chosen}>{chosen?titleCase(chosen.skill)+' → '+(RANKS[chosen.toRank]??'+1'):tr('Choose a skill')}</span></span>
+          <span class="action">{chosen?tr('Change'):tr('Choose')}</span>
         </button>
         {#if open===slot.key}
           <div class="skills">
@@ -187,7 +190,7 @@
               <button class="skill" class:on disabled={!on&&rank>=cap}
                 onclick={()=>{updatePlan(p=>P.setSkillIncrease(p,slot,on?null:skill,rank+1));open=null;}}>
                 <span>{titleCase(skill)}</span><RankLadder rank={on?rank+1:rank}/>
-                <small>{rank>=cap&&!on?(rank>=4?'Legendary':`Max ${RANKS[cap]} at level ${level}`):RANKS[rank]+' → '+RANKS[rank+1]}</small>
+                <small>{rank>=cap&&!on?(rank>=4?tr('Legendary'):tr("Max {0} at level {1}",RANKS[cap],level)):RANKS[rank]+' → '+RANKS[rank+1]}</small>
               </button>
             {/each}
           </div>
@@ -199,19 +202,19 @@
       {@const entry={entryType:slot.entryType}}
       <section class="slot">
         <div class="head static"><span class="icon" aria-hidden="true">✧</span>
-          <span class="text"><span class="eyebrow">{slot.label} · {picks.length}/{slot.allowance.total}</span>
-            {#if slot.allowance.any}<span class="muted small">Add {slot.allowance.any} spells of any rank you can cast to your spellbook.</span>{/if}</span></div>
+          <span class="text"><span class="eyebrow">{slotLabel(slot)} · {picks.length}/{slot.allowance.total}</span>
+            {#if slot.allowance.any}<span class="muted small">{tr("Add {0} spells of any rank you can cast to your spellbook.", slot.allowance.any)}</span>{/if}</span></div>
         {#each spellRows(slot) as [rank,label,allowed]}
           {@const here=picks.filter(s=>rank===0?s.isCantrip:!s.isCantrip&&Number(s.rank)===rank)}
           {#if allowed!==null||here.length||spellRoom(slot,rank)>0}
             {@const rowKey=slot.key+rank}
             <div class="spell-row">
               <button class="rank" aria-expanded={open===rowKey} onclick={()=>open=open===rowKey?null:rowKey}>
-                <span aria-hidden="true">{open===rowKey?'▾':'▸'}</span> {label}{allowed!==null?` · ${here.length}/${allowed}`:''}</button>
+                <span aria-hidden="true">{open===rowKey?'▾':'▸'}</span> {tr(label)}{allowed!==null?` · ${here.length}/${allowed}`:''}</button>
               <span class="chips-row">
                 {#each here as s}<span class="spell-chip"><button class="link" onclick={()=>info(s.uuid)}>{s.name}</button>
-                  <button class="link x" aria-label={'Remove '+s.name} onclick={()=>updatePlan(p=>P.togglePlanSpell(p,level,s,{rank,cantrip:rank===0,...entry}))}>×</button></span>{/each}
-                {#if spellRoom(slot,rank)>0&&open!==rowKey}<button class="btn small" onclick={()=>open=rowKey}>+ Add</button>{/if}
+                  <button class="link x" aria-label={tr('Remove {0}',s.name)} onclick={()=>updatePlan(p=>P.togglePlanSpell(p,level,s,{rank,cantrip:rank===0,...entry}))}>×</button></span>{/each}
+                {#if spellRoom(slot,rank)>0&&open!==rowKey}<button class="btn small" onclick={()=>open=rowKey}>{tr("+ Add")}</button>{/if}
               </span>
             </div>
             {#if open===rowKey}
@@ -220,10 +223,10 @@
                 check={item=>{
                   // A spell already learned at another level can't be learned again.
                   const at=learned.get(item.uuid);
-                  return at&&at!==level?{blocked:`Learned at level ${at}`,unknown:[],hard:true}:null;
+                  return at&&at!==level?{blocked:tr("Learned at level {0}",at),unknown:[],hard:true}:null;
                 }}
                 onToggle={item=>{if(here.some(s=>s.uuid===item.uuid)||spellRoom(slot,rank)>0)updatePlan(p=>P.togglePlanSpell(p,level,item,{rank,cantrip:rank===0,...entry}));}}
-                onInfo={item=>info(item.uuid)} placeholder={'Search '+label.toLowerCase()+' spells'}/>
+                onInfo={item=>info(item.uuid)} placeholder={tr('Search {0} spells',label.toLowerCase())}/>
             {/if}
           {/if}
         {/each}
@@ -231,28 +234,28 @@
     {:else if slot.type==='signature'}
       <section class="slot">
         <div class="head static"><span class="icon" aria-hidden="true">★</span>
-          <span class="text"><span class="eyebrow">{slot.label}</span>
-            <span class="muted small">One spell per rank from your repertoire; you can cast it at any higher rank you have slots for.</span></span></div>
+          <span class="text"><span class="eyebrow">{slotLabel(slot)}</span>
+            <span class="muted small">{tr("One spell per rank from your repertoire; you can cast it at any higher rank you have slots for.")}</span></span></div>
         {#each slot.ranks as rank}
           {@const chosen=P.planSignature(plan,level,rank,slot.entryType)}
           {@const options=P.repertoire(creation,plan,level,slot.entryType).filter(s=>Number(s.rank)===rank)}
           <div class="spell-row">
-            <span class="rank">Rank {rank}</span>
+            <span class="rank">{tr("Rank {0}", rank)}</span>
             <span class="chips-row">
               {#each options as s (s.uuid)}
                 <button class="sig" class:on={chosen?.uuid===s.uuid} aria-pressed={chosen?.uuid===s.uuid}
                   onclick={()=>updatePlan(p=>P.setSignatureSpell(p,level,rank,chosen?.uuid===s.uuid?null:s,slot.entryType))}>{s.name}</button>
-              {:else}<span class="muted small">Learn a rank-{rank} spell first.</span>{/each}
+              {:else}<span class="muted small">{tr("Learn a rank-{0} spell first.", rank)}</span>{/each}
             </span>
           </div>
         {/each}
       </section>
     {:else}
       <section class="slot"><div class="head static"><span class="icon" aria-hidden="true">·</span>
-        <span class="text"><span class="eyebrow">{slot.label}</span><span class="muted small">Applied automatically.</span></span></div></section>
+        <span class="text"><span class="eyebrow">{slotLabel(slot)}</span><span class="muted small">{tr("Applied automatically.")}</span></span></div></section>
     {/if}
   {:else}
-    {#if !grants.length}<p class="empty">Nothing to choose at level {level}.</p>{/if}
+    {#if !grants.length}<p class="empty">{tr("Nothing to choose at level {0}.", level)}</p>{/if}
   {/each}
   <GrantsPanel requirements={grants} store={plan?.levels?.[level]??{}} {catalog} {level}
     taken={takenFormulas(creation,plan)} onToggle={toggleGrant} {info}/>

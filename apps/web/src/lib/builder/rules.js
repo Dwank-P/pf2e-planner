@@ -5,9 +5,10 @@
  * actor-backed build state stays authoritative once the plan is in Foundry.
  */
 import {grantsAt} from './granted.js';
+import {tr,labels} from '../i18n/index.js';
 export const ATTRIBUTES=['str','dex','con','int','wis','cha'];
-export const ATTRIBUTE_NAMES={str:'Strength',dex:'Dexterity',con:'Constitution',
-  int:'Intelligence',wis:'Wisdom',cha:'Charisma'};
+export const ATTRIBUTE_NAMES=labels({str:'Strength',dex:'Dexterity',con:'Constitution',
+  int:'Intelligence',wis:'Wisdom',cha:'Charisma'});
 const PF2E_SKILLS=['acrobatics','arcana','athletics','crafting','deception','diplomacy',
   'intimidation','medicine','nature','occultism','performance','religion','society',
   'stealth','survival','thievery'];
@@ -27,10 +28,11 @@ export const SKILL_ATTRIBUTE={acrobatics:'dex',arcana:'int',athletics:'str',comp
   deception:'cha',diplomacy:'cha',intimidation:'cha',medicine:'wis',nature:'wis',
   occultism:'int',performance:'cha',piloting:'dex',religion:'wis',society:'int',stealth:'dex',
   survival:'wis',thievery:'dex'};
-export const RANKS=['Untrained','Trained','Expert','Master','Legendary'];
+export const RANKS=labels(['Untrained','Trained','Expert','Master','Legendary']);
 export const RANK_LETTERS=['U','T','E','M','L'];
 
-export const titleCase=slug=>String(slug??'').replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+// For display: game terms (skills, languages) come back translated, other names unchanged.
+export const titleCase=slug=>tr(String(slug??'').replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
 const rulesOf=item=>item?.metadata?.rules??{};
 // A single value counts as a list of one (a deity entry stores its skill as "crafting").
 const list=value=>Array.isArray(value)?value:typeof value==='string'&&value?[value]:value&&typeof value==='object'?Object.values(value):[];
@@ -55,14 +57,14 @@ export function boostSources(creation,lookup){
   const ancestry=lookup(creation?.ancestry?.uuid);
   if(creation?.ancestry){
     if(creation.alternateAncestryBoosts){
-      sources.push({source:'ancestry',label:'Ancestry (alternate boosts)',fixed:[],flaws:[],count:2,
+      sources.push({source:'ancestry',label:tr('Ancestry (alternate boosts)'),fixed:[],flaws:[],count:2,
         options:[...ATTRIBUTES]});
     }else{
       const slots=boostSlots(rulesOf(ancestry).boosts);
       const choices=slots.filter(s=>s.type==='choice');
       const fixed=slots.filter(s=>s.type==='fixed').map(s=>s.attribute);
       const flaws=boostSlots(rulesOf(ancestry).flaws).filter(s=>s.type==='fixed').map(s=>s.attribute);
-      sources.push({source:'ancestry',label:'Ancestry',fixed,flaws,
+      sources.push({source:'ancestry',label:tr('Ancestry'),fixed,flaws,
         count:choices.length,options:choices.some(c=>c.options.length===6)?[...ATTRIBUTES]:(choices[0]?.options??[]),
         // Alternate boosts only differ from the default when the ancestry has fixed boosts or flaws.
         canUseAlternate:fixed.length>0||flaws.length>0});
@@ -71,17 +73,17 @@ export function boostSources(creation,lookup){
   if(creation?.background){
     const slots=boostSlots(rulesOf(lookup(creation.background.uuid)).boosts);
     const choices=slots.filter(s=>s.type==='choice');
-    sources.push({source:'background',label:'Background',fixed:slots.filter(s=>s.type==='fixed').map(s=>s.attribute),
+    sources.push({source:'background',label:tr('Background'),fixed:slots.filter(s=>s.type==='fixed').map(s=>s.attribute),
       flaws:[],count:choices.length,options:[...ATTRIBUTES],
       restricted:choices.find(c=>c.options.length<6)?.options??[]});
   }
   if(creation?.class){
     const classItem=lookup(creation.class.uuid);
     const keys=keyAttributeOptions(creation,classItem);
-    sources.push({source:'class',label:'Class key attribute',fixed:keys.length===1?keys:[],flaws:[],
+    sources.push({source:'class',label:tr('Class key attribute'),fixed:keys.length===1?keys:[],flaws:[],
       count:keys.length===1?0:1,options:keys});
   }
-  sources.push({source:'free',label:'Free boosts',fixed:[],flaws:[],count:4,options:[...ATTRIBUTES]});
+  sources.push({source:'free',label:tr('Free boosts'),fixed:[],flaws:[],count:4,options:[...ATTRIBUTES]});
   return sources;
 }
 export function keyAttributeOptions(creation,classItem){
@@ -147,9 +149,9 @@ export function skillTraining(creation,lookup,intModifier=0){
   // (class and background both Religion; a deity whose skill the class already trains).
   let duplicates=0;
   const fixed=(skill,source)=>{if(!isSkill(skill))return;if(granted.has(skill))duplicates++;else grant(skill,source);};
-  for(const entry of classes)for(const skill of new Set(list(rulesOf(lookup(entry.uuid)).trainedSkills?.value)))fixed(skill,entry.name??'Class');
-  for(const deity of deities)for(const skill of new Set(list(deity.skill)))fixed(skill,deity.name??'Deity');
-  for(const skill of new Set(list(backgroundRules.trainedSkills?.value)))fixed(skill,creation?.background?.name??'Background');
+  for(const entry of classes)for(const skill of new Set(list(rulesOf(lookup(entry.uuid)).trainedSkills?.value)))fixed(skill,entry.name??tr('Class'));
+  for(const deity of deities)for(const skill of new Set(list(deity.skill)))fixed(skill,deity.name??tr('Deity'));
+  for(const skill of new Set(list(backgroundRules.trainedSkills?.value)))fixed(skill,creation?.background?.name??tr('Background'));
   const additional=classes.length?Math.max(...classes.map(e=>Number(rulesOf(lookup(e.uuid)).trainedSkills?.additional)||0)):0;
   const chosen=(creation?.skills??[]).filter(s=>isSkill(s)&&!granted.has(s));
   const chosenLores=(creation?.selectedLoreSkills??[]).filter(l=>typeof l==='string'&&l.trim());

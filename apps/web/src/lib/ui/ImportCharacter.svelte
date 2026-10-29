@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import {api,campaignPath} from './api.js';
   import {exportUrlFromLink} from './download.js';
   /**
@@ -17,15 +18,15 @@
     try{
       let data;
       if(file){
-        try{data=JSON.parse(await file.text());}catch{throw Error('That file isn’t a planner export or a Leveler plan.');}
+        try{data=JSON.parse(await file.text());}catch{throw Error(tr('That file isn’t a planner export or a Leveler plan.'));}
       }else{
         const url=exportUrlFromLink(link);
-        if(!url)throw Error('Paste a public character link (it looks like https://planner.example/p/…).');
+        if(!url)throw Error(tr('Paste a public character link (it looks like https://planner.example/p/…).'));
         let response;
         try{response=await fetch(url,{credentials:'omit',cache:'no-store'});}
-        catch{throw Error('That planner couldn’t be reached from your browser. Download the character there (Export) and import the file instead.');}
-        if(response.status===404)throw Error('That link doesn’t work any more — ask for a new one.');
-        if(!response.ok)throw Error('That planner answered HTTP '+response.status+'.');
+        catch{throw Error(tr('That planner couldn’t be reached from your browser. Download the character there (Export) and import the file instead.'));}
+        if(response.status===404)throw Error(tr('That link doesn’t work any more — ask for a new one.'));
+        if(!response.ok)throw Error(tr('That planner answered HTTP {0}',response.status)+'.');
         data=await response.json();
       }
       result=await api(importUrl,{method:'POST',body:{export:data,fileName:file?.name??''}});
@@ -37,25 +38,25 @@
 </script>
 {#if result}
   <section class="card report" aria-live="polite">
-    <b>Imported {result.character.name}</b>
-    <span class="muted">{result.report.matched+result.report.renamed} picks matched{result.report.renamed?` (${result.report.renamed} by name)`:''}.</span>
-    {#if result.report.missing.length}<p class="notice">Not in {personal?'your sources':'this world’s compendiums'}, so left out: {result.report.missing.join(', ')}.</p>{/if}
-    {#if result.report.noClass}<p class="notice">The plan is for a {result.report.noClass}, which isn’t in {personal?'your sources':'this world’s compendiums'}: choose a class on level 1.</p>{/if}
-    {#if result.report.variantDifferences.length}<p class="notice">Rules here apply: {result.report.variantDifferences.join('; ')}.</p>{/if}
-    <span class="row"><button class="btn ghost" onclick={()=>{result=null;link='';file=null;}}>Import another</button>
-      <a class="btn primary" href={href}>Open it</a></span>
+    <b>{tr("Imported {0}", result.character.name)}</b>
+    <span class="muted">{tr("{0} picks matched{1}.", result.report.matched+result.report.renamed, result.report.renamed?` (${result.report.renamed} by name)`:'')}</span>
+    {#if result.report.missing.length}<p class="notice">{tr("Not in {0}, so left out: {1}.", personal?tr('your sources'):tr('this world’s compendiums'), result.report.missing.join(', '))}</p>{/if}
+    {#if result.report.noClass}<p class="notice">{tr("The plan is for a {0}, which isn’t in {1}: choose a class on level 1.", result.report.noClass, personal?tr('your sources'):tr('this world’s compendiums'))}</p>{/if}
+    {#if result.report.variantDifferences.length}<p class="notice">{tr("Rules here apply: {0}.", result.report.variantDifferences.join('; '))}</p>{/if}
+    <span class="row"><button class="btn ghost" onclick={()=>{result=null;link='';file=null;}}>{tr("Import another")}</button>
+      <a class="btn primary" href={href}>{tr("Open it")}</a></span>
   </section>
 {:else}
   <form class="card import" onsubmit={run}>
-    <label class="field" for="import-link">Public link from another planner
-      <small>On the other planner: Share → Create a public link, and copy it.</small>
-      <input id="import-link" type="url" placeholder="https://planner.example/p/…" bind:value={link} disabled={!!file}/></label>
-    <label class="field" for="import-file">Or a file
-      <small>A planner export (Files → Export for another planner), or a PF2e Leveler plan (Leveler's “Export plan”).</small>
+    <label class="field" for="import-link">{tr("Public link from another planner")}
+      <small>{tr("On the other planner: Share → Create a public link, and copy it.")}</small>
+      <input id="import-link" type="url" placeholder={tr("https://planner.example/p/…")} bind:value={link} disabled={!!file}/></label>
+    <label class="field" for="import-file">{tr("Or a file")}
+      <small>{tr("A planner export (Files → Export for another planner), or a PF2e Leveler plan (Leveler's “Export plan”).")}</small>
       <input id="import-file" type="file" accept=".json,application/json" onchange={e=>file=e.currentTarget.files?.[0]??null}/></label>
     {#if error}<p class="notice bad" role="alert">{error}</p>{/if}
-    <span class="row"><button type="button" class="btn ghost" onclick={onCancel}>Cancel</button>
-      <button class="btn primary" disabled={busy||!(link.trim()||file)}>{busy?'Importing…':'Import'}</button></span>
+    <span class="row"><button type="button" class="btn ghost" onclick={onCancel}>{tr("Cancel")}</button>
+      <button class="btn primary" disabled={busy||!(link.trim()||file)}>{busy?tr('Importing…'):tr('Import')}</button></span>
   </form>
 {/if}
 <style>

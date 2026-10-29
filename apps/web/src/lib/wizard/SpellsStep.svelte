@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import OptionGrid from './OptionGrid.svelte';
   import {level1Spells} from '../builder/schema.js';
   import {toggleSpell} from '../builder/creation.js';
@@ -23,22 +24,22 @@
 </script>
 {#if counts}
   <div class="spells">
-    <p class="muted">{spellbook?'Your spellbook starts with':'Your repertoire starts with'}
-      <b class="num">{counts.cantrips}</b> cantrips and <b class="num">{counts.rank1}</b> 1st-rank spells{counts.granted?', plus '+(counts.granted===1?'the spell':counts.granted+' spells')+' your '+(subclassEntry?.name??'specialization')+' grants':''}.
-      {#if known}Showing the {tradition} list.{:else if tradition}Your {subclassEntry?.name??'specialization'} sets your tradition, so all lists are shown. Pick from the right one.{/if}</p>
+    <p class="muted">{spellbook?tr('Your spellbook starts with'):tr('Your repertoire starts with')}
+      <b class="num">{counts.cantrips}</b> {tr("cantrips and")} <b class="num">{counts.rank1}</b> {tr("1st-rank spells{0}.", counts.granted?', plus '+(counts.granted===1?tr('the spell'):counts.granted+' spells')+' your '+(subclassEntry?.name??'specialization')+' grants':'')}
+      {#if known}{tr("Showing the {0} list.", tradition)}{:else if tradition}{tr("Your {0} sets your tradition, so all lists are shown. Pick from the right one.", subclassEntry?.name??'specialization')}{/if}</p>
     <div class="tabs" role="tablist">
       <button role="tab" aria-selected={tab==='cantrips'} class:on={tab==='cantrips'} onclick={()=>tab='cantrips'}>
-        Cantrips <span class="num">{store.cantrips?.length??0}/{counts.cantrips}</span></button>
+        {tr("Cantrips")} <span class="num">{store.cantrips?.length??0}/{counts.cantrips}</span></button>
       <button role="tab" aria-selected={tab==='rank1'} class:on={tab==='rank1'} onclick={()=>tab='rank1'}>
-        Rank 1 <span class="num">{store.rank1?.length??0}/{counts.rank1}</span></button>
+        {tr("Rank 1")} <span class="num">{store.rank1?.length??0}/{counts.rank1}</span></button>
     </div>
     {#key tab+target}
       <OptionGrid id={'spells-'+tab} items={spellOptions(catalog,{cantrip:tab==='cantrips',tradition})}
         selected={picks.map(p=>p.uuid)} {max}
-        check={item=>{const at=learned.get(item.uuid);return at&&at>1?{blocked:`Planned at level ${at}`,unknown:[],hard:true}:null;}}
+        check={item=>{const at=learned.get(item.uuid);return at&&at>1?{blocked:tr("Planned at level {0}",at),unknown:[],hard:true}:null;}}
         onToggle={item=>update(c=>toggleSpell(c,item,{cantrip:tab==='cantrips',max,target:dual?'secondary':'primary'}))} onInfo={item=>info(item.uuid)}
         detail={item=>known?'':(item.metadata?.spellTraditions??[]).join(', ')}
-        placeholder={tab==='cantrips'?'Search cantrips':'Search 1st-rank spells'} empty="No spells of this kind are in the synced compendiums."/>
+        placeholder={tab==='cantrips'?tr('Search cantrips'):tr('Search 1st-rank spells')} empty={tr("No spells of this kind are in the synced compendiums.")}/>
     {/key}
   </div>
 {/if}

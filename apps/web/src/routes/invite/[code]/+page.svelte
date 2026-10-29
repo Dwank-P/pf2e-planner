@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../../../lib/i18n/index.js';
   import {onMount} from 'svelte';
   import {page} from '$app/state';
   import AuthCard from '../../../lib/ui/AuthCard.svelte';
@@ -29,7 +30,7 @@
   function submit(event){
     event.preventDefault();
     if(mode==='create'){
-      if(password!==confirm){error='The two passwords don’t match.';return;}
+      if(password!==confirm){error=tr('The two passwords don’t match.');return;}
       run(()=>api('/api/v1/invite-links/'+encodeURIComponent(code)+'/register',
         {method:'POST',body:{username:username.trim(),displayName:displayName.trim()||undefined,password}}));
     }else{
@@ -38,40 +39,40 @@
   }
   const expires=$derived(invite?.expiresAt?new Date(invite.expiresAt*1000).toLocaleString():null);
 </script>
-<svelte:head><title>Join {invite?.campaign.title??'a campaign'} · PF2e Planner</title></svelte:head>
-<AuthCard title={invite?`Join ${invite.campaign.title}`:'Campaign invite'}
-  subtitle={invite?`Your GM invited you to plan characters in ${invite.campaign.title}.${expires?` This link works until ${expires}.`:''}`:''}>
+<svelte:head><title>{tr("Join {0} · PF2e Planner", invite?.campaign.title??'a campaign')}</title></svelte:head>
+<AuthCard title={invite?tr('Join {0}',invite.campaign.title):tr('Campaign invite')}
+  subtitle={invite?tr('Your GM invited you to plan characters in {0}.',invite.campaign.title)+(expires?' '+tr('This link works until {0}.',expires):''):''}>
   {#if error&&!invite}
     <p class="notice bad" role="alert">{error}</p>
   {:else if invite&&me}
-    <p>Signed in as <b>{me.user.displayName}</b>.</p>
+    <p>{tr("Signed in as")} <b>{me.user.displayName}</b>.</p>
     {#if error}<p class="notice bad" role="alert">{error}</p>{/if}
-    <button class="btn primary" disabled={busy} onclick={join}>{busy?'Joining…':'Join '+invite.campaign.title}</button>
-    <p class="muted small">Not you? <a href="/sign-in">Sign in as someone else</a>.</p>
+    <button class="btn primary" disabled={busy} onclick={join}>{busy?tr('Joining…'):tr('Join {0}',invite.campaign.title)}</button>
+    <p class="muted small">{tr("Not you?")} <a href="/sign-in">{tr("Sign in as someone else")}</a>.</p>
   {:else if invite}
     <div class="tabs" role="tablist">
-      <button role="tab" aria-selected={mode==='create'} class:on={mode==='create'} onclick={()=>{mode='create';error='';}}>New account</button>
-      <button role="tab" aria-selected={mode==='existing'} class:on={mode==='existing'} onclick={()=>{mode='existing';error='';}}>I have an account</button>
+      <button role="tab" aria-selected={mode==='create'} class:on={mode==='create'} onclick={()=>{mode='create';error='';}}>{tr("New account")}</button>
+      <button role="tab" aria-selected={mode==='existing'} class:on={mode==='existing'} onclick={()=>{mode='existing';error='';}}>{tr("I have an account")}</button>
     </div>
     <form class="form" onsubmit={submit}>
-      <label class="field" for="username">Username{#if mode==='create'} <small>3–32 letters, numbers, dots, dashes or underscores.</small>{/if}
+      <label class="field" for="username">{tr("Username")}{#if mode==='create'} <small>{tr("3–32 letters, numbers, dots, dashes or underscores.")}</small>{/if}
         <input id="username" required autocomplete="username" bind:value={username}/></label>
       {#if mode==='create'}
-        <label class="field" for="display">Display name <small>Optional: what your group sees.</small>
+        <label class="field" for="display">{tr("Display name")} <small>{tr("Optional: what your group sees.")}</small>
           <input id="display" maxlength="80" bind:value={displayName}/></label>
       {/if}
-      <label class="field" for="password">Password{#if mode==='create'} <small>At least 12 characters.</small>{/if}
+      <label class="field" for="password">{tr("Password")}{#if mode==='create'} <small>{tr("At least 12 characters.")}</small>{/if}
         <input id="password" type="password" required minlength={mode==='create'?12:1}
           autocomplete={mode==='create'?'new-password':'current-password'} bind:value={password}/></label>
       {#if mode==='create'}
-        <label class="field" for="confirm">Repeat password
+        <label class="field" for="confirm">{tr("Repeat password")}
           <input id="confirm" type="password" required autocomplete="new-password" bind:value={confirm}/></label>
       {/if}
       {#if error}<p class="notice bad" role="alert">{error}</p>{/if}
-      <button class="btn primary" disabled={busy}>{busy?'Joining…':mode==='create'?'Create account and join':'Sign in and join'}</button>
+      <button class="btn primary" disabled={busy}>{busy?tr('Joining…'):mode==='create'?tr('Create account and join'):tr('Sign in and join')}</button>
     </form>
   {:else}
-    <p class="muted">Checking the invite…</p>
+    <p class="muted">{tr("Checking the invite…")}</p>
   {/if}
 </AuthCard>
 <style>

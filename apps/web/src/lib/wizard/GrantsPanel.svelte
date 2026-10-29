@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import OptionGrid from './OptionGrid.svelte';
   import {grantSelections,grantCandidates,GRANT_KIND_LABEL} from '../builder/grants.js';
   /**
@@ -7,7 +8,7 @@
    */
   let {requirements=[],store={},catalog,level=1,taken=new Map(),onToggle,info,maxLevelCap=null}=$props();
   let open=$state(null);
-  const label=r=>(r.sourceFeatName??'Feat')+' · '+(GRANT_KIND_LABEL[r.kind]??'Choices');
+  const label=r=>(r.sourceFeatName??tr('Feat'))+' · '+(GRANT_KIND_LABEL[r.kind]??tr('Choices'));
 </script>
 {#each requirements as requirement (requirement.id)}
   {@const picks=grantSelections(store,requirement)}
@@ -18,23 +19,23 @@
       <span class="icon" aria-hidden="true">{requirement.kind==='spell'?'✧':'⚗'}</span>
       <span class="text"><span class="eyebrow">{label(requirement)}{count!=null?` · ${picks.length}/${count}`:''}</span>
         <span class="value" class:unset={!picks.length}>{picks.map(p=>p.name).join(', ')||'—'}</span>
-        {#if requirement.grantingSourceName}<small class="muted">From {requirement.grantingSourceName}</small>{/if}
-        {#if count==null}<small class="muted">Leveler couldn't tell how many; pick what the feat says.</small>{/if}</span>
-      <span class="action">{open===requirement.id?'Close':picks.length?'Change':'Choose'}</span>
+        {#if requirement.grantingSourceName}<small class="muted">{tr("From {0}", requirement.grantingSourceName)}</small>{/if}
+        {#if count==null}<small class="muted">{tr("Leveler couldn't tell how many; pick what the feat says.")}</small>{/if}</span>
+      <span class="action">{open===requirement.id?tr('Close'):picks.length?tr('Change'):tr('Choose')}</span>
     </button>
     {#if open===requirement.id}
       <div class="body">
         <OptionGrid id={'grant-'+requirement.id} items={grantCandidates(catalog,requirement,{maxLevelCap:requirement.kind==='formula'?maxLevelCap:null})}
           selected={picks.map(p=>p.uuid)} max={count??99}
           check={item=>{
-            if(fixed.has(item.uuid))return {blocked:'Granted automatically',unknown:[],hard:true};
+            if(fixed.has(item.uuid))return {blocked:tr('Granted automatically'),unknown:[],hard:true};
             const at=requirement.kind==='formula'?taken.get(item.uuid):null;
-            return at&&!picks.some(p=>p.uuid===item.uuid)?{blocked:`Formula already chosen${at===level?'':' at level '+at}`,unknown:[],hard:true}:null;
+            return at&&!picks.some(p=>p.uuid===item.uuid)?{blocked:tr("Formula already chosen{0}",at===level?'':tr(' at level {0}',at)),unknown:[],hard:true}:null;
           }}
-          detail={item=>[item.level!=null?'Level '+item.level:'',(item.traits??[]).includes('consumable')?'Consumable':''].filter(Boolean).join(' · ')}
+          detail={item=>[item.level!=null?tr('Level {0}',item.level):'',(item.traits??[]).includes('consumable')?tr('Consumable'):''].filter(Boolean).join(' · ')}
           onToggle={item=>onToggle(requirement,item)} onInfo={item=>info(item.uuid)}
-          placeholder={'Search '+(GRANT_KIND_LABEL[requirement.kind]??'options').toLowerCase()}
-          empty="Nothing in the synced compendiums matches. Ask the GM to add the equipment packs in Leveler’s Compendium Manager."/>
+          placeholder={tr('Search {0}',(GRANT_KIND_LABEL[requirement.kind]??tr('options')).toLowerCase())}
+          empty={tr("Nothing in the synced compendiums matches. Ask the GM to add the equipment packs in Leveler’s Compendium Manager.")}/>
       </div>
     {/if}
   </section>

@@ -1,5 +1,6 @@
 import { db } from '#lib/server/db.js';
 import { startBackupSchedule } from '#lib/server/backup.js';
+import { pickLocale, COOKIE } from '#lib/i18n/index.js';
 
 // Verified database backups every PLANNER_BACKUP_HOURS (default 24; 0 turns them off).
 startBackupSchedule();
@@ -54,7 +55,10 @@ export async function handle({ event, resolve }) {
       path !== '/api/v1/setup' && !origin) {
     return new Response('Origin required', { status: 403 });
   }
-  const response = await resolve(event);
+  event.locals.locale = pickLocale(event.cookies.get(COOKIE), event.request.headers.get('accept-language'));
+  const response = await resolve(event, {
+    transformPageChunk: ({ html }) => html.replace('<html lang="en">', `<html lang="${event.locals.locale}">`)
+  });
   // Item icons and character pictures carry their own cache headers.
   if (!/^\/api\/v1\/((campaigns|personal|public)\/[^/]+\/icons|portraits)\//.test(path) || !response.ok)
     response.headers.set('cache-control', 'no-store');

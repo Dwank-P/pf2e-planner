@@ -1,3 +1,4 @@
+import {tr} from '../i18n/index.js';
 /**
  * Extra item filters for the equipment browser once a type is chosen: weapons by category,
  * damage type, die, hands, melee/ranged, group and traits; armor by category, AC bonus, Dex cap,
@@ -5,7 +6,7 @@
  * D&D 5e (metadata.weapon / metadata.armor) items. Only filters with two or more values among
  * the items are offered.
  */
-const title=s=>String(s??'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+const title=s=>tr(String(s??'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
 const signed=n=>(Number(n)>=0?'+':'')+Number(n);
 const DAMAGE={b:'bludgeoning',p:'piercing',s:'slashing'};
 const DND_CLASS={simpleM:'Simple melee',simpleR:'Simple ranged',martialM:'Martial melee',martialR:'Martial ranged',natural:'Natural',improv:'Improvised'};
@@ -91,7 +92,7 @@ const FACETS={
     }},
     {key:'strength',label:'Strength',sort:(a,b)=>Number(a[0])-Number(b[0]),values(i){
       const r=i.metadata?.rules;
-      return r?[[String(Number(r.strength)||0),Number(r.strength)?'Str '+signed(r.strength):'None']]:[];
+      return r?[[String(Number(r.strength)||0),Number(r.strength)?tr('Str {0}',signed(r.strength)):'None']]:[];
     }},
     {key:'group',label:'Group',values:i=>i.metadata?.rules?.group?[[i.metadata.rules.group,title(i.metadata.rules.group)]]:[]}
   ],
@@ -110,9 +111,9 @@ const FACETS={
 export function facetsFor(kind,items){
   return (FACETS[kind]??[]).map(f=>{
     const seen=new Map();
-    for(const item of items)for(const [value,label] of f.values(item))if(!seen.has(value))seen.set(value,label);
+    for(const item of items)for(const [value,label] of f.values(item))if(!seen.has(value))seen.set(value,tr(label));
     const options=[...seen.entries()].sort(f.sort??((a,b)=>a[1].localeCompare(b[1])));
-    return {key:f.key,label:f.label,options};
+    return {key:f.key,label:tr(f.label),options};
   }).filter(f=>f.options.length>1);
 }
 /** Whether `item` matches every chosen value ({facetKey: value}); empty choices match everything. */

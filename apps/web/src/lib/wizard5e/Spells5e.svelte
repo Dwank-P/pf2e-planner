@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import OptionGrid from '../wizard/OptionGrid.svelte';
   import {spellOptions,editionMatches} from '../systems/dnd5e/build.js';
   import {ABILITY_NAMES} from '../systems/dnd5e/rules.js';
@@ -27,7 +28,7 @@
   }
 </script>
 {#if !casters.length}
-  <p class="hint">No spellcasting classes in this plan yet. Spells granted by features and feats are listed in the summary.</p>
+  <p class="hint">{tr("No spellcasting classes in this plan yet. Spells granted by features and feats are listed in the summary.")}</p>
 {:else}
   {#if casters.length>1}
     <div class="seg" role="tablist">
@@ -37,24 +38,24 @@
   {#if current}
     <div class="facts">
       <span><b>{current.item?.name} {current.levels}</b>{current.subclass?' · '+current.subclass.name:''}</span>
-      <span>{current.spellcasting.progression==='pact'?'Pact magic':current.spellcasting.progression+' caster'} · up to {levelName(current.spellcasting.maxLevel)} level</span>
-      {#if current.spellcasting.ability}<span>Ability: {ABILITY_NAMES[current.spellcasting.ability]??current.spellcasting.ability}</span>{/if}
+      <span>{tr("{0} · up to {1} level", current.spellcasting.progression==='pact'?tr('Pact magic'):tr('{0} caster',current.spellcasting.progression), levelName(current.spellcasting.maxLevel))}</span>
+      {#if current.spellcasting.ability}<span>{tr("Ability: {0}", ABILITY_NAMES[current.spellcasting.ability]??current.spellcasting.ability)}</span>{/if}
       {#each guidance as g}<span>{g.title}: <b>{g.value}</b></span>{/each}
-      <span>Chosen: {Object.entries(counts).map(([l,n])=>levelName(Number(l))+' '+n).join(', ')||'none'}</span>
+      <span>{tr("Chosen: {0}", Object.entries(counts).map(([l,n])=>levelName(Number(l))+' '+n).join(', ')||'none')}</span>
     </div>
-    <label class="filter">Spell level
+    <label class="filter">{tr("Spell level")}
       <select bind:value={maxLevel}>
-        <option value="">All</option>
+        <option value="">{tr("All")}</option>
         {#each Array.from({length:current.spellcasting.maxLevel+1},(_,i)=>i) as l}<option value={String(l)}>{levelName(l)}</option>{/each}
       </select></label>
     <OptionGrid {items} selected={chosen} max={999} {check} onToggle={item=>!readonly&&onToggle(current.uuid,item.uuid)}
       onInfo={item=>info(item.uuid)} detail={item=>[levelName(Number(item.metadata?.level)||0),SCHOOLS[item.metadata?.school]??item.metadata?.school,item.metadata?.publication].filter(Boolean).join(' · ')}
-      placeholder="Search spells…" id={'spells-'+current.uuid}/>
+      placeholder={tr("Search spells…")} id={'spells-'+current.uuid}/>
   {/if}
 {/if}
 {#if sheet.grantedSpells.length}
   <section class="granted">
-    <h2>Granted spells</h2>
+    <h2>{tr("Granted spells")}</h2>
     <ul>{#each sheet.grantedSpells as s}<li><button class="link" onclick={()=>info(s.uuid)}>{catalog.get(s.uuid)?.name??s.uuid}</button> <small>· {s.source}</small></li>{/each}</ul>
   </section>
 {/if}

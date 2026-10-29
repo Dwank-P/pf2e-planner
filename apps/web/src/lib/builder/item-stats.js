@@ -3,12 +3,13 @@
  * do, from the synced item data (PF2e metadata.rules; D&D metadata.armor / metadata.weapon).
  * Returns [[label, value], …]; empty for items without stats.
  */
+import {tr,labels} from '../i18n/index.js';
 import {priceGp,formatPrice} from './equipment.js';
 
 const signed=n=>(Number(n)>=0?'+':'')+Number(n);
-const title=s=>String(s??'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-const STRIKING=['','Striking','Greater Striking','Major Striking'];
-const RESILIENT=['','Resilient','Greater Resilient','Major Resilient'];
+const title=s=>tr(String(s??'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
+const STRIKING=labels(['','Striking','Greater Striking','Major Striking']);
+const RESILIENT=labels(['','Resilient','Greater Resilient','Major Resilient']);
 const grade=v=>typeof v==='number'?v:{striking:1,greaterStriking:2,majorStriking:3,resilient:1,greaterResilient:2,majorResilient:3}[v]??0;
 function bulk(rules){
   const v=rules.bulk?.value??rules.bulk;
@@ -16,22 +17,22 @@ function bulk(rules){
   return Number(v)===0?'—':Number(v)<1?'L':String(v);
 }
 function runes(r={}){
-  const parts=[r.potency?'+'+r.potency+' potency':'',STRIKING[grade(r.striking)]||'',RESILIENT[grade(r.resilient)]||''].filter(Boolean);
+  const parts=[r.potency?tr('+{0} potency',r.potency):'',STRIKING[grade(r.striking)]||'',RESILIENT[grade(r.resilient)]||''].filter(Boolean);
   return parts.length?parts.join(', '):null;
 }
-const DND_WEAPON={simpleM:'Simple melee',simpleR:'Simple ranged',martialM:'Martial melee',martialR:'Martial ranged',natural:'Natural',improv:'Improvised'};
+const DND_WEAPON=labels({simpleM:'Simple melee',simpleR:'Simple ranged',martialM:'Martial melee',martialR:'Martial ranged',natural:'Natural',improv:'Improvised'});
 
 export function itemStats(item){
   if(!item)return [];
   const m=item.metadata??{},r=m.rules??{};
   const out=[];
-  const add=(label,value)=>{if(value!==null&&value!==undefined&&value!==''&&value!=='0')out.push([label,String(value)]);};
+  const add=(label,value)=>{if(value!==null&&value!==undefined&&value!==''&&value!=='0')out.push([tr(label),String(value)]);};
   if(m.armor){// D&D 5e armor and shields
     const a=m.armor;
     if(a.type==='shield')add('AC',signed(a.value+(a.magicalBonus||0)));
     else{
       add('Armor',title(a.type));
-      add('AC',a.value+(a.magicalBonus||0)+(a.type==='heavy'?'':a.type==='medium'?' + Dex (max '+(a.dex??2)+')':' + Dex'+(a.dex!=null?' (max '+a.dex+')':'')));
+      add('AC',a.value+(a.magicalBonus||0)+(a.type==='heavy'?'':a.type==='medium'?' '+tr('+ Dex (max {0})',a.dex??2):' '+(a.dex!=null?tr('+ Dex (max {0})',a.dex):tr('+ Dex'))));
     }
   }else if(m.weapon){// D&D 5e weapons
     const w=m.weapon;
@@ -44,7 +45,7 @@ export function itemStats(item){
     add('Dex cap',r.dexCap!=null?signed(r.dexCap):null);
     add('Strength',r.strength?signed(r.strength):null);
     add('Check penalty',r.checkPenalty?String(r.checkPenalty):null);
-    add('Speed penalty',r.speedPenalty?r.speedPenalty+' ft.':null);
+    add('Speed penalty',r.speedPenalty?tr('{0} ft.',r.speedPenalty):null);
     add('Group',r.group?title(r.group):null);
     add('Runes',runes(r.runes));
   }else if(item.type==='shield'){
@@ -56,7 +57,7 @@ export function itemStats(item){
   }else if(item.type==='weapon'){
     add('Category',title(r.category));
     if(r.damage?.die)add('Damage',`${r.damage.dice??1}${r.damage.die}${r.damage.damageType?' '+r.damage.damageType:''}`);
-    add('Range',Number(r.range)>0?r.range+' ft.':null);
+    add('Range',Number(r.range)>0?tr('{0} ft.',r.range):null);
     add('Group',r.group?title(r.group):null);
     add('Runes',runes(r.runes));
   }

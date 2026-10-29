@@ -11,6 +11,7 @@
  * advancement; nested items (a feat taken at an ASI, a granted feature) prefix their parent's
  * key and ">". Values: arrays of uuids or trait keys, or {mode:'asi',points} / {mode:'feat',uuid}.
  */
+import {tr,labels} from '../../i18n/index.js';
 import {ABILITIES,modifier,proficiencyBonus,identifier,multiclassRequirement,meetsRequirement,
   casterLevel,slotsForCasterLevel,pactSlots,maxSpellLevel,isModern} from './rules.js';
 
@@ -59,8 +60,8 @@ function restrictionAllows(adv,isOriginal){
 
 // ---- Traits ----------------------------------------------------------------------------------
 
-const TRAIT_NAMES={skills:'Skill',saves:'Saving throw',languages:'Language',tool:'Tool',armor:'Armor',weapon:'Weapon',
-  di:'Damage immunity',dr:'Damage resistance',dv:'Damage vulnerability',ci:'Condition immunity',dm:'Damage modification'};
+const TRAIT_NAMES=labels({skills:'Skill',saves:'Saving throw',languages:'Language',tool:'Tool',armor:'Armor',weapon:'Weapon',
+  di:'Damage immunity',dr:'Damage resistance',dv:'Damage vulnerability',ci:'Condition immunity',dm:'Damage modification'});
 export function traitLabel(key,variants){
   const category=String(key).split(':')[0];
   const known=variants?.traits?.[category]?.[key]?.label;
@@ -68,7 +69,7 @@ export function traitLabel(key,variants){
   if(category==='skills')return variants?.skills?.[key.split(':')[1]]?.label??key.split(':').pop();
   if(category==='saves')return (variants?.abilities?.[key.split(':')[1]]?.label??key.split(':')[1])+' saves';
   const last=key.split(':').pop();
-  return last==='*'?'Any '+(TRAIT_NAMES[category]??category).toLowerCase():last.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  return last==='*'?tr('Any {0}',(TRAIT_NAMES[category]??category).toLowerCase()):last.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 }
 /** Expand a pool ("skills:*", "tool:art", "languages:standard:*") into selectable keys. */
 export function expandPool(pool,variants){
@@ -240,7 +241,7 @@ function deriveOnce(input,catalog,variants,known){
   }
   function granted(uuid,{page,key,classUuid,depth,parent,asFeat=false}){
     const item=get(uuid);
-    if(!item){page.features.push({uuid,name:'Unknown item (not synced)',missing:true,from:parent?.name});return;}
+    if(!item){page.features.push({uuid,name:tr('Unknown item (not synced)'),missing:true,from:parent?.name});return;}
     if(item.type==='spell'){grantedSpells.push({uuid,source:parent?.name??''});return;}
     if(asFeat||item.type==='feat'&&item.metadata?.featType==='feat')
       feats.push({uuid,level:page.level,source:parent?.name??''});
@@ -259,7 +260,7 @@ function deriveOnce(input,catalog,variants,known){
       classLevels.set(classUuid,n);
       page.classLevel=n;
       page.isOriginal=classUuid===build.levels[0];
-      if(!cls){warnings.push('Level '+page.level+': class not in the synced compendiums.');continue;}
+      if(!cls){warnings.push(tr('Level {0}: class not in the synced compendiums.',page.level));continue;}
       page.className=cls.name;
       processItem(cls,{level:n,page,isOriginal:page.isOriginal,classUuid});
       const sub=get(build.subclasses[classUuid]);
@@ -290,7 +291,7 @@ function deriveOnce(input,catalog,variants,known){
           const need=multiclassRequirement(item,variants);
           if(item&&!meetsRequirement(need,before)){
             page.multiclassProblem=true;
-            warnings.push('Level '+page.level+': multiclassing needs '+item.name+'’s prerequisite.');
+            warnings.push(tr('Level {0}: multiclassing needs {1}’s prerequisite.',page.level,item.name));
           }
         }
       }
@@ -335,7 +336,7 @@ function dieFaces(die){
 function scaleText(entry,type){
   if(!entry||typeof entry!=='object')return String(entry??'');
   if(type==='dice'||entry.faces)return (entry.number??1)+'d'+entry.faces;
-  if(type==='distance')return entry.value+' ft.';
+  if(type==='distance')return tr('{0} ft.',entry.value);
   return String(entry.value??'');
 }
 /** A readable title for an untitled ItemChoice ("2 cantrips", "1 level 1 spell", "1 feat"). */
@@ -343,15 +344,15 @@ function choiceTitle(cfg,count){
   const type=cfg.type||cfg.restriction?.type;
   const level=cfg.restriction?.level;
   if(type==='spell'){
-    if(String(level)==='0')return count+' cantrip'+(count===1?'':'s');
+    if(String(level)==='0')return tr(count===1?'{0} cantrip':'{0} cantrips',count);
     return count+(level&&level!=='available'?' level '+level:'')+' spell'+(count===1?'':'s');
   }
   if(cfg.restriction?.subtype)return count+' '+cfg.restriction.subtype.replace(/([A-Z])/g,' $1').toLowerCase()+(count===1?'':'s');
-  return 'Choose '+count;
+  return tr('Choose {0}',count);
 }
 function defaultTitle(adv){
-  return {ItemGrant:'Features',ItemChoice:'Choose',Trait:'Proficiencies',AbilityScoreImprovement:'Ability Score Improvement',
-    Subclass:'Subclass',Size:'Size'}[adv.type]??adv.type;
+  return tr({ItemGrant:'Features',ItemChoice:'Choose',Trait:'Proficiencies',AbilityScoreImprovement:'Ability Score Improvement',
+    Subclass:'Subclass',Size:'Size'}[adv.type]??adv.type);
 }
 
 // ---- Edits (pure; return a new build) ---------------------------------------------------------
@@ -431,7 +432,7 @@ export function unarmoredDefenses(sheet){
     else if(/unarmored defen[cs]e/i.test(name)){
       const cls=sheet.classes.find(c=>c.item?.name===f.from||c.subclass?.name===f.from)??sheet.classes.find(c=>c.uuid===page.classUuid);
       const monk=identifier(cls?.item)==='monk';
-      out.push({ability:monk?'wis':'con',noShield:monk,label:'10 + Dex + '+(monk?'Wis':'Con')+' (Unarmored Defense)'});
+      out.push({ability:monk?'wis':'con',noShield:monk,label:tr(monk?'10 + Dex + Wis (Unarmored Defense)':'10 + Dex + Con (Unarmored Defense)')});
     }
   }
   return out;

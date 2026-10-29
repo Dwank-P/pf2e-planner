@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import Icon from '../ui/Icon.svelte';
   import AcBadge from '../ui/AcBadge.svelte';
   import Portrait from '../ui/Portrait.svelte';
@@ -42,50 +43,49 @@
 </script>
 <div class="sheet">
   <header>
-    <span class="eyebrow">Planned to level {sheet.level||0}</span>
-    <div class="title"><h2>{name||'Character'}</h2><Portrait src={portrait} {name} size={64} onEdit={onPortrait}/></div>
+    <span class="eyebrow">{tr("Planned to level {0}", sheet.level||0)}</span>
+    <div class="title"><h2>{name||tr('Character')}</h2><Portrait src={portrait} {name} size={64} onEdit={onPortrait}/></div>
     {#each identity as row}<p class="identity"><Icon src={row.img} size={26}/><span>{row.label}</span></p>{/each}
-    {#if !identity.length}<p>No origin or class yet</p>{/if}
+    {#if !identity.length}<p>{tr("No origin or class yet")}</p>{/if}
     {#if sheet.background}<p class="muted">{sheet.background.name}</p>{/if}
   </header>
   <div class="stats">
     <span class="ac"><AcBadge value={ac.total} title={ac.parts}/></span>
-    <span><small>HP</small><b class="num">{sheet.hp||'—'}</b></span>
-    <span><small>Prof.</small><b class="num">{signed(sheet.proficiencyBonus)}</b></span>
-    <span><small>Init.</small><b class="num">{signed(modifier(sheet.scores.dex))}</b></span>
+    <span><small>{tr("HP")}</small><b class="num">{sheet.hp||'—'}</b></span>
+    <span><small>{tr("Prof.")}</small><b class="num">{signed(sheet.proficiencyBonus)}</b></span>
+    <span><small>{tr("Init.")}</small><b class="num">{signed(modifier(sheet.scores.dex))}</b></span>
   </div>
   <div class="scores">
     {#each ABILITIES as a}
-      <span class:save={p.saves.has(a)} title={[p.saves.has(a)?'Saving throw proficiency (starting class)':'',
-        primary.has(a)?'Primary ability: '+primary.get(a).join(', '):''].filter(Boolean).join(' · ')}>
-        <small>{a.toUpperCase()}{#if primary.has(a)}<i class="key" aria-label={'Primary ability of '+primary.get(a).join(', ')}>◆</i>{/if}</small><b class="num">{sheet.scores[a]}</b>
+      <span class:save={p.saves.has(a)} title={[p.saves.has(a)?tr('Saving throw proficiency (starting class)'):'',
+        primary.has(a)?tr('Primary ability: {0}',primary.get(a).join(', ')):''].filter(Boolean).join(' · ')}>
+        <small>{a.toUpperCase()}{#if primary.has(a)}<i class="key" aria-label={tr('Primary ability of {0}',primary.get(a).join(', '))}>◆</i>{/if}</small><b class="num">{sheet.scores[a]}</b>
         <em class="num">{signed(modifier(sheet.scores[a]))}</em></span>
     {/each}
   </div>
   {#if attacks.length}
-    <div class="attacks"><b class="eyebrow">Attacks</b>
-      {#each attacks as a}<div><span>{a.name}{#if !a.proficient}<small class="muted"> · not proficient</small>{/if}</span>
+    <div class="attacks"><b class="eyebrow">{tr("Attacks")}</b>
+      {#each attacks as a}<div><span>{a.name}{#if !a.proficient}<small class="muted"> {tr("· not proficient")}</small>{/if}</span>
         <span><b class="num">{signed(a.attack)}</b> <small class="num">{a.damage}</small></span></div>{/each}</div>
   {/if}
-  {#if p.saves.size}<p class="line"><b>Saves</b> {[...p.saves].map(a=>a.toUpperCase()).join(', ')}</p>{/if}
-  {#if primary.size}<p class="legend muted">Outlined: saving throws (from the starting class). ◆ primary ability:
-    {[...primary.entries()].map(([a,names])=>ABILITY_NAMES[a]+' ('+names.join(', ')+')').join(', ')}.</p>{/if}
+  {#if p.saves.size}<p class="line"><b>{tr("Saves")}</b> {[...p.saves].map(a=>a.toUpperCase()).join(', ')}</p>{/if}
+  {#if primary.size}<p class="legend muted">{tr("Outlined: saving throws (from the starting class). ◆ primary ability: {0}.", [...primary.entries()].map(([a,names])=>ABILITY_NAMES[a]+' ('+names.join(', ')+')').join(', '))}</p>{/if}
   <div class="skills">
     {#each skills as s}<span class:prof={s.rank>=1} class:exp={s.rank>=2}><i aria-hidden="true">{s.rank>=2?'◆':s.rank?'●':'○'}</i><Glyph name={SKILL_GLYPHS_5E[s.key]} size={14}/>{s.label}<b class="num">{signed(s.bonus)}</b></span>{/each}
   </div>
-  {#if p.armor.size||p.weapon.size}<p class="line"><b>Armor & weapons</b> {[list(p.armor),list(p.weapon)].filter(Boolean).join('; ')}</p>{/if}
-  {#if p.mastery.size}<p class="line"><b>Weapon mastery</b> {list(p.mastery)}</p>{/if}
-  {#if p.tools.size}<p class="line"><b>Tools</b> {[...p.tools.keys()].map(k=>traitLabel(k,variants)).join(', ')}</p>{/if}
-  {#if p.languages.size}<p class="line"><b>Languages</b> {list(p.languages)}</p>{/if}
+  {#if p.armor.size||p.weapon.size}<p class="line"><b>{tr("Armor & weapons")}</b> {[list(p.armor),list(p.weapon)].filter(Boolean).join('; ')}</p>{/if}
+  {#if p.mastery.size}<p class="line"><b>{tr("Weapon mastery")}</b> {list(p.mastery)}</p>{/if}
+  {#if p.tools.size}<p class="line"><b>{tr("Tools")}</b> {[...p.tools.keys()].map(k=>traitLabel(k,variants)).join(', ')}</p>{/if}
+  {#if p.languages.size}<p class="line"><b>{tr("Languages")}</b> {list(p.languages)}</p>{/if}
   {#if sheet.spellcasting.slots.length||sheet.spellcasting.pact}
-    <p class="line"><b>Spell slots</b>
+    <p class="line"><b>{tr("Spell slots")}</b>
       {sheet.spellcasting.slots.map((n,i)=>ordinal(i+1)+' '+n).join(' · ')}
-      {#if sheet.spellcasting.pact}{sheet.spellcasting.slots.length?' · ':''}Pact {sheet.spellcasting.pact.count}× {ordinal(sheet.spellcasting.pact.level)}{/if}</p>
+      {#if sheet.spellcasting.pact}{tr("{0}Pact {1}× {2}", sheet.spellcasting.slots.length?' · ':'', sheet.spellcasting.pact.count, ordinal(sheet.spellcasting.pact.level))}{/if}</p>
   {/if}
   {#if sheet.scales.length}
-    <p class="line"><b>Scaling</b> {sheet.scales.map(s=>s.title+' '+s.value).join(' · ')}</p>
+    <p class="line"><b>{tr("Scaling")}</b> {sheet.scales.map(s=>s.title+' '+s.value).join(' · ')}</p>
   {/if}
-  {#if sheet.feats.length}<p class="line"><b>Feats</b> {sheet.feats.map(f=>catalog.get(f.uuid)?.name??'?').join(', ')}</p>{/if}
+  {#if sheet.feats.length}<p class="line"><b>{tr("Feats")}</b> {sheet.feats.map(f=>catalog.get(f.uuid)?.name??'?').join(', ')}</p>{/if}
   {#if sheet.warnings.length}
     <ul class="warn">{#each sheet.warnings as w}<li>{w}</li>{/each}</ul>
   {/if}

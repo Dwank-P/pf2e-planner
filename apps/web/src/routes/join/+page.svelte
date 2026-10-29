@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../../lib/i18n/index.js';
   import {onMount} from 'svelte';
   import ThemePicker from '../../lib/ThemePicker.svelte';
   let step = $state('code');
@@ -18,9 +19,9 @@
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
       if (result.message === 'invalid_or_expired_code') {
-        throw Error('This invitation code is invalid, expired or already used. Ask your GM for another.');
+        throw Error(tr('This invitation code is invalid, expired or already used. Ask your GM for another.'));
       }
-      if (result.message === 'username_unavailable') throw Error('That username is already taken. Try another.');
+      if (result.message === 'username_unavailable') throw Error(tr('That username is already taken. Try another.'));
       throw Error(result.message || 'Unable to complete this step.');
     }
     return result;
@@ -43,7 +44,7 @@
     try {
       code = code.trim();
       const result = await call('/api/v1/join/validate', { code });
-      if (!result.valid) throw Error('This invitation cannot be used.');
+      if (!result.valid) throw Error(tr('This invitation cannot be used.'));
       step = 'account';
     } catch (error) { errorText = error.message; }
     finally { busy = false; }
@@ -61,7 +62,7 @@
         method: 'GET', credentials: 'same-origin', cache: 'no-store'
       });
       if (!check.ok) {
-        throw Error('Your account was activated, but sign-in was not retained. Return to Sign in using your new username and password.');
+        throw Error(tr('Your account was activated, but sign-in was not retained. Return to Sign in using your new username and password.'));
       }
       step = 'done';
     } catch (error) { errorText = error.message; }
@@ -69,51 +70,51 @@
   }
 </script>
 
-<svelte:head><title>Join PF2e Planner</title></svelte:head>
+<svelte:head><title>{tr("Join PF2e Planner")}</title></svelte:head>
 <main><div class="join-theme"><ThemePicker/></div>
-  <p class="eyebrow">PF2E PLANNER · INVITATION</p>
+  <p class="eyebrow">{tr("PF2E PLANNER · INVITATION")}</p>
   {#if step === 'code'}
-    <div class="step">Step 1 of 2</div>
-    <h1>Join PF2e Planner</h1>
-    <p>Enter the one-time invitation code your GM sent you. We'll check that it's valid before you create your account.</p>
+    <div class="step">{tr("Step 1 of 2")}</div>
+    <h1>{tr("Join PF2e Planner")}</h1>
+    <p>{tr("Enter the one-time invitation code your GM sent you. We'll check that it's valid before you create your account.")}</p>
     {#if errorText}<p role="alert" class="error">{errorText}</p>{/if}
     <form onsubmit={validateCode}>
-      <label>Invitation code
+      <label>{tr("Invitation code")}
         <input required autocomplete="off" spellcheck="false" autocapitalize="off"
-          placeholder="Paste your invitation code" bind:value={code}/>
+          placeholder={tr("Paste your invitation code")} bind:value={code}/>
       </label>
-      <button disabled={busy || !code.trim()}>{busy ? 'Checking…' : 'Validate code'}</button>
+      <button disabled={busy || !code.trim()}>{busy ? tr('Checking…') : tr('Validate code')}</button>
     </form>
   {:else if step === 'account'}
-    <div class="step">Step 2 of 2 · Invitation verified</div>
-    <h1>Create your account</h1>
-    <p>Your invitation is valid. Choose a username and password. You'll use these across any campaigns you're invited to.</p>
+    <div class="step">{tr("Step 2 of 2 · Invitation verified")}</div>
+    <h1>{tr("Create your account")}</h1>
+    <p>{tr("Your invitation is valid. Choose a username and password. You'll use these across any campaigns you're invited to.")}</p>
     {#if errorText}<p role="alert" class="error">{errorText}</p>{/if}
     <form onsubmit={activate}>
-      <label>Username
+      <label>{tr("Username")}
         <input required minlength="3" maxlength="32" pattern="[a-zA-Z0-9_.-]{3,32}"
           autocomplete="username" autocapitalize="off" bind:value={username}/>
       </label>
-      <label>Password (12+ characters)
+      <label>{tr("Password (12+ characters)")}
         <input type="password" required minlength="12" maxlength="256"
           autocomplete="new-password" bind:value={password}/>
       </label>
-      <label>Confirm password
+      <label>{tr("Confirm password")}
         <input type="password" required minlength="12" maxlength="256"
           autocomplete="new-password" bind:value={confirm}/>
       </label>
       <div class="actions">
-        <button type="button" class="quiet" onclick={() => { step = 'code'; errorText = ''; }}>Back</button>
-        <button disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
+        <button type="button" class="quiet" onclick={() => { step = 'code'; errorText = ''; }}>{tr("Back")}</button>
+        <button disabled={busy}>{busy ? tr('Creating account…') : tr('Create account')}</button>
       </div>
     </form>
   {:else}
-    <div class="step">Complete</div>
-    <h1>You're in!</h1>
-    <p>Your account has been activated. You're signed in and can use the same account for other campaigns.</p>
-    <a class="button" href="/">Open PF2e Planner</a>
+    <div class="step">{tr("Complete")}</div>
+    <h1>{tr("You're in!")}</h1>
+    <p>{tr("Your account has been activated. You're signed in and can use the same account for other campaigns.")}</p>
+    <a class="button" href="/">{tr("Open PF2e Planner")}</a>
   {/if}
-  <footer>Already have an account? <a href="/">Sign in</a></footer>
+  <footer>{tr("Already have an account?")} <a href="/">{tr("Sign in")}</a></footer>
 </main>
 <style>
   :global(body){margin:0;background:var(--page-bg);color:var(--text);font:16px system-ui,sans-serif;}

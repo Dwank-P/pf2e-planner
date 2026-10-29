@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import {api} from './api.js';
   import PeoplePicker from './PeoplePicker.svelte';
   import PublicLink from './PublicLink.svelte';
@@ -38,8 +39,8 @@
 </script>
 <div class="scrim" role="presentation" onclick={onClose}></div>
 <div class="dialog panel" role="dialog" aria-modal="true" aria-labelledby="share-title">
-  <h2 id="share-title">Share character</h2>
-  <div class="options" role="radiogroup" aria-label="Who can see this character">
+  <h2 id="share-title">{tr("Share character")}</h2>
+  <div class="options" role="radiogroup" aria-label={tr("Who can see this character")}>
     {#each OPTIONS as [value,label,hint]}
       <label class="option" class:on={visibility===value}>
         <input type="radio" name="visibility" {value} bind:group={visibility}/>
@@ -49,22 +50,22 @@
   </div>
   {#if visibility==='custom'}
     <div class="people">
-      <PeoplePicker search={searchMembers} onPick={add} exclude={shares.map(s=>s.userId)} placeholder="Add a campaign member by name…" id="share-people"/>
+      <PeoplePicker search={searchMembers} onPick={add} exclude={shares.map(s=>s.userId)} placeholder={tr("Add a campaign member by name…")} id="share-people"/>
       {#each shares as s (s.userId)}
         <div class="person"><span><b>{s.displayName}</b><small>{s.username?'@'+s.username:''}</small></span>
           <span class="controls">
-            <select aria-label={'Access for '+s.displayName} value={s.access} onchange={e=>shares=shares.map(x=>x.userId===s.userId?{...x,access:e.currentTarget.value}:x)}>
-              <option value="view">Can view</option><option value="edit">Can edit</option>
+            <select aria-label={tr('Access for {0}',s.displayName)} value={s.access} onchange={e=>shares=shares.map(x=>x.userId===s.userId?{...x,access:e.currentTarget.value}:x)}>
+              <option value="view">{tr("Can view")}</option><option value="edit">{tr("Can edit")}</option>
             </select>
-            <button class="link danger" onclick={()=>shares=shares.filter(x=>x.userId!==s.userId)}>Remove</button>
+            <button class="link danger" onclick={()=>shares=shares.filter(x=>x.userId!==s.userId)}>{tr("Remove")}</button>
           </span></div>
-      {:else}<p class="muted small">Nobody chosen yet.</p>{/each}
+      {:else}<p class="muted small">{tr("Nobody chosen yet.")}</p>{/each}
     </div>
   {/if}
   <PublicLink {token} {busy} onChange={mode=>save(mode)}/>
   {#if error}<p class="notice bad" role="alert">{error}</p>{/if}
-  <div class="row"><button class="btn ghost" onclick={onClose}>Cancel</button>
-    <button class="btn primary" disabled={busy} onclick={()=>save('keep')}>{busy?'Saving…':'Save'}</button></div>
+  <div class="row"><button class="btn ghost" onclick={onClose}>{tr("Cancel")}</button>
+    <button class="btn primary" disabled={busy} onclick={()=>save('keep')}>{busy?tr('Saving…'):tr('Save')}</button></div>
 </div>
 <style>
   .scrim{position:fixed;inset:0;background:rgb(0 0 0 / .45);z-index:60}

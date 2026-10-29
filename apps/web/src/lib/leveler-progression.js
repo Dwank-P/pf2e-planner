@@ -145,7 +145,7 @@ export function personalRules(slots,variants={}){
     out=out.filter(s=>s.kind!=='abp');
     if(variants.automaticBonusProgression!=='noABP')for(const [level,benefits] of Object.entries(ABP)){
       const shown=variants.automaticBonusProgression==='ABPFundamentalPotency'?benefits.filter(b=>FUNDAMENTAL.test(b)):benefits;
-      if(shown.length)insert({key:'abp-'+level,type:'informational',kind:'abp',label:'Automatic bonus progression: '+shown.join(', '),
+      if(shown.length)insert({key:'abp-'+level,type:'informational',kind:'abp',label:'Automatic bonus progression: '+shown.join(', '),benefits:shown,
         level:Number(level),source:'leveler'});
     }
   }

@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import {ATTRIBUTES,ATTRIBUTE_NAMES,boostSources,boostAllowed,attributeModifiers,formatModifier} from '../builder/rules.js';
   import {toggleBoost,setAlternateAncestryBoosts} from '../builder/creation.js';
   let {creation,lookup,update}=$props();
@@ -7,7 +8,7 @@
   const picked=source=>creation.boosts?.[source.source]??[];
 </script>
 <div class="boosts">
-  <div class="totals" aria-label="Attribute modifiers">
+  <div class="totals" aria-label={tr("Attribute modifiers")}>
     {#each ATTRIBUTES as a}
       <div class="total"><span>{a.toUpperCase()}</span><b class="num">{formatModifier(result.mods[a])}</b></div>
     {/each}
@@ -18,10 +19,10 @@
       <header>
         <div><h3>{source.label}</h3>
           <p class="muted">
-            {#if source.fixed.length}Fixed: {source.fixed.map(a=>ATTRIBUTE_NAMES[a]).join(', ')}.{/if}
-            {#if source.flaws.length} Flaw: {source.flaws.map(a=>ATTRIBUTE_NAMES[a]).join(', ')}.{/if}
-            {#if source.restricted?.length} One boost must be {source.restricted.map(a=>ATTRIBUTE_NAMES[a]).join(' or ')}; the other is free.{/if}
-            {#if source.count===0} Nothing to choose.{/if}
+            {#if source.fixed.length}{tr("Fixed: {0}.", source.fixed.map(a=>ATTRIBUTE_NAMES[a]).join(', '))}{/if}
+            {#if source.flaws.length} {tr("Flaw: {0}.", source.flaws.map(a=>ATTRIBUTE_NAMES[a]).join(', '))}{/if}
+            {#if source.restricted?.length} {tr("One boost must be {0}; the other is free.", source.restricted.map(a=>ATTRIBUTE_NAMES[a]).join(' or '))}{/if}
+            {#if source.count===0} {tr("Nothing to choose.")}{/if}
           </p>
         </div>
         {#if source.count}<span class="count num" class:done={chosen.length>=source.count}>{chosen.length}/{source.count}</span>{/if}
@@ -34,18 +35,18 @@
             {@const flaw=source.flaws.includes(a)&&!on}
             <button class="attr" class:on class:fixed class:flaw aria-pressed={on||fixed}
               disabled={fixed||!boostAllowed(source,chosen,a)}
-              title={fixed?'Fixed boost from your ancestry':flaw?'Ancestry flaw (−1). A free boost here brings it back to +0.':''}
+              title={fixed?tr('Fixed boost from your ancestry'):flaw?tr('Ancestry flaw (−1). A free boost here brings it back to +0.'):''}
               onclick={()=>update(c=>toggleBoost(c,source.source,a,source.count))}>
-              <b>{a.toUpperCase()}</b><small>{fixed?'Fixed +1':flaw?'Flaw −1':ATTRIBUTE_NAMES[a]}</small>
+              <b>{a.toUpperCase()}</b><small>{fixed?tr('Fixed +1'):flaw?tr('Flaw −1'):ATTRIBUTE_NAMES[a]}</small>
             </button>
           {/each}
         </div>
-        {#if chosen.length>=source.count&&source.count>1}<p class="hint muted">Full. Deselect one to change it.</p>{/if}
+        {#if chosen.length>=source.count&&source.count>1}<p class="hint muted">{tr("Full. Deselect one to change it.")}</p>{/if}
       {/if}
       {#if source.source==='ancestry'&&(source.canUseAlternate||creation.alternateAncestryBoosts)}
         <label class="alt"><input type="checkbox" checked={!!creation.alternateAncestryBoosts}
           onchange={e=>update(c=>setAlternateAncestryBoosts(c,e.currentTarget.checked))}/>
-          Use two free boosts instead (no flaw)</label>
+          {tr("Use two free boosts instead (no flaw)")}</label>
       {/if}
     </section>
   {/each}

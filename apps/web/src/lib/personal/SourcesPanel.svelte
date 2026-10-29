@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import {api,timeAgo} from '../ui/api.js';
   /**
    * A personal character's own rules and sources: which packages (systems, modules, a world's
@@ -36,38 +37,37 @@
 </script>
 <div class="scrim" role="presentation" onclick={onClose}></div>
 <div class="dialog panel" role="dialog" aria-modal="true" aria-labelledby="sources-title">
-  <h2 id="sources-title">Rules &amp; sources</h2>
+  <h2 id="sources-title">{tr("Rules & sources")}</h2>
   <section class="group">
-    <h3>Rules</h3>
+    <h3>{tr("Rules")}</h3>
     {#if character.system==='dnd5e'}
-      <div class="seg" role="radiogroup" aria-label="Rules edition">
-        <label class:on={variants.rulesVersion!=='legacy'}><input type="radio" value="modern" bind:group={variants.rulesVersion}/> 2024 rules</label>
-        <label class:on={variants.rulesVersion==='legacy'}><input type="radio" value="legacy" bind:group={variants.rulesVersion}/> 2014 rules</label>
+      <div class="seg" role="radiogroup" aria-label={tr("Rules edition")}>
+        <label class:on={variants.rulesVersion!=='legacy'}><input type="radio" value="modern" bind:group={variants.rulesVersion}/> {tr("2024 rules")}</label>
+        <label class:on={variants.rulesVersion==='legacy'}><input type="radio" value="legacy" bind:group={variants.rulesVersion}/> {tr("2014 rules")}</label>
       </div>
-      <label class="check"><input type="checkbox" checked={variants.allowFeats!==false} onchange={e=>variants={...variants,allowFeats:e.currentTarget.checked}}/> Feats instead of ability score improvements</label>
+      <label class="check"><input type="checkbox" checked={variants.allowFeats!==false} onchange={e=>variants={...variants,allowFeats:e.currentTarget.checked}}/> {tr("Feats instead of ability score improvements")}</label>
     {:else}
       {#each PF2E as [key,label]}
-        <label class="check"><input type="checkbox" checked={variants[key]===true} onchange={e=>variants={...variants,[key]:e.currentTarget.checked}}/> {label}</label>
+        <label class="check"><input type="checkbox" checked={variants[key]===true} onchange={e=>variants={...variants,[key]:e.currentTarget.checked}}/> {tr(label)}</label>
       {/each}
-      <label class="field" for="abp">Automatic Bonus Progression
+      <label class="field" for="abp">{tr("Automatic Bonus Progression")}
         <select id="abp" value={variants.automaticBonusProgression??'noABP'} onchange={e=>variants={...variants,automaticBonusProgression:e.currentTarget.value}}>
-          {#each ABP as [value,label]}<option {value}>{label}</option>{/each}</select></label>
-      <p class="hint">These rules are this character’s own, whatever the source worlds use.</p>
+          {#each ABP as [value,label]}<option {value}>{tr(label)}</option>{/each}</select></label>
+      <p class="hint">{tr("These rules are this character’s own, whatever the source worlds use.")}</p>
     {/if}
   </section>
   <section class="group">
-    <div class="head"><h3>Sources <small>{count} chosen</small></h3>
-      {#if available?.length}<button class="link" onclick={everything}>Use everything</button>{/if}</div>
+    <div class="head"><h3>{tr("Sources")} <small>{tr("{0} chosen", count)}</small></h3>
+      {#if available?.length}<button class="link" onclick={everything}>{tr("Use everything")}</button>{/if}</div>
     {#if missing.length}
-      <p class="notice">No longer shared: {missing.map(s=>s.package+' ('+s.title+')').join(', ')}. Items already picked from them are kept.</p>
+      <p class="notice">{tr("No longer shared: {0}. Items already picked from them are kept.", missing.map(s=>s.package+' ('+s.title+')').join(', '))}</p>
     {/if}
     {#if available===null&&!error}
-      <p class="muted">Loading…</p>
+      <p class="muted">{tr("Loading…")}</p>
     {:else if !available?.length}
-      <p class="muted">No synced {character.system==='dnd5e'?'D&D 5e':'PF2e/SF2e'} world is available to you: join a campaign,
-        or ask a GM to share their compendiums with every account (campaign settings).</p>
+      <p class="muted">{tr("No synced {0} world is available to you: join a campaign, or ask a GM to share their compendiums with every account (campaign settings).", character.system==='dnd5e'?'D&D 5e':'PF2e/SF2e')}</p>
     {:else}
-      {#if available.length>8}<input type="search" placeholder="Filter packages…" bind:value={filter} aria-label="Filter packages"/>{/if}
+      {#if available.length>8}<input type="search" placeholder={tr("Filter packages…")} bind:value={filter} aria-label={tr("Filter packages")}/>{/if}
       <ul class="packages">
         {#each shown as p (p.package)}
           {@const on=!!chosen[p.package]}
@@ -75,12 +75,12 @@
             <label class="check"><input type="checkbox" checked={on} onchange={e=>toggle(p,e.currentTarget.checked)}/>
               <span class="num">{p.package}</span></label>
             {#if p.worlds.length>1}
-              <select aria-label={'World for '+p.package} disabled={!on} value={chosen[p.package]||p.worlds[0].integrationId}
+              <select aria-label={tr('World for {0}',p.package)} disabled={!on} value={chosen[p.package]||p.worlds[0].integrationId}
                 onchange={e=>chosen={...chosen,[p.package]:e.currentTarget.value}}>
-                {#each p.worlds as w}<option value={w.integrationId}>{w.title} · {w.items.toLocaleString()} items · synced {timeAgo(w.updatedAt)}</option>{/each}
+                {#each p.worlds as w}<option value={w.integrationId}>{tr("{0} · {1} items · synced {2}", w.title, w.items.toLocaleString(), timeAgo(w.updatedAt))}</option>{/each}
               </select>
             {:else}
-              <small class="muted">{p.worlds[0].title} · {p.worlds[0].items.toLocaleString()} items</small>
+              <small class="muted">{tr("{0} · {1} items", p.worlds[0].title, p.worlds[0].items.toLocaleString())}</small>
             {/if}
           </li>
         {/each}
@@ -88,8 +88,8 @@
     {/if}
   </section>
   {#if error}<p class="notice bad" role="alert">{error}</p>{/if}
-  <div class="row"><button class="btn ghost" onclick={onClose}>Cancel</button>
-    <button class="btn primary" disabled={busy||available===null} onclick={save}>{busy?'Saving…':'Save'}</button></div>
+  <div class="row"><button class="btn ghost" onclick={onClose}>{tr("Cancel")}</button>
+    <button class="btn primary" disabled={busy||available===null} onclick={save}>{busy?tr('Saving…'):tr('Save')}</button></div>
 </div>
 <style>
   .scrim{position:fixed;inset:0;background:var(--overlay);z-index:60}

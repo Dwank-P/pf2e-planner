@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import StepPanel from './StepPanel.svelte';
   import {stepSummary} from '../builder/summaries.js';
   import Icon from '../ui/Icon.svelte';
@@ -41,14 +42,14 @@
 <div class="level">
   {#each cards as step (step.id)}
     {@const gear=step.id==='equipment'&&onEquipment}
-    {@const summary=gear?(startingGear.length?startingGear.length+' item'+(startingGear.length===1?'':'s')+' at level 1':''):stepSummary(step,creation,catalog.get,variants)}
+    {@const summary=gear?(startingGear.length?tr(startingGear.length===1?'{0} item at level 1':'{0} items at level 1',startingGear.length):''):stepSummary(step,creation,catalog.get,variants)}
     {@const img=iconOf(step)}
     <section class="slot" class:open={open===step.id} class:done={step.complete}>
       <button class="head" aria-expanded={gear?undefined:open===step.id} onclick={()=>gear?onEquipment():onOpen(open===step.id?null:step.id)}>
         <span class="icon" class:pic={!!img} aria-hidden="true">{#if img}<Icon src={img} size={30}/>{:else}{step.complete?'✓':'·'}{/if}</span>
         <span class="text"><span class="eyebrow">{step.label}</span>
-          <span class="value" class:unset={!summary}>{summary||(step.optional?'Optional':'Choose')}</span></span>
-        <span class="action">{gear?'Equipment plan →':open===step.id?'Close':summary?'Change':'Choose'}</span>
+          <span class="value" class:unset={!summary}>{summary||(step.optional?tr('Optional'):tr('Choose'))}</span></span>
+        <span class="action">{gear?tr('Equipment plan →'):open===step.id?tr('Close'):summary?tr('Change'):tr('Choose')}</span>
       </button>
       {#if open===step.id&&!gear}
         <div class="body">
@@ -58,10 +59,10 @@
     </section>
   {/each}
   {#if features.length||granted.length}
-    <div class="granted"><span class="eyebrow">Gained automatically at level 1</span>
+    <div class="granted"><span class="eyebrow">{tr("Gained automatically at level 1")}</span>
       <ul>{#each features as f}<li><Icon src={f.uuid?catalog.get(f.uuid)?.img:null} size={22}/>{#if f.uuid}<button class="link" onclick={()=>info(f.uuid)}>{f.name}</button>{:else}{f.name}{/if}</li>{/each}
         {#each granted as g (g.item.uuid)}<li><Icon src={g.item.img} size={22}/><button class="link" onclick={()=>info(g.item.uuid)}>{g.item.name}</button>
-        <small class="muted">from {g.from}</small></li>{/each}</ul></div>
+        <small class="muted">{tr("from {0}", g.from)}</small></li>{/each}</ul></div>
   {/if}
 </div>
 <style>

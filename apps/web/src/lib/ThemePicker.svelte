@@ -1,14 +1,15 @@
 <script>
+  import {tr} from './i18n/index.js';
   import {readTheme,applyTheme} from './ui/theme.js';
   let theme=$state('system');
   $effect(()=>{theme=readTheme();});
 </script>
 <label class="theme-picker">
-  <span class="sr">Theme</span>
+  <span class="sr">{tr("Theme")}</span>
   <select value={theme} onchange={e=>{theme=e.currentTarget.value;applyTheme(theme);}}>
-    <option value="system">Auto theme</option>
-    <option value="dark">Dark</option>
-    <option value="light">Light</option>
+    <option value="system">{tr("Auto theme")}</option>
+    <option value="dark">{tr("Dark")}</option>
+    <option value="light">{tr("Light|theme")}</option>
   </select>
 </label>
 <style>

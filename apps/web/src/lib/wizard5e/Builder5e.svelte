@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import Origin5e from './Origin5e.svelte';
   import Level5e from './Level5e.svelte';
   import Spells5e from './Spells5e.svelte';
@@ -117,10 +118,10 @@
   function insertLevel(level,classUuid){
     update(b=>insertLevelAt(b,level-1,classUuid));
   }
-  const labelOf=id=>({origin:'Origin',spells:'Spells',equipment:'Equipment plan',notes:'Notes'})[id]??(id?.startsWith('level-')?'Level '+id.slice(6):'');
+  const labelOf=id=>({origin:tr('Origin'),spells:tr('Spells'),equipment:tr('Equipment plan'),notes:tr('Notes')})[id]??(id?.startsWith('level-')?tr('Level {0}',id.slice(6)):'');
   function levelLine(level){
     const p=sheet?.pages[level-1];
-    if(!build.levels[level-1])return level===planned+1?'Add a level':'';
+    if(!build.levels[level-1])return level===planned+1?tr('Add a level'):'';
     return (p?.className??'?')+' '+(p?.classLevel??'');
   }
   function levelStatus(level){
@@ -130,17 +131,17 @@
     return p.multiclassProblem?'part':!total||done===total?'done':done?'part':'todo';
   }
   const originDone=$derived(!!(build?.speciesUuid&&build?.backgroundUuid));
-  const saveLabel=$derived({saved:'Saved',saving:'Saving…',unsaved:'Unsaved',error:'Not saved'}[saveState]);
+  const saveLabel=$derived(tr({saved:'Saved',saving:'Saving…',unsaved:'Unsaved',error:'Not saved'}[saveState]));
   const editionLabel=$derived(isModern(variants)?'2024 rules':'2014 rules');
 </script>
-<svelte:head><title>{name||'Character'} · Planner</title></svelte:head>
+<svelte:head><title>{tr("{0} · Planner", name||tr('Character'))}</title></svelte:head>
 <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name} personal={!scope.campaignId&&!scope.publicView}>
   {#snippet actions()}
-    {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">View only</span>{/if}
-    {#if scope.exportUrl}<button class="btn small ghost" title="Download the build to import into another planner" onclick={()=>downloadJson(scope.exportUrl,name).catch(e=>error=e.message)}>Export</button>{/if}
+    {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">{tr("View only")}</span>{/if}
+    {#if scope.exportUrl}<button class="btn small ghost" title={tr("Download the build to import into another planner")} onclick={()=>downloadJson(scope.exportUrl,name).catch(e=>error=e.message)}>{tr("Export")}</button>{/if}
     {@render extraActions?.()}
-    {#if canManage}<button class="btn small ghost" onclick={()=>scope.onShare?scope.onShare():sharing=true}>Share</button>
-      <button class="btn small ghost danger" onclick={()=>confirmDelete=true}>Delete</button>{/if}
+    {#if canManage}<button class="btn small ghost" onclick={()=>scope.onShare?scope.onShare():sharing=true}>{tr("Share")}</button>
+      <button class="btn small ghost danger" onclick={()=>confirmDelete=true}>{tr("Delete")}</button>{/if}
   {/snippet}
 </AppBar>
 {#if sharing}
@@ -150,78 +151,78 @@
 {#if confirmDelete}
   <div class="banner" role="alertdialog" aria-labelledby="delete-title">
     <div class="notice bad delete">
-      <b id="delete-title">Delete {name||'this character'}?</b>
-      <span>This removes the plan from the website for everyone. It can't be undone.</span>
-      <span class="row"><button class="btn small" onclick={()=>confirmDelete=false}>Keep it</button>
-        <button class="btn small danger" disabled={deleting} onclick={deleteCharacter}>{deleting?'Deleting…':'Delete character'}</button></span>
+      <b id="delete-title">{tr("Delete {0}?", name||tr('this character'))}</b>
+      <span>{tr("This removes the plan from the website for everyone. It can't be undone.")}</span>
+      <span class="row"><button class="btn small" onclick={()=>confirmDelete=false}>{tr("Keep it")}</button>
+        <button class="btn small danger" disabled={deleting} onclick={deleteCharacter}>{deleting?tr('Deleting…'):tr('Delete character')}</button></span>
     </div>
   </div>
 {/if}
 {#if character&&!canEdit}
-  <div class="banner"><p class="notice">{scope.publicView?`${character.ownerName??'A player'}’s character, from a shared link. It’s read-only.`
-    :`${character.ownerName??'Its owner'} shared this character with you to view. Changes you make here aren’t saved.`}</p></div>
+  <div class="banner"><p class="notice">{scope.publicView?tr("{0}’s character, from a shared link. It’s read-only.",character.ownerName??tr('A player'))
+    :tr("{0} shared this character with you to view. Changes you make here aren’t saved.",character.ownerName??tr('Its owner'))}</p></div>
 {/if}
 {@render banner?.()}
 {#if error}
   <div class="banner" role="alert"><p class="notice bad">{error}
-    {#if conflict}<button class="link" onclick={()=>location.reload()}>Reload</button>{/if}</p></div>
+    {#if conflict}<button class="link" onclick={()=>location.reload()}>{tr("Reload")}</button>{/if}</p></div>
 {/if}
 {#if build&&catalog&&sheet}
   {#if !catalog.count&&scope.campaignId}
-    <div class="banner"><p class="notice">The GM hasn’t synced this world’s compendiums yet. Once the Planner Bridge (D&amp;D 5e) runs <i>Sync Now</i>, classes and spells appear here.</p></div>
+    <div class="banner"><p class="notice">{tr("The GM hasn’t synced this world’s compendiums yet. Once the Planner Bridge (D&D 5e) runs")} <i>{tr("Sync Now")}</i>{tr(", classes and spells appear here.")}</p></div>
   {/if}
   <div class="mobile-bar">
     <button class="menu-btn" aria-expanded={railOpen} aria-controls="builder-rail" onclick={()=>railOpen=!railOpen}>
-      <span aria-hidden="true">☰</span><span class="sr">Levels</span></button>
-    <span class="where"><b>{labelOf(at)}</b><small>{name} · level {currentLevel}</small></span>
-    <button class="summary-btn" aria-expanded={summaryOpen} aria-controls="builder-summary" title="Character summary"
-      onclick={()=>{summaryOpen=!summaryOpen;railOpen=false;}}><span aria-hidden="true">◧</span><span class="sr">Summary</span></button>
+      <span aria-hidden="true">☰</span><span class="sr">{tr("Levels")}</span></button>
+    <span class="where"><b>{labelOf(at)}</b><small>{tr("{0} · level {1}", name, currentLevel)}</small></span>
+    <button class="summary-btn" aria-expanded={summaryOpen} aria-controls="builder-summary" title={tr("Character summary")}
+      onclick={()=>{summaryOpen=!summaryOpen;railOpen=false;}}><span aria-hidden="true">◧</span><span class="sr">{tr("Summary")}</span></button>
   </div>
   {#if railOpen}<div class="scrim" role="presentation" onclick={()=>railOpen=false}></div>{/if}
   {#if summaryOpen}<div class="sum-scrim" role="presentation" onclick={()=>summaryOpen=false}></div>{/if}
   <div class="builder">
-    <nav class="rail" class:open={railOpen} id="builder-rail" aria-label="Levels">
+    <nav class="rail" class:open={railOpen} id="builder-rail" aria-label={tr("Levels")}>
       <div class="identity">
-        <label class="field" for="character-name"><span class="eyebrow">Character</span>
+        <label class="field" for="character-name"><span class="eyebrow">{tr("Character")}</span>
           <input id="character-name" maxlength="80" bind:value={name} oninput={schedule} readonly={!canEdit}/></label>
-        <label class="field" for="current-level"><span class="eyebrow">Level</span>
+        <label class="field" for="current-level"><span class="eyebrow">{tr("Level")}</span>
           <select id="current-level" bind:value={currentLevel} onchange={schedule} disabled={!canEdit}>
             {#each Array.from({length:20},(_,i)=>i+1) as n}<option value={n}>{n}</option>{/each}
           </select></label>
       </div>
-      <p class="edition"><span class="badge">{editionLabel}</span> from the world’s settings</p>
+      <p class="edition"><span class="badge">{editionLabel}</span> {tr("from the world’s settings")}</p>
       <ol>
         <li><button class="item" class:on={at==='origin'} onclick={()=>go('origin')}>
           <span class="lvl" aria-hidden="true">◇</span>
-          <span class="label"><span class="name">Origin</span>
-            <span class="pick">{[sheet.species?.name,sheet.background?.name].filter(Boolean).join(' · ')||'Species, background, scores'}</span></span>
+          <span class="label"><span class="name">{tr("Origin")}</span>
+            <span class="pick">{[sheet.species?.name,sheet.background?.name].filter(Boolean).join(' · ')||tr('Species, background, scores')}</span></span>
           <span class="status {originDone?'done':'todo'}"></span></button></li>
         {#each Array.from({length:Math.min(20,planned+1)},(_,i)=>i+1) as level}
           <li><button class="item" class:on={at==='level-'+level} class:future={level>currentLevel} class:add={level>planned}
             aria-current={at==='level-'+level?'step':undefined} onclick={()=>go('level-'+level)}>
             <span class="lvl num">{level>planned?'+':level}</span>
             <span class="label"><span class="pick">{levelLine(level)}</span>
-              {#if level===currentLevel}<span class="tags"><span class="now">Current</span></span>{/if}</span>
+              {#if level===currentLevel}<span class="tags"><span class="now">{tr("Current")}</span></span>{/if}</span>
             <span class="status {levelStatus(level)}"></span>
           </button></li>
         {/each}
         <li><button class="item" class:on={at==='spells'} onclick={()=>go('spells')}>
           <span class="lvl" aria-hidden="true">✦</span>
-          <span class="label"><span class="name">Spells</span>
-            <span class="pick">{Object.values(build.spells).flat().length||'No'} spells chosen</span></span><span></span></button></li>
+          <span class="label"><span class="name">{tr("Spells")}</span>
+            <span class="pick">{tr("{0} spells chosen", Object.values(build.spells).flat().length||tr('No'))}</span></span><span></span></button></li>
         <li><button class="item" class:on={at==='equipment'} onclick={()=>go('equipment')}>
           <span class="lvl" aria-hidden="true">⚒</span>
-          <span class="label"><span class="name">Equipment plan</span>
-            <span class="pick">{wishlist(planner).length?wishlist(planner).length+' items wanted':'Items to buy as you level'}</span></span><span></span></button></li>
+          <span class="label"><span class="name">{tr("Equipment plan")}</span>
+            <span class="pick">{wishlist(planner).length?wishlist(planner).length+tr(' items wanted'):tr('Items to buy as you level')}</span></span><span></span></button></li>
         <li><button class="item" class:on={at==='notes'} onclick={()=>go('notes')}>
           <span class="lvl" aria-hidden="true">✎</span>
-          <span class="label"><span class="name">Notes</span></span><span></span></button></li>
+          <span class="label"><span class="name">{tr("Notes")}</span></span><span></span></button></li>
       </ol>
     </nav>
     <main class="stage">
       <header class="stage-head">
-        <span class="eyebrow">{atLevel?(atLevel>planned?'Next level':`Level ${atLevel} of ${planned}`):'D&D 5e plan'}</span>
-        <h1>{atLevel>planned?'Add level '+atLevel:labelOf(at)}</h1>
+        <span class="eyebrow">{atLevel?(atLevel>planned?tr('Next level'):tr("Level {0} of {1}",atLevel,planned)):'D&D 5e plan'}</span>
+        <h1>{atLevel>planned?tr('Add level {0}',atLevel):labelOf(at)}</h1>
       </header>
       {#if at==='origin'}
         <Origin5e {build} {catalog} {variants} {sheet} {update} info={uuid=>detail=uuid} readonly={!canEdit}/>
@@ -236,11 +237,11 @@
       {:else if at==='equipment'}
         <WishlistPanel {planner} {catalog} {updatePlanner} {currentLevel} info={uuid=>detail=uuid}/>
       {:else if at==='notes'}
-        <textarea class="notes" maxlength="4000" readonly={!canEdit} value={planner.notes??''} aria-label="Notes"
+        <textarea class="notes" maxlength="4000" readonly={!canEdit} value={planner.notes??''} aria-label={tr("Notes")}
           oninput={e=>updatePlanner(p=>({...p,notes:e.currentTarget.value}))}></textarea>
       {/if}
       <footer class="stage-foot">
-        <button class="btn" disabled={index<=0} onclick={()=>go('prev')}>← {labelOf(sequence[index-1])||'Back'}</button>
+        <button class="btn" disabled={index<=0} onclick={()=>go('prev')}>← {labelOf(sequence[index-1])||tr('Back')}</button>
         {#if index<sequence.length-1}<button class="btn primary" onclick={()=>go('next')}>{labelOf(sequence[index+1])} →</button>{/if}
       </footer>
     </main>
@@ -249,7 +250,7 @@
   {#if portraitOpen}<PortraitEditor current={character.portrait} onSave={setPortrait} onRemove={()=>setPortrait(null)} onClose={()=>portraitOpen=false}/>{/if}
   <ItemDrawer campaignId={scope.campaignId} catalogBase={scope.campaignId?null:scope.catalogBase} linksDisabled={!!scope.publicView} {variants} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
 {:else if !error}
-  <p class="loading muted">Loading the character…</p>
+  <p class="loading muted">{tr("Loading the character…")}</p>
 {/if}
 <style>
   .save{font:500 12px var(--mono);color:var(--muted);min-width:64px}

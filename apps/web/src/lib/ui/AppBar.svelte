@@ -1,6 +1,8 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import {api,campaignPath,timeAgo} from './api.js';
   import {readTheme,applyTheme} from './theme.js';
+  import LanguagePicker from './LanguagePicker.svelte';
   /**
    * me: {displayName, siteRole}; campaigns: [{id,title,role}]; campaign: current;
    * sync: catalog-summary report; crumb: trailing breadcrumb text; actions: snippet.
@@ -23,7 +25,7 @@
 </script>
 <svelte:window onclick={close} onkeydown={e=>{if(e.key==='Escape')menu=switcher=false;}}/>
 <header class="bar">
-  <a class="brand" href="/" aria-label="PF2e Planner home"><span class="mark" aria-hidden="true"></span><span>PF2e Planner</span></a>
+  <a class="brand" href="/" aria-label={tr("PF2e Planner home")}><span class="mark" aria-hidden="true"></span><span>{tr("PF2e Planner")}</span></a>
   {#if campaign}
     <div class="menu-wrap crumbs">
       <button class="crumb" aria-haspopup="menu" aria-expanded={switcher} onclick={()=>switcher=!switcher}>
@@ -31,46 +33,47 @@
       </button>
       {#if switcher}
         <div class="menu" role="menu">
-          <span class="eyebrow">Campaigns</span>
+          <span class="eyebrow">{tr("Campaigns")}</span>
           {#each campaigns as c}
             <a role="menuitem" href={campaignPath(c.id)} class:current={c.id===campaign.id}>{c.title}
-              <small>{c.role==='gm'?'GM':c.role==='player'?'Player':'Owner'}</small></a>
+              <small>{c.role==='gm'?'GM':c.role==='player'?tr('Player'):tr('Owner')}</small></a>
           {/each}
           {#if me?.siteRole==='owner'||campaigns.some(c=>c.role==='gm')}
-            <a role="menuitem" class="add" href="/worlds/new"><span>+ Add a world</span><small>New campaign</small></a>
+            <a role="menuitem" class="add" href="/worlds/new"><span>{tr("+ Add a world")}</span><small>{tr("New campaign")}</small></a>
           {/if}
-          <a role="menuitem" href="/characters">My characters<small>Personal</small></a>
+          <a role="menuitem" href="/characters">{tr("My characters")}<small>{tr("Personal")}</small></a>
         </div>
       {/if}
       {#if crumb}<span class="sep" aria-hidden="true">/</span><span class="here">{crumb}</span>{/if}
     </div>
   {:else if crumb&&me}
-    <div class="crumbs">{#if personal}<a class="crumb" href="/characters">My characters</a>{/if}
+    <div class="crumbs">{#if personal}<a class="crumb" href="/characters">{tr("My characters")}</a>{/if}
       {#if crumb!=='My characters'||!personal}{#if personal}<span class="sep" aria-hidden="true">/</span>{/if}<span class="here">{crumb}</span>{/if}</div>
   {/if}
   <span class="spacer"></span>
   {#if campaign}
     <span class="sync" title={sync?.ruleset?(sync.ruleset.levelerVersion?`${(sync.ruleset.systemId??'pf2e').toUpperCase()} ${sync.ruleset.systemVersion??'?'} · Leveler ${sync.ruleset.levelerVersion}`:`${(sync.ruleset.systemId??'').toUpperCase()} ${sync.ruleset.systemVersion??'?'}`):''}>
       <span class="status-dot {syncState}"></span>
-      {#if syncState==='none'}Not synced yet{:else}Synced {timeAgo(sync.updatedAt)}{/if}
+      {#if syncState==='none'}{tr("Not synced yet")}{:else}{tr("Synced {0}", timeAgo(sync.updatedAt))}{/if}
     </span>
   {/if}
   {@render actions?.()}
   {#if me}
     <div class="menu-wrap">
-      <button class="avatar" aria-haspopup="menu" aria-expanded={menu} aria-label="Account menu" onclick={()=>menu=!menu}>{initials}</button>
+      <button class="avatar" aria-haspopup="menu" aria-expanded={menu} aria-label={tr("Account menu")} onclick={()=>menu=!menu}>{initials}</button>
       {#if menu}
         <div class="menu right" role="menu">
-          <div class="who"><b>{me.displayName}</b><small>{me.siteRole==='owner'?'Server owner':'Player'}</small></div>
-          <div class="theme" role="group" aria-label="Theme">
-            {#each [['system','Auto'],['dark','Dark'],['light','Light']] as [value,label]}
+          <div class="who"><b>{me.displayName}</b><small>{me.siteRole==='owner'?tr('Server owner'):tr('Player')}</small></div>
+          <div class="theme" role="group" aria-label={tr("Theme")}>
+            {#each [['system',tr('Auto')],['dark',tr('Dark')],['light',tr('Light|theme')]] as [value,label]}
               <button class:on={theme===value} aria-pressed={theme===value} onclick={()=>setTheme(value)}>{label}</button>
             {/each}
           </div>
-          <a role="menuitem" href="/characters">My characters</a>
-          <a role="menuitem" href="/account">Account</a>
-          {#if me.siteRole==='owner'}<a role="menuitem" href="/admin">Server admin</a>{/if}
-          <button role="menuitem" class="item" onclick={signOut}>Sign out</button>
+          <LanguagePicker wide/>
+          <a role="menuitem" href="/characters">{tr("My characters")}</a>
+          <a role="menuitem" href="/account">{tr("Account")}</a>
+          {#if me.siteRole==='owner'}<a role="menuitem" href="/admin">{tr("Server admin")}</a>{/if}
+          <button role="menuitem" class="item" onclick={signOut}>{tr("Sign out")}</button>
         </div>
       {/if}
     </div>

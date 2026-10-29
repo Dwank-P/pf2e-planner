@@ -1,4 +1,5 @@
 <script>
+  import {tr,labels} from '../i18n/index.js';
   import OptionGrid from '../wizard/OptionGrid.svelte';
   import {ABILITIES,ABILITY_NAMES} from '../systems/dnd5e/rules.js';
   import {traitLabel,itemChoiceOptions,featOptions,editionMatches} from '../systems/dnd5e/build.js';
@@ -6,7 +7,7 @@
   let {card,catalog,variants,sheet,build,onChoice,onSubclass,info,readonly=false}=$props();
   let open=$state(!card.done);
   const otherEdition=item=>editionMatches(item,variants)?null:{blocked:'Made for the other rules edition',unknown:[]};
-  const sizeLabel={tiny:'Tiny',sm:'Small',med:'Medium',lg:'Large',huge:'Huge',grg:'Gargantuan'};
+  const sizeLabel=labels({tiny:'Tiny',sm:'Small',med:'Medium|size',lg:'Large',huge:'Huge',grg:'Gargantuan'});
   const takenFeats=$derived(sheet.feats.map(f=>f.uuid));
 
   function toggleList(value){
@@ -29,13 +30,13 @@
   const summary=$derived.by(()=>{
     if(card.kind==='subclass')return catalog.get(card.value)?.name??'Not chosen';
     if(card.kind==='asi'){
-      if(card.value?.mode==='feat')return catalog.get(card.value.uuid)?.name??'Feat';
+      if(card.value?.mode==='feat')return catalog.get(card.value.uuid)?.name??tr('Feat');
       const parts=ABILITIES.filter(a=>points[a]).map(a=>a.toUpperCase()+' +'+points[a]);
       return parts.join(', ')||'Not chosen';
     }
     if(card.kind==='trait')return (card.value??[]).map(k=>traitLabel(k,variants)).join(', ')||'Not chosen';
-    if(card.kind==='grant')return (card.value?.length?card.value.length+' declined':'All taken');
-    if(card.kind==='size')return sizeLabel[card.value?.[0]]??'Not chosen';
+    if(card.kind==='grant')return (card.value?.length?tr('{0} declined',card.value.length):tr('All taken'));
+    if(card.kind==='size')return sizeLabel[card.value?.[0]]??tr('Not chosen');
     return (card.value??[]).map(u=>catalog.get(u)?.name??'?').join(', ')||'Not chosen';
   });
   const need=$derived(card.kind==='trait'||card.kind==='itemChoice'?Math.max(0,card.count-(card.value?.length??0)):0);
@@ -43,58 +44,58 @@
 <section class="card" class:done={card.done}>
   <button class="head" aria-expanded={open} onclick={()=>open=!open}>
     <span class="title"><b>{card.title}</b><small>{card.source?.name}{card.kind==='trait'&&card.mode!=='default'?' · '+card.mode:''}</small></span>
-    <span class="value">{summary}{#if need}<em> · choose {need}</em>{/if}</span>
-    <span class="status" class:ok={card.done} aria-label={card.done?'done':'to do'}></span>
+    <span class="value">{summary}{#if need}<em> {tr("· choose {0}", need)}</em>{/if}</span>
+    <span class="status" class:ok={card.done} aria-label={card.done?'done':tr('to do')}></span>
   </button>
   {#if open}
     <div class="body">
       {#if card.kind==='subclass'}
         <OptionGrid items={subclassItems} selected={card.value?[card.value]:[]} max={1} check={otherEdition}
           onToggle={item=>!readonly&&onSubclass(card.classUuid,card.value===item.uuid?null:item.uuid)} onInfo={item=>info(item.uuid)}
-          detail={item=>item.metadata?.publication??''} placeholder="Search subclasses…" id={card.key}/>
+          detail={item=>item.metadata?.publication??''} placeholder={tr("Search subclasses…")} id={card.key}/>
       {:else if card.kind==='itemChoice'}
-        {#if card.replacement}<p class="hint">You may also replace one earlier choice here (change it at its own level).</p>{/if}
+        {#if card.replacement}<p class="hint">{tr("You may also replace one earlier choice here (change it at its own level).")}</p>{/if}
         <OptionGrid items={itemChoiceOptions(card,catalog,variants,{showAll:true})} selected={card.value} max={card.count}
           check={otherEdition} onToggle={item=>!readonly&&toggleList(item.uuid)} onInfo={item=>info(item.uuid)}
           detail={item=>[item.metadata?.featSubtype,item.metadata?.requirements,item.metadata?.publication].filter(Boolean).join(' · ')}
-          placeholder="Search…" id={card.key}/>
+          placeholder={tr("Search…")} id={card.key}/>
       {:else if card.kind==='trait'}
         <div class="chips" role="group" aria-label={card.title}>
           {#each card.options as key}
             {@const on=(card.value??[]).includes(key)}
             <button class="chip" class:on aria-pressed={on} disabled={readonly||(!on&&card.count>1&&(card.value?.length??0)>=card.count)}
               onclick={()=>toggleList(key)}>{traitLabel(key,variants)}</button>
-          {:else}<p class="hint">Nothing left to choose — the character already has every option.</p>{/each}
+          {:else}<p class="hint">{tr("Nothing left to choose — the character already has every option.")}</p>{/each}
         </div>
       {:else if card.kind==='asi'}
         {#if card.featAllowed}
-          <div class="seg" role="group" aria-label="Increase or feat">
-            <button class:on={card.value?.mode!=='feat'} disabled={readonly} onclick={()=>onChoice(card.key,{mode:'asi',points:{}})}>Ability scores</button>
-            <button class:on={card.value?.mode==='feat'} disabled={readonly} onclick={()=>onChoice(card.key,{mode:'feat',uuid:null})}>Feat</button>
+          <div class="seg" role="group" aria-label={tr("Increase or feat")}>
+            <button class:on={card.value?.mode!=='feat'} disabled={readonly} onclick={()=>onChoice(card.key,{mode:'asi',points:{}})}>{tr("Ability scores")}</button>
+            <button class:on={card.value?.mode==='feat'} disabled={readonly} onclick={()=>onChoice(card.key,{mode:'feat',uuid:null})}>{tr("Feat")}</button>
           </div>
         {/if}
         {#if card.value?.mode==='feat'}
           <OptionGrid items={featOptions(catalog,variants,card.level,{showAll:true,taken:takenFeats.filter(u=>u!==card.value?.uuid)})}
             selected={card.value.uuid?[card.value.uuid]:[]} max={1}
-            check={item=>otherEdition(item)??(featOptions(catalog,variants,card.level,{taken:takenFeats.filter(u=>u!==card.value?.uuid)}).includes(item)?null:{blocked:'Not normally available at this level',unknown:[]})}
+            check={item=>otherEdition(item)??(featOptions(catalog,variants,card.level,{taken:takenFeats.filter(u=>u!==card.value?.uuid)}).includes(item)?null:{blocked:tr('Not normally available at this level'),unknown:[]})}
             onToggle={item=>!readonly&&onChoice(card.key,{mode:'feat',uuid:card.value.uuid===item.uuid?null:item.uuid})}
             onInfo={item=>info(item.uuid)} detail={item=>[item.metadata?.featSubtype,item.metadata?.requirements,item.metadata?.publication].filter(Boolean).join(' · ')}
-            placeholder="Search feats…" id={card.key}/>
+            placeholder={tr("Search feats…")} id={card.key}/>
         {:else}
-          <p class="hint">{card.points} point{card.points===1?'':'s'} to spend, up to +{card.cap} per score{Object.keys(card.fixed??{}).some(a=>card.fixed[a])?'; fixed: '+ABILITIES.filter(a=>card.fixed[a]).map(a=>a.toUpperCase()+' +'+card.fixed[a]).join(', '):''}. {used}/{card.points} used.</p>
+          <p class="hint">{tr(card.points===1?'{0} point to spend, up to +{1} per score{2}. {3}/{4} used.':'{0} points to spend, up to +{1} per score{2}. {3}/{4} used.', card.points, card.cap, Object.keys(card.fixed??{}).some(a=>card.fixed[a])?'; fixed: '+ABILITIES.filter(a=>card.fixed[a]).map(a=>a.toUpperCase()+' +'+card.fixed[a]).join(', '):'', used, card.points)}</p>
           <div class="abilities">
             {#each ABILITIES as a}
               {#if !card.locked.includes(a)}
                 <div class="ab"><span>{ABILITY_NAMES[a]}</span><b class="num">{sheet.scoresAt(card.level-1)[a]}</b>
-                  <span class="step"><button disabled={readonly||!points[a]} aria-label="Less {ABILITY_NAMES[a]}" onclick={()=>bump(a,-1)}>−</button>
+                  <span class="step"><button disabled={readonly||!points[a]} aria-label={tr("Less {0}", ABILITY_NAMES[a])} onclick={()=>bump(a,-1)}>−</button>
                     <span class="num">+{points[a]??0}</span>
-                    <button disabled={readonly||used>=card.points||(points[a]??0)>=card.cap} aria-label="More {ABILITY_NAMES[a]}" onclick={()=>bump(a,1)}>+</button></span></div>
+                    <button disabled={readonly||used>=card.points||(points[a]??0)>=card.cap} aria-label={tr("More {0}", ABILITY_NAMES[a])} onclick={()=>bump(a,1)}>+</button></span></div>
               {/if}
             {/each}
           </div>
         {/if}
       {:else if card.kind==='grant'}
-        <p class="hint">Optional features — untick any you don’t take.</p>
+        <p class="hint">{tr("Optional features — untick any you don’t take.")}</p>
         {#each card.options as uuid}
           {@const item=catalog.get(uuid)}
           <label class="opt"><input type="checkbox" disabled={readonly} checked={!(card.value??[]).includes(uuid)}

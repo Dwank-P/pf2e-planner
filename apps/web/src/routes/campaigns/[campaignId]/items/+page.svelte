@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../../../../lib/i18n/index.js';
   import {onMount} from 'svelte';
   import ItemInspector from '../../../../lib/ItemInspector.svelte';
   let campaignId=$state('');
@@ -18,7 +19,7 @@
         'slug='+encodeURIComponent(params.get('slug')||'');
       const response=await fetch('/api/v1/campaigns/'+encodeURIComponent(campaignId)+
         '/catalog-item?'+query,{credentials:'same-origin'});
-      if(!response.ok)throw Error('This item is unavailable. Check campaign access and synced packs.');
+      if(!response.ok)throw Error(tr('This item is unavailable. Check campaign access and synced packs.'));
       item=(await response.json()).item;
     }catch(e){errorText=e.message;}finally{busy=false;}
   }
@@ -27,10 +28,10 @@
   function close(){window.close();if(!window.closed)location.href='/';}
   onMount(lookup);
 </script>
-<svelte:head><title>{item?.name||'Item preview'} · PF2e Planner</title></svelte:head>
+<svelte:head><title>{tr("{0} · PF2e Planner", item?.name||tr('Item preview'))}</title></svelte:head>
 <main class="popout">
   {#if errorText}<p role="alert">{errorText}</p>
-  {:else if busy}<p>Loading item…</p>
+  {:else if busy}<p>{tr("Loading item…")}</p>
   {:else}<ItemInspector {item} {level} {campaignId} onOpen={open} onBack={back}
     onClose={close} canBack={history.length>0}/>{/if}
 </main>

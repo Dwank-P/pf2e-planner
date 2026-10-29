@@ -5,6 +5,7 @@
  * sourceFeatName, kind, selections}). Requirements come from Leveler's own
  * detection (leveler-feat-grants.js).
  */
+import {tr,labels} from '../i18n/index.js';
 import {buildFeatGrantRequirements,buildPlanFormulaProgressionRequirements,getFeatGrantSelections}
   from './leveler-feat-grants.js';
 import {attributeModifiers} from './rules.js';
@@ -115,4 +116,4 @@ export function grantCandidates(catalog,requirement,{maxLevelCap=null}={}){
     return true;
   });
 }
-export const GRANT_KIND_LABEL={formula:'Formulas',item:'Items',spell:'Spells'};
+export const GRANT_KIND_LABEL=labels({formula:'Formulas',item:'Items',spell:'Spells'});

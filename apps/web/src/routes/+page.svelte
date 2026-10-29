@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../lib/i18n/index.js';
   import {onMount} from 'svelte';
   import AppBar from '../lib/ui/AppBar.svelte';
   import PairingCode from '../lib/ui/PairingCode.svelte';
@@ -19,30 +20,30 @@
   });
   const canPair=$derived(session&&(session.user.siteRole==='owner'||session.campaigns.some(c=>c.role==='gm')));
 </script>
-<svelte:head><title>PF2e Planner</title></svelte:head>
+<svelte:head><title>{tr("PF2e Planner")}</title></svelte:head>
 {#if error}
   <main class="page"><p class="notice bad" role="alert">{error}</p></main>
 {:else if session&&!session.campaigns.length}
   <AppBar me={session.user}/>
   <main class="page onboarding">
     <section class="intro">
-      <span class="eyebrow">Welcome, {session.user.displayName}</span>
-      <h1>{canPair?'Connect your Foundry world':'You’re not in a campaign yet'}</h1>
+      <span class="eyebrow">{tr("Welcome, {0}", session.user.displayName)}</span>
+      <h1>{canPair?tr('Connect your Foundry world'):tr('You’re not in a campaign yet')}</h1>
       <p class="muted">{canPair
-        ?'The planner uses your world’s own compendiums, variant rules and PF2e Leveler settings. Pair the world once, then sync from Foundry.'
-        :'Ask your GM to add you to their campaign. It will appear here as soon as they do.'}</p>
+        ?tr('The planner uses your world’s own compendiums, variant rules and PF2e Leveler settings. Pair the world once, then sync from Foundry.')
+        :tr('Ask your GM to add you to their campaign. It will appear here as soon as they do.')}</p>
     </section>
     {#if canPair}
       <ol class="steps">
-        <li><b>Install the bridge</b><span class="muted">In Foundry: Add-on Modules → Install Module, then enable <i>PF2e Planner Bridge</i> and <i>PF2e Leveler</i> in your world.</span></li>
-        <li><b>Pair the world</b><span class="muted">Settings → PF2e Planner Bridge → Pair World. Enter this site’s address and the code below.</span></li>
-        <li><b>Sync</b><span class="muted">Run Sync Now. Your campaign and its characters appear here.</span></li>
+        <li><b>{tr("Install the bridge")}</b><span class="muted">{tr("In Foundry: Add-on Modules → Install Module, then enable")} <i>{tr("PF2e Planner Bridge")}</i> {tr("and")} <i>{tr("PF2e Leveler")}</i> {tr("in your world.")}</span></li>
+        <li><b>{tr("Pair the world")}</b><span class="muted">{tr("Settings → PF2e Planner Bridge → Pair World. Enter this site’s address and the code below.")}</span></li>
+        <li><b>{tr("Sync")}</b><span class="muted">{tr("Run Sync Now. Your campaign and its characters appear here.")}</span></li>
       </ol>
       <PairingCode/>
     {/if}
   </main>
 {:else}
-  <main class="page"><p class="muted">Loading…</p></main>
+  <main class="page"><p class="muted">{tr("Loading…")}</p></main>
 {/if}
 <style>
   .onboarding{max-width:760px;display:grid;gap:28px;padding-top:56px}

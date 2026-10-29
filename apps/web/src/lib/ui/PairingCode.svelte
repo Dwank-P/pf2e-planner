@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import {api} from './api.js';
   /** Generate a one-time Foundry pairing code (valid 10 minutes) with copy support. */
   let pairing=$state(null);
@@ -20,15 +21,15 @@
 </script>
 <div class="pair panel">
   <div class="row">
-    <div><b>Pairing code</b><p class="muted">Single use. Site address: <span class="num">{origin}</span></p></div>
-    <button class="btn {pairing?'':'primary'}" onclick={generate} disabled={busy}>{pairing?'New code':'Generate code'}</button>
+    <div><b>{tr("Pairing code")}</b><p class="muted">{tr("Single use. Site address:")} <span class="num">{origin}</span></p></div>
+    <button class="btn {pairing?'':'primary'}" onclick={generate} disabled={busy}>{pairing?tr('New code'):tr('Generate code')}</button>
   </div>
   {#if pairing}
     <div class="code">
-      <input bind:this={field} readonly value={pairing.code} aria-label="Pairing code" onfocus={e=>e.currentTarget.select()}/>
-      <button class="btn" onclick={copy}>{copied?'Copied':'Copy'}</button>
+      <input bind:this={field} readonly value={pairing.code} aria-label={tr("Pairing code")} onfocus={e=>e.currentTarget.select()}/>
+      <button class="btn" onclick={copy}>{copied?tr('Copied'):tr('Copy')}</button>
     </div>
-    <p class="muted small">Expires at {expires}. Paste it into Foundry’s Pair World dialog.</p>
+    <p class="muted small">{tr("Expires at {0}. Paste it into Foundry’s Pair World dialog.", expires)}</p>
   {/if}
   {#if error}<p class="notice bad" role="alert">{error}</p>{/if}
 </div>

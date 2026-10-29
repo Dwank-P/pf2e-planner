@@ -6,14 +6,16 @@
  * shows what the website detected, not what the description says.
  */
 import {effectsOf} from './granted.js';
+import {tr,labels} from '../i18n/index.js';
 
-const RANKS=['Untrained','Trained','Expert','Master','Legendary'];
-const LABELS={unarmored:'Unarmored defense',light:'Light armor',medium:'Medium armor',heavy:'Heavy armor',
+const RANKS=labels(['Untrained','Trained','Expert','Master','Legendary']);
+const LABELS=labels({unarmored:'Unarmored defense',light:'Light armor',medium:'Medium armor',heavy:'Heavy armor',
   unarmed:'Unarmed attacks',simple:'Simple weapons',martial:'Martial weapons',advanced:'Advanced weapons',
-  perception:'Perception',fortitude:'Fortitude',reflex:'Reflex',will:'Will',classDC:'Class DC','class-dc':'Class DC'};
+  perception:'Perception',fortitude:'Fortitude',reflex:'Reflex',will:'Will',classDC:'Class DC','class-dc':'Class DC'});
 const SKILL_SHORT={acr:'acrobatics',arc:'arcana',ath:'athletics',cra:'crafting',dec:'deception',dip:'diplomacy',itm:'intimidation',
   med:'medicine',nat:'nature',occ:'occultism',prf:'performance',rel:'religion',soc:'society',ste:'stealth',sur:'survival',thi:'thievery'};
-const title=s=>String(s??'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+// Game terms (skills, item types) translate; other names come back unchanged.
+const title=s=>tr(String(s??'').replace(/([a-z])([A-Z])/g,'$1 $2').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
 const UUID_NAME=/^Compendium\.[^.]+\.[^.]+\.Item\.(.+)$/;
 /** A rule's own name for an item it references by name ("…Item.Shield Block"); null for ids. */
 export function nameInUuid(uuid){
@@ -29,33 +31,33 @@ export function describePredicate(predicate,picks=new Map()){
       const [domain,...rest]=p.split(':');const value=rest.join(':');
       if(p==='self:level')return null;
       // A pick on this item ("guard-skill:athletics"): in the words of its option.
-      if(picks.has(domain))return 'if you pick '+(picks.get(domain).get(value)??title(value));
-      if(['feature','feat'].includes(domain))return 'with '+title(value);
-      if(domain==='class')return 'for '+title(value);
-      if(['ancestry','heritage'].includes(domain))return 'for '+title(value);
-      return 'when '+p;
+      if(picks.has(domain))return tr('if you pick {0}',picks.get(domain).get(value)??title(value));
+      if(['feature','feat'].includes(domain))return tr('with {0}',title(value));
+      if(['class','ancestry','heritage'].includes(domain))return tr('for {0}',title(value));
+      return tr('when {0}',p);
     }
     if(Array.isArray(p))return p.map(one).filter(Boolean).join(', ');
     if(!p||typeof p!=='object')return null;
     if(Array.isArray(p.and))return p.and.map(one).filter(Boolean).join(', ');
-    if(Array.isArray(p.or))return p.or.map(one).filter(Boolean).join(' or ');
-    if('not' in p){const t=one(p.not);return t?'not '+t.replace(/^(with|for|when) /,''):null;}
-    for(const [op,word] of [['gte','+'],['gt','+'],['lte',' or lower'],['lt',' or lower']]){
+    if(Array.isArray(p.or))return p.or.map(one).filter(Boolean).join(tr(' or '));
+    if('not' in p){const t=one(p.not);return t?tr('not {0}',t):null;}
+    for(const op of ['gte','gt','lte','lt']){
       if(!Array.isArray(p[op]))continue;
       const [a,b]=p[op];
-      if(a==='self:level')return 'level '+(op==='gt'?Number(b)+1:op==='lt'?Number(b)-1:b)+word;
-      return 'when '+a+' '+op+' '+b;
+      const level=op==='gt'?Number(b)+1:op==='lt'?Number(b)-1:b;
+      if(a==='self:level')return tr(op.startsWith('g')?'level {0}+':'level {0} or lower',level);
+      return tr('when {0}',a+' '+op+' '+b);
     }
-    return 'conditional';
+    return tr('conditional');
   };
   return one(predicate)||null;
 }
 function rankTarget(path){
   let m;
-  if(path==='system.perception.rank')return 'Perception';
+  if(path==='system.perception.rank')return tr('Perception');
   if((m=/^system\.saves\.(\w+)\.rank$/.exec(path)))return LABELS[m[1]]??title(m[1]);
   if((m=/^system\.proficiencies\.(?:defenses|attacks)\.([\w-]+)\.rank$/.exec(path)))return LABELS[m[1]]??title(m[1]);
-  if(/^system\.proficiencies\.classDCs\./.test(path))return 'Class DC';
+  if(/^system\.proficiencies\.classDCs\./.test(path))return tr('Class DC');
   if((m=/^system\.skills\.([\w-]+)\.rank$/.exec(path)))return title(SKILL_SHORT[m[1]]??m[1]);
   return null;
 }

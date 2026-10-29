@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import {setContext} from 'svelte';
   import AppBar from '../ui/AppBar.svelte';
   import PortraitEditor from '../ui/PortraitEditor.svelte';
@@ -45,7 +46,7 @@
   function exportLevelerPlan(){
     filesMenu=false;
     const data=plan||creation?.class?ensurePlan(plan,creation):null;
-    if(!data){error='Choose a class first: a Leveler plan belongs to a class.';return;}
+    if(!data){error=tr('Choose a class first: a Leveler plan belongs to a class.');return;}
     const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
@@ -59,15 +60,16 @@
     if(!file)return;
     try{
       let data;
-      try{data=JSON.parse(await file.text());}catch{throw Error('That file isn’t a Leveler plan.');}
+      try{data=JSON.parse(await file.text());}catch{throw Error(tr('That file isn’t a Leveler plan.'));}
       if(saveState==='unsaved'||saveState==='saving'){clearTimeout(timer);await save();}
       const r=await api(scope.characterUrl+'/leveler-plan',{method:'PUT',body:{plan:data,revision:character.revision}});
       plan=r.character.leveler?.plan??null;
       character={...character,revision:r.character.revision};
       const lost=r.report.missing;
-      planNotice='Imported the Leveler plan'+(data.classSlug&&creation?.class?.slug&&data.classSlug!==creation.class.slug
-        ?' (it was made for '+data.classSlug+', not '+creation.class.slug+'; Leveler only uses a plan for its own class)':'')+'.'
-        +(lost.length?' Not in these compendiums, left out: '+lost.join(', ')+'.':'');
+      planNotice=(data.classSlug&&creation?.class?.slug&&data.classSlug!==creation.class.slug
+        ?tr('Imported the Leveler plan (it was made for {0}, not {1}; Leveler only uses a plan for its own class).',data.classSlug,creation.class.slug)
+        :tr('Imported the Leveler plan.'))
+        +(lost.length?' '+tr('Not in these compendiums, left out: {0}.',lost.join(', ')):'');
       error='';
     }catch(e){error=e.message;}
   }
@@ -240,30 +242,30 @@
     try{history.replaceState(history.state,'','?at='+encodeURIComponent(next));}catch{}
     document.querySelector('.stage')?.scrollTo?.({top:0});
   }
-  const labelOf=id=>id==='equipment'?'Equipment plan':id?.startsWith('level-')?'Level '+id.slice(6):'';
-  const saveLabel=$derived({saved:'Saved',saving:'Saving…',unsaved:'Unsaved',error:'Not saved'}[saveState]);
+  const labelOf=id=>id==='equipment'?tr('Equipment plan'):id?.startsWith('level-')?tr('Level {0}',id.slice(6)):'';
+  const saveLabel=$derived(tr({saved:'Saved',saving:'Saving…',unsaved:'Unsaved',error:'Not saved'}[saveState]));
 </script>
-<svelte:head><title>{name||'Character'} · PF2e Planner</title></svelte:head>
+<svelte:head><title>{tr("{0} · PF2e Planner", name||tr('Character'))}</title></svelte:head>
 {#if ctx}
   <AppBar me={ctx.me} campaigns={ctx.campaigns} campaign={ctx.campaign} sync={ctx.sync} crumb={name} personal={!scope.campaignId&&!scope.publicView}>
     {#snippet actions()}
-      {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">View only</span>{/if}
+      {#if canEdit}<span class="save {saveState}" role="status">{saveLabel}</span>{:else}<span class="save">{tr("View only")}</span>{/if}
       <span class="files-wrap">
-        <button class="btn small ghost" aria-haspopup="menu" aria-expanded={filesMenu} onclick={()=>filesMenu=!filesMenu}>Files ▾</button>
+        <button class="btn small ghost" aria-haspopup="menu" aria-expanded={filesMenu} onclick={()=>filesMenu=!filesMenu}>{tr("Files ▾")}</button>
         {#if filesMenu}
           <span class="files-menu" role="menu">
             {#if scope.exportUrl}<button role="menuitem" onclick={()=>{filesMenu=false;downloadJson(scope.exportUrl,name).catch(e=>error=e.message);}}>
-              Export for another planner<small>A .planner.json file any planner can import</small></button>{/if}
-            <button role="menuitem" onclick={exportLevelerPlan}>Export Leveler plan<small>For PF2e Leveler's “Import plan”</small></button>
-            {#if canEdit}<button role="menuitem" onclick={()=>{filesMenu=false;planFile.click();}}>Import Leveler plan…
-              <small>From PF2e Leveler's “Export plan”; replaces levels 2–20</small></button>{/if}
+              {tr("Export for another planner")}<small>{tr("A .planner.json file any planner can import")}</small></button>{/if}
+            <button role="menuitem" onclick={exportLevelerPlan}>{tr("Export Leveler plan")}<small>{tr("For PF2e Leveler's “Import plan”")}</small></button>
+            {#if canEdit}<button role="menuitem" onclick={()=>{filesMenu=false;planFile.click();}}>{tr("Import Leveler plan…")}
+              <small>{tr("From PF2e Leveler's “Export plan”; replaces levels 2–20")}</small></button>{/if}
           </span>
         {/if}
         <input bind:this={planFile} type="file" accept=".json,application/json" hidden onchange={importLevelerPlan}/>
       </span>
       {@render extraActions?.()}
-      {#if canManage}<button class="btn small ghost" onclick={()=>scope.onShare?scope.onShare():sharing=true}>Share</button>
-        <button class="btn small ghost danger" onclick={()=>confirmDelete=true}>Delete</button>{/if}
+      {#if canManage}<button class="btn small ghost" onclick={()=>scope.onShare?scope.onShare():sharing=true}>{tr("Share")}</button>
+        <button class="btn small ghost danger" onclick={()=>confirmDelete=true}>{tr("Delete")}</button>{/if}
     {/snippet}
   </AppBar>
 {/if}
@@ -274,39 +276,39 @@
 {#if confirmDelete}
   <div class="banner" role="alertdialog" aria-labelledby="delete-title">
     <div class="notice bad delete">
-      <b id="delete-title">Delete {name||'this character'}?</b>
-      <span>This removes the build from the website for everyone{character?.linked?' and unlinks its Foundry actor (the actor itself stays)':''}. It can't be undone.</span>
-      <span class="row"><button class="btn small" onclick={()=>confirmDelete=false}>Keep it</button>
-        <button class="btn small danger" disabled={deleting} onclick={deleteCharacter}>{deleting?'Deleting…':'Delete character'}</button></span>
+      <b id="delete-title">{tr("Delete {0}?", name||tr('this character'))}</b>
+      <span>{tr("This removes the build from the website for everyone{0}. It can't be undone.", character?.linked?tr(' and unlinks its Foundry actor (the actor itself stays)'):'')}</span>
+      <span class="row"><button class="btn small" onclick={()=>confirmDelete=false}>{tr("Keep it")}</button>
+        <button class="btn small danger" disabled={deleting} onclick={deleteCharacter}>{deleting?tr('Deleting…'):tr('Delete character')}</button></span>
     </div>
   </div>
 {/if}
 {#if character&&!canEdit}
-  <div class="banner"><p class="notice">{scope.publicView?`${character.ownerName??'A player'}’s character, from a shared link. It’s read-only.`
-    :`${character.ownerName??'Its owner'} shared this character with you to view. Changes you make here aren’t saved.`}</p></div>
+  <div class="banner"><p class="notice">{scope.publicView?tr("{0}’s character, from a shared link. It’s read-only.",character.ownerName??tr('A player'))
+    :tr("{0} shared this character with you to view. Changes you make here aren’t saved.",character.ownerName??tr('Its owner'))}</p></div>
 {/if}
 {@render banner?.()}
-{#if planNotice}<div class="banner"><p class="notice">{planNotice} <button class="link" onclick={()=>planNotice=''}>Dismiss</button></p></div>{/if}
+{#if planNotice}<div class="banner"><p class="notice">{planNotice} <button class="link" onclick={()=>planNotice=''}>{tr("Dismiss")}</button></p></div>{/if}
 {#if error}
   <div class="banner" role="alert"><p class="notice bad">{error}
-    {#if conflict}<button class="link" onclick={()=>location.reload()}>Reload</button>{/if}</p></div>
+    {#if conflict}<button class="link" onclick={()=>location.reload()}>{tr("Reload")}</button>{/if}</p></div>
 {/if}
 {#if creation&&catalog}
   <div class="mobile-bar">
     <button class="menu-btn" aria-expanded={railOpen} aria-controls="builder-rail" onclick={()=>railOpen=!railOpen}>
-      <span aria-hidden="true">☰</span><span class="sr">Levels</span></button>
-    <span class="where"><b>{labelOf(at)}</b><small>{name} · level {currentLevel}</small></span>
-    <button class="summary-btn" aria-expanded={summaryOpen} aria-controls="builder-summary" title="Character summary"
-      onclick={()=>{summaryOpen=!summaryOpen;railOpen=false;}}><span aria-hidden="true">◧</span><span class="sr">Summary</span></button>
+      <span aria-hidden="true">☰</span><span class="sr">{tr("Levels")}</span></button>
+    <span class="where"><b>{labelOf(at)}</b><small>{tr("{0} · level {1}", name, currentLevel)}</small></span>
+    <button class="summary-btn" aria-expanded={summaryOpen} aria-controls="builder-summary" title={tr("Character summary")}
+      onclick={()=>{summaryOpen=!summaryOpen;railOpen=false;}}><span aria-hidden="true">◧</span><span class="sr">{tr("Summary")}</span></button>
   </div>
   {#if railOpen}<div class="scrim" role="presentation" onclick={()=>railOpen=false}></div>{/if}
   {#if summaryOpen}<div class="sum-scrim" role="presentation" onclick={()=>summaryOpen=false}></div>{/if}
   <div class="builder">
-    <nav class="rail" class:open={railOpen} id="builder-rail" aria-label="Levels">
+    <nav class="rail" class:open={railOpen} id="builder-rail" aria-label={tr("Levels")}>
       <div class="identity">
-        <label class="field" for="character-name"><span class="eyebrow">Character</span>
+        <label class="field" for="character-name"><span class="eyebrow">{tr("Character")}</span>
           <input id="character-name" maxlength="80" bind:value={name} oninput={schedule} readonly={!canEdit}/></label>
-        <label class="field level-pick" for="current-level"><span class="eyebrow">Level</span>
+        <label class="field level-pick" for="current-level"><span class="eyebrow">{tr("Level")}</span>
           <select id="current-level" bind:value={currentLevel} onchange={schedule} disabled={!canEdit}>
             {#each Array.from({length:20},(_,i)=>i+1) as n}<option value={n}>{n}</option>{/each}
           </select></label>
@@ -322,24 +324,24 @@
             <span class="label">
               {#if lines.length}{#each lines as line}<span class="pick">{line}</span>{/each}{:else}<span class="pick faint">—</span>{/if}
               {#if level===currentLevel||wishes}<span class="tags">
-                {#if level===currentLevel}<span class="now">Current</span>{/if}
-                {#if wishes}<span class="wish">{wishes} item{wishes===1?'':'s'}</span>{/if}</span>{/if}
+                {#if level===currentLevel}<span class="now">{tr("Current")}</span>{/if}
+                {#if wishes}<span class="wish">{tr(wishes===1?'{0} item':'{0} items', wishes)}</span>{/if}</span>{/if}
             </span>
-            {#if warnings[level]}<span class="flag" title={warnings[level].join(' · ')} aria-label={'Check: '+warnings[level].join('; ')}>⚠</span>
+            {#if warnings[level]}<span class="flag" title={warnings[level].join(' · ')} aria-label={tr('Check: {0}',warnings[level].join('; '))}>⚠</span>
             {:else}<span class="status {status}" aria-label={status}></span>{/if}
           </button></li>
         {/each}
         <li><button class="item" class:on={at==='equipment'} onclick={()=>go('equipment')}>
           <span class="lvl" aria-hidden="true">⚒</span>
-          <span class="label"><span class="name">Equipment plan</span>
-            <span class="pick">{wishlist(planner).length?wishlist(planner).length+' items wanted':'Items to buy as you level'}</span></span>
+          <span class="label"><span class="name">{tr("Equipment plan")}</span>
+            <span class="pick">{wishlist(planner).length?wishlist(planner).length+tr(' items wanted'):tr('Items to buy as you level')}</span></span>
           <span></span>
         </button></li>
       </ol>
     </nav>
     <main class="stage">
       <header class="stage-head">
-        <span class="eyebrow">{atLevel?`Level ${atLevel} of 20`:'Wishlist'}</span>
+        <span class="eyebrow">{atLevel?tr("Level {0} of 20",atLevel):tr('Wishlist')}</span>
         <h1>{labelOf(at)}</h1>
       </header>
       {#if at==='level-1'}
@@ -347,7 +349,7 @@
           onEquipment={()=>{equipmentLevel=1;go('equipment');}}
           onOpen={id=>openStep=id} onPlan={()=>go('level-2')}/>
       {:else if atLevel&&!primary}
-        <p class="empty">Choose a class at level 1 to plan levels 2–20.</p>
+        <p class="empty">{tr("Choose a class at level 1 to plan levels 2–20.")}</p>
       {:else if atLevel}
         {#key atLevel}
           <LevelPanel level={atLevel} slots={slotsAt(atLevel)} {creation} {plan} {planner} {catalog} {variants} {updatePlan}
@@ -362,16 +364,16 @@
         {/key}
       {/if}
       <footer class="stage-foot">
-        <button class="btn" disabled={index<=0} onclick={()=>go('prev')}>← {labelOf(sequence[index-1])||'Back'}</button>
+        <button class="btn" disabled={index<=0} onclick={()=>go('prev')}>← {labelOf(sequence[index-1])||tr('Back')}</button>
         <span class="next">
           {#if atLevel&&canEdit&&(atLevel===1||primary)}
             <span class="add-wrap">
-              <button class="btn add" aria-haspopup="menu" aria-expanded={addMenu} title="Add an extra feat or skill increase at this level"
-                aria-label="Add an extra at level {atLevel}" onclick={()=>addMenu=!addMenu}>+</button>
+              <button class="btn add" aria-haspopup="menu" aria-expanded={addMenu} title={tr("Add an extra feat or skill increase at this level")}
+                aria-label={tr("Add an extra at level {0}", atLevel)} onclick={()=>addMenu=!addMenu}>+</button>
               {#if addMenu}
                 <span class="add-menu" role="menu">
-                  <button role="menuitem" onclick={()=>{extraMode='feat';addMenu=false;}}>Extra feat</button>
-                  <button role="menuitem" onclick={()=>{extraMode='skill';addMenu=false;}}>Extra skill increase</button>
+                  <button role="menuitem" onclick={()=>{extraMode='feat';addMenu=false;}}>{tr("Extra feat")}</button>
+                  <button role="menuitem" onclick={()=>{extraMode='skill';addMenu=false;}}>{tr("Extra skill increase")}</button>
                 </span>
               {/if}
             </span>
@@ -385,7 +387,7 @@
   {#if portraitOpen}<PortraitEditor current={character.portrait} onSave={setPortrait} onRemove={()=>setPortrait(null)} onClose={()=>portraitOpen=false}/>{/if}
   <ItemDrawer campaignId={scope.campaignId} catalogBase={scope.campaignId?null:scope.catalogBase} linksDisabled={!!scope.publicView} uuid={detail} level={atLevel??currentLevel} onClose={()=>detail=null}/>
 {:else if !error}
-  <p class="loading muted">Loading the character…</p>
+  <p class="loading muted">{tr("Loading the character…")}</p>
 {/if}
 <style>
   .save{font:500 12px var(--mono);color:var(--muted);min-width:64px}

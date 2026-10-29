@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import RankLadder from '../ui/RankLadder.svelte';
   import Traits from '../ui/Traits.svelte';
   import {ATTRIBUTES,attributeModifiers,formatModifier,hitPoints,proficienciesAt,proficiencyBonus,titleCase,
@@ -20,9 +21,9 @@
   const hp=$derived(hitPoints(creation,lookup,mods.con,level));
   const prof=$derived(proficienciesAt(creation,lookup,level,{plan,variants}));
   // Size and land Speed: the ancestry's, plus bonuses from rules (Fleet) and armor's penalty.
-  const SIZES={tiny:'Tiny',sm:'Small',med:'Medium',lg:'Large',huge:'Huge',grg:'Gargantuan'};
+  const SIZES={tiny:'Tiny',sm:'Small',med:'Medium|size',lg:'Large',huge:'Huge',grg:'Gargantuan'};
   const ancestryRules=$derived(lookup(creation.ancestry?.uuid)?.metadata?.rules??{});
-  const size=$derived(SIZES[ancestryRules.size]??null);
+  const size=$derived(SIZES[ancestryRules.size]?tr(SIZES[ancestryRules.size]):null);
   const speed=$derived(Number(ancestryRules.speed)>0?Number(ancestryRules.speed)+grantsAt(creation,plan,lookup,level,variants).speed:null);
   const key=$derived(creation.boosts?.class?.[0]??keyAttributeOptions(creation,lookup(creation.class?.uuid))[0]);
   const skills=$derived([...skillRanks(creation,plan,lookup,level).entries()].filter(([,r])=>r>0)
@@ -51,7 +52,7 @@
   const training=$derived([
     ['Armor',[['U','unarmored','Unarmored defense'],['L','light','Light armor'],['M','medium','Medium armor'],['H','heavy','Heavy armor']]],
     ['Weapons',[['U','unarmed','Unarmed attacks'],['S','simple','Simple weapons'],['M','martial','Martial weapons'],['A','advanced','Advanced weapons']]]
-  ].map(([label,keys])=>[label,keys.map(([short,key,name])=>({short,rank:Number(prof[key]??0),title:name+': '+RANK_NAMES[Number(prof[key]??0)]}))]));
+  ].map(([label,keys])=>[tr(label),keys.map(([short,key,name])=>({short,rank:Number(prof[key]??0),title:tr(name)+': '+tr(RANK_NAMES[Number(prof[key]??0)])}))]));
   // Up to three equipped weapons, with attack modifier and damage.
   const strikes=$derived(gear.filter(g=>g.item.type==='weapon').slice(0,3)
     .map(g=>strike(g,{mods,ranks:prof,level,proficiency:(r,l)=>proficiencyBonus(r,l,pwl),variants,lookup})));
@@ -59,48 +60,48 @@
     ['Reflex','dex',prof.reflex],['Will','wis',prof.will]]);
   const classDC=$derived(creation.class&&key?10+mods[key]+proficiencyBonus(Math.max(1,prof.classDC),level,pwl):null);
 </script>
-<aside class="summary" aria-label="Character summary">
+<aside class="summary" aria-label={tr("Character summary")}>
   <div class="who">
-    <span class="eyebrow">Level {level}</span>
+    <span class="eyebrow">{tr("Level {0}", level)}</span>
     <div class="title"><h2>{name}</h2><Portrait src={portrait} {name} size={64} onEdit={onPortrait}/></div>
     {#if identity.length}
       <ul class="identity">
         {#each identity as part}<li><Icon src={part.img} size={28}/><span>{part.label}</span></li>{/each}
       </ul>
       {#if creation.background}<p class="muted">{creation.background.name}</p>{/if}
-    {:else}<p class="muted">Choose an ancestry to begin</p>{/if}
+    {:else}<p class="muted">{tr("Choose an ancestry to begin")}</p>{/if}
     <Traits traits={[...(creation.ancestry?.traits??[]),creation.class?.slug].filter(Boolean)} max={5}/>
   </div>
   <div class="attrs">
     {#each ATTRIBUTES as a}
-      <div class="attr" class:key={a===key} title={result.partial[a]?'Partial boost pending':''}>
+      <div class="attr" class:key={a===key} title={result.partial[a]?tr('Partial boost pending'):''}>
         <span>{a.toUpperCase()}</span><b class="num">{formatModifier(mods[a])}{result.partial[a]?'½':''}</b></div>
     {/each}
   </div>
   <dl class="stats" class:with-ac={!!creation.class}>
     {#if creation.class}<div class="ac"><AcBadge value={ac.total} title={acTitle}/></div>{/if}
-    <div><dt>Hit Points</dt><dd class="num">{hp??'—'}</dd></div>
-    <div><dt>Class DC</dt><dd class="num">{classDC??'—'}</dd></div>
+    <div><dt>{tr("Hit Points")}</dt><dd class="num">{hp??'—'}</dd></div>
+    <div><dt>{tr("Class DC")}</dt><dd class="num">{classDC??'—'}</dd></div>
   </dl>
   {#if size||speed}
     <dl class="stats body">
-      <div><dt>Size</dt><dd>{size??'—'}</dd></div>
-      <div title={ac.speedPenalty?ac.armor.name+': '+ac.speedPenalty+' ft.':''}><dt>Speed</dt>
-        <dd class="num">{speed!==null?speed+(ac.speedPenalty||0)+' ft.':'—'}</dd></div>
+      <div><dt>{tr("Size")}</dt><dd>{size??'—'}</dd></div>
+      <div title={ac.speedPenalty?ac.armor.name+': '+ac.speedPenalty+' ft.':''}><dt>{tr("Speed")}</dt>
+        <dd class="num">{speed!==null?tr('{0} ft.',speed+(ac.speedPenalty||0)):'—'}</dd></div>
     </dl>
   {/if}
   {#if creation.class}
-    <div class="block"><span class="eyebrow">Perception &amp; saves</span>
+    <div class="block"><span class="eyebrow">{tr("Perception & saves")}</span>
       <div class="ranks">
         {#each defenses as [label,attribute,rank]}
-          <div><span class="label"><Glyph name={SAVE_GLYPHS[label.toLowerCase()]}/>{label}{#if defenseBonus(label)}<small class="bonus" title={'Item bonus from '+bonuses.get(label.toLowerCase()).source}> +{defenseBonus(label)} item</small>{/if}</span>
+          <div><span class="label"><Glyph name={SAVE_GLYPHS[label.toLowerCase()]}/>{tr(label)}{#if defenseBonus(label)}<small class="bonus" title={tr('Item bonus from {0}',bonuses.get(label.toLowerCase()).source)}> {tr("+{0} item", defenseBonus(label))}</small>{/if}</span>
             <span class="right"><b class="num">{total(attribute,rank,defenseBonus(label))}</b><RankLadder {rank}/></span></div>
         {/each}
       </div>
     </div>
   {/if}
   {#if creation.class}
-    <div class="block"><span class="eyebrow">Training</span>
+    <div class="block"><span class="eyebrow">{tr("Training")}</span>
       {#each training as [label,ranks]}
         <div class="training"><span>{label}</span><span class="chips">
           {#each ranks as r}<span class="tchip rank-{r.rank}" title={r.title}>{r.short}<b>{'UTEML'[r.rank]}</b></span>{/each}</span></div>
@@ -108,28 +109,28 @@
     </div>
   {/if}
   {#if skills.length}
-    <div class="block"><span class="eyebrow">Skills</span>
+    <div class="block"><span class="eyebrow">{tr("Skills")}</span>
       <div class="ranks">{#each skills as [skill,rank]}
         <div><span class="label">{#if skillGlyph(skill)}<Glyph name={skillGlyph(skill)}/>{:else}<span class="gap"></span>{/if}{titleCase(skill)}{#if skillExtra(skill)}<small class="bonus">{skillExtra(skill)>0?' +':' '}{skillExtra(skill)}</small>{/if}</span>
           <span class="right"><b class="num">{total(SKILL_ATTRIBUTE[skill]??'int',rank,skillExtra(skill))}</b><RankLadder {rank}/></span></div>
       {/each}</div></div>
   {/if}
   {#if strikes.length&&creation.class}
-    <div class="block"><span class="eyebrow">Strikes</span>
+    <div class="block"><span class="eyebrow">{tr("Strikes")}</span>
       <div class="ranks">{#each strikes as s}
         <div><span>{s.name}</span>
           <span class="right strike"><b class="num">{formatModifier(s.attack)}</b><small class="num">{s.damage}</small></span></div>
       {/each}</div></div>
   {/if}
   {#if gear.length}
-    <div class="block"><span class="eyebrow">Equipped</span>
+    <div class="block"><span class="eyebrow">{tr("Equipped")}</span>
       <ul class="gear">{#each gear as g (g.entry.id)}<li><Icon src={g.item.img} size={20}/><span>{runedName(g,lookup)}</span></li>{/each}</ul>
-      {#if ac.checkPenalty}<p class="muted small">Not strong enough for {ac.armor.name}: {ac.checkPenalty} to Strength and Dexterity skills.</p>{/if}
-      {#if ac.speedPenalty}<p class="muted small">{ac.armor.name}: {ac.speedPenalty} ft. Speed.</p>{/if}
+      {#if ac.checkPenalty}<p class="muted small">{tr("Not strong enough for {0}: {1} to Strength and Dexterity skills.", ac.armor.name, ac.checkPenalty)}</p>{/if}
+      {#if ac.speedPenalty}<p class="muted small">{tr("{0}: {1} ft. Speed.", ac.armor.name, ac.speedPenalty)}</p>{/if}
     </div>
   {/if}
   {#if todo.length}
-    <div class="block"><span class="eyebrow">Still to choose at level 1</span>
+    <div class="block"><span class="eyebrow">{tr("Still to choose at level 1")}</span>
       <ul class="todo">{#each todo as step}<li><button class="link" onclick={()=>onStep(step.id)}>{step.label}</button></li>{/each}</ul></div>
   {/if}
 </aside>

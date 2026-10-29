@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import Traits from '../ui/Traits.svelte';
   import Icon from '../ui/Icon.svelte';
   import {searchItems} from '../builder/catalog.js';
@@ -14,12 +15,12 @@
    * first: uuids listed before everything else, in that order (e.g. classes the character already has).
    */
   let {items=[],selected=[],max=1,onToggle,onInfo,check=()=>null,test=null,detail=()=>'',badge=()=>'',first=[],filters,
-    placeholder='Search…',empty='Nothing matches.',id='options'}=$props();
+    placeholder=tr('Search…'),empty=tr('Nothing matches.'),id='options'}=$props();
   let query=$state('');
   let rarity=$state([]);
   let showBlocked=$state(false);
   // Spell lists can be narrowed by the defense they target.
-  const DEFENSES=[['ac','AC'],['fortitude','Fort'],['reflex','Reflex'],['will','Will'],['none','None']];
+  const DEFENSES=[['ac',tr('AC')],['fortitude',tr('Fort')],['reflex',tr('Reflex')],['will',tr('Will')],['none',tr('None')]];
   let defense=$state([]);
   const isSpells=$derived(items.some(i=>i.type==='spell')&&items.some(i=>spellDefense(i)!==null));
   const combinedTest=$derived(defense.length||test?item=>(!test||test(item))&&(!defense.length||defense.includes(spellDefense(item))):null);
@@ -40,16 +41,16 @@
   <div class="tools">
     <input id={id+'-search'} type="search" bind:value={query} {placeholder} aria-label={placeholder} oninput={()=>limit=60}/>
     {#if present.length>1}
-      <div class="rarities" role="group" aria-label="Rarity">
+      <div class="rarities" role="group" aria-label={tr("Rarity")}>
         {#each present as r}<button class:on={rarity.includes(r)} aria-pressed={rarity.includes(r)} onclick={()=>toggleRarity(r)}>{r}</button>{/each}
       </div>
     {/if}
     {#if blockedCount||showBlocked}
-      <label class="toggle"><input type="checkbox" bind:checked={showBlocked}/> Show unavailable ({blockedCount})</label>
+      <label class="toggle"><input type="checkbox" bind:checked={showBlocked}/> {tr("Show unavailable ({0})", blockedCount)}</label>
     {/if}
     <span class="count num">{visible.length}</span>
   </div>
-  {#if filters||isSpells}<div class="filters">{#if isSpells}<div class="defenses" role="group" aria-label="Targets"><span class="eyebrow">Targets</span>
+  {#if filters||isSpells}<div class="filters">{#if isSpells}<div class="defenses" role="group" aria-label={tr("Targets")}><span class="eyebrow">{tr("Targets")}</span>
     {#each DEFENSES as [key,label]}<button class:on={defense.includes(key)} aria-pressed={defense.includes(key)}
       onclick={()=>defense=defense.includes(key)?defense.filter(d=>d!==key):[...defense,key]}>{label}</button>{/each}</div>{/if}{#if filters}{@render filters()}{/if}</div>{/if}
   {#if ordered.length}
@@ -63,17 +64,17 @@
             {#if badge(item)}<span class="badge-good">{badge(item)}</span>{/if}
             {#if detail(item)}<span class="detail">{detail(item)}</span>{/if}
             <Traits traits={item.traits??[]} rarity={item.rarity} max={4}/>
-            {#if reason}<span class="reason">⚠ {reason}{#if !isOn&&!result.hard} · you can still pick it{/if}</span>
-            {:else if result.unknown?.length}<span class="unknown" title="This planner can't verify these; your GM or Leveler will.">Check: {result.unknown.join('; ')}</span>{/if}
+            {#if reason}<span class="reason">⚠ {reason}{#if !isOn&&!result.hard} {tr("· you can still pick it")}{/if}</span>
+            {:else if result.unknown?.length}<span class="unknown" title={tr("This planner can't verify these; your GM or Leveler will.")}>{tr("Check: {0}", result.unknown.join('; '))}</span>{/if}
             <span class="tick" aria-hidden="true">{isOn?'✓':''}</span>
           </button>
-          <button class="info link" onclick={()=>onInfo(item)} aria-label={'Details for '+item.name}>Details</button>
+          <button class="info link" onclick={()=>onInfo(item)} aria-label={tr('Details for {0}',item.name)}>{tr("Details")}</button>
         </div>
       {/each}
     </div>
-    {#if ordered.length>limit}<button class="btn more" onclick={()=>limit+=60}>Show more ({ordered.length-limit} left)</button>{/if}
+    {#if ordered.length>limit}<button class="btn more" onclick={()=>limit+=60}>{tr("Show more ({0} left)", ordered.length-limit)}</button>{/if}
   {:else}
-    <p class="empty">{blockedCount&&!showBlocked?`${blockedCount} options don't fit this character yet. Tick “Show unavailable” to see why.`:empty}</p>
+    <p class="empty">{blockedCount&&!showBlocked?tr("{0} options don't fit this character yet. Tick “Show unavailable” to see why.",blockedCount):empty}</p>
   {/if}
 </div>
 <style>

@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../../../lib/i18n/index.js';
   import {page} from '$app/state';
   import BuilderPf2e from '../../../lib/wizard/BuilderPf2e.svelte';
   import Builder5e from '../../../lib/wizard5e/Builder5e.svelte';
@@ -40,16 +41,16 @@
 {#if ctx&&character}
   {#key version}
     {#snippet actions()}
-      {#if character.access.manage}<button class="btn small ghost" onclick={()=>panel='sources'}>Rules &amp; sources</button>{/if}
-      <button class="btn small ghost" onclick={()=>panel='copy'}>Copy to campaign</button>
+      {#if character.access.manage}<button class="btn small ghost" onclick={()=>panel='sources'}>{tr("Rules & sources")}</button>{/if}
+      <button class="btn small ghost" onclick={()=>panel='copy'}>{tr("Copy to campaign")}</button>
     {/snippet}
     {#snippet banner()}
       {#if !character.sources.length}
-        <div class="banner"><p class="notice">This character has no sources yet{character.access.manage?'':' — its owner picks them'}.
-          {#if character.access.manage}<button class="link" onclick={()=>panel='sources'}>Choose rules &amp; sources</button>{/if}</p></div>
+        <div class="banner"><p class="notice">{tr("This character has no sources yet{0}.", character.access.manage?'':tr(' — its owner picks them'))}
+          {#if character.access.manage}<button class="link" onclick={()=>panel='sources'}>{tr("Choose rules & sources")}</button>{/if}</p></div>
       {:else if unavailable||character.keptItems}
-        <div class="banner"><p class="notice muted">{unavailable?unavailable+' source'+(unavailable===1?' is':'s are')+' no longer shared. ':''}
-          {character.keptItems?character.keptItems+' picked item'+(character.keptItems===1?' is':'s are')+' kept from removed sources.':''}</p></div>
+        <div class="banner"><p class="notice muted">{unavailable?unavailable+' source'+(unavailable===1?' is':'s are')+tr(' no longer shared. '):''}
+          {character.keptItems?character.keptItems+tr(' picked item')+(character.keptItems===1?' is':'s are')+tr(' kept from removed sources.'):''}</p></div>
       {/if}
     {/snippet}
     {#if character.system==='dnd5e'}<Builder5e {ctx} {scope} {actions} {banner}/>{:else}<BuilderPf2e {ctx} {scope} {actions} {banner}/>{/if}
@@ -58,9 +59,9 @@
   {#if panel==='share'}<PersonalShare {characterId} onClose={()=>panel=null}/>{/if}
   {#if panel==='copy'}<CopyPanel {character} campaigns={ctx.campaigns} onClose={()=>panel=null}/>{/if}
 {:else if error}
-  <main class="page"><p class="notice bad" role="alert">{error}</p><a href="/characters">My characters</a></main>
+  <main class="page"><p class="notice bad" role="alert">{error}</p><a href="/characters">{tr("My characters")}</a></main>
 {:else}
-  <p class="muted" style="padding:32px">Loading the character…</p>
+  <p class="muted" style="padding:32px">{tr("Loading the character…")}</p>
 {/if}
 <style>
   .banner{padding:12px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px))}

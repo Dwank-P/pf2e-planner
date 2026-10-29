@@ -1,4 +1,5 @@
 <script>
+  import {tr} from '../i18n/index.js';
   import OptionGrid from './OptionGrid.svelte';
   import FeatChoices from './FeatChoices.svelte';
   import {choiceContext} from '../builder/choice-sets.js';
@@ -21,32 +22,32 @@
   const lores=$derived([...ranksBefore.keys()].filter(k=>k.endsWith(' lore')));
 </script>
 {#if mode||extras.length||increases.length}
-  <section class="extras" aria-label="Extras at level {level}">
-    <div class="head"><span class="eyebrow">Extras at level {level}</span>
-      {#if mode}<button class="link" onclick={()=>mode=null}>Done</button>{/if}</div>
+  <section class="extras" aria-label={tr("Extras at level {0}", level)}>
+    <div class="head"><span class="eyebrow">{tr("Extras at level {0}", level)}</span>
+      {#if mode}<button class="link" onclick={()=>mode=null}>{tr("Done")}</button>{/if}</div>
     {#if extras.length||increases.length}
       <ul>
         {#each extras as feat,i (feat.uuid+i)}
-          <li><button class="link" onclick={()=>info(feat.uuid)}>{feat.name}</button><small class="muted">extra feat</small>
-            <button class="link x" aria-label={'Remove '+feat.name} onclick={()=>updatePlan(p=>P.removeCustomFeat(p,level,i))}>×</button>
+          <li><button class="link" onclick={()=>info(feat.uuid)}>{feat.name}</button><small class="muted">{tr("extra feat")}</small>
+            <button class="link x" aria-label={tr('Remove {0}',feat.name)} onclick={()=>updatePlan(p=>P.removeCustomFeat(p,level,i))}>×</button>
             <div class="extra-choices"><FeatChoices entry={feat} {catalog} context={choiceContext(creation,plan,lookup)} {info}
               onChange={choices=>updatePlan(p=>P.setCustomFeatChoices(p,level,i,choices))}/></div></li>
         {/each}
         {#each increases as inc,i (inc.skill+i)}
-          <li><span>{titleCase(String(inc.skill).replace(/-/g,' '))} → {RANKS[inc.toRank]??'+1'}</span><small class="muted">extra skill increase</small>
-            <button class="link x" aria-label={'Remove '+inc.skill} onclick={()=>updatePlan(p=>P.removeCustomSkillIncrease(p,level,i))}>×</button></li>
+          <li><span>{titleCase(String(inc.skill).replace(/-/g,' '))} → {RANKS[inc.toRank]??'+1'}</span><small class="muted">{tr("extra skill increase")}</small>
+            <button class="link x" aria-label={tr('Remove {0}',inc.skill)} onclick={()=>updatePlan(p=>P.removeCustomSkillIncrease(p,level,i))}>×</button></li>
         {/each}
       </ul>
     {/if}
     {#if level===1&&extras.length}
-      <p class="muted small">Leveler applies extras from level 2 on; add level-1 extras to the actor in Foundry after its Character Wizard.</p>
+      <p class="muted small">{tr("Leveler applies extras from level 2 on; add level-1 extras to the actor in Foundry after its Character Wizard.")}</p>
     {/if}
     {#if mode==='feat'}
       <OptionGrid id={'extra-feat-'+level} items={catalog.ofType('feat')} selected={extras.map(f=>f.uuid)} max={99}
         check={item=>checkFeat(item,state,{kind:'bonus',featNames:names})}
-        detail={item=>[item.metadata?.category??item.metadata?.featType,item.level!=null?'Level '+item.level:''].filter(Boolean).join(' · ')}
+        detail={item=>[item.metadata?.category??item.metadata?.featType,item.level!=null?tr('Level {0}',item.level):''].filter(Boolean).join(' · ')}
         onToggle={item=>{const i=extras.findIndex(f=>f.uuid===item.uuid);updatePlan(p=>i>=0?P.removeCustomFeat(p,level,i):P.addCustomFeat(p,level,item));}}
-        onInfo={item=>info(item.uuid)} placeholder="Search any feat or feature"/>
+        onInfo={item=>info(item.uuid)} placeholder={tr("Search any feat or feature")}/>
     {:else if mode==='skill'}
       <div class="skills">
         {#each [...SKILLS,...lores] as skill}
@@ -54,7 +55,7 @@
           <button class="skill" disabled={rank>=4}
             onclick={()=>{updatePlan(p=>P.addCustomSkillIncrease(p,level,skill,rank+1));mode=null;}}>
             <span>{titleCase(skill)}</span><RankLadder {rank}/>
-            <small>{rank>=4?'Legendary':RANKS[rank]+' → '+RANKS[rank+1]}</small>
+            <small>{rank>=4?tr('Legendary'):RANKS[rank]+' → '+RANKS[rank+1]}</small>
           </button>
         {/each}
       </div>
