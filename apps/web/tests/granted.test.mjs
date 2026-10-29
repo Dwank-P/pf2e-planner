@@ -260,3 +260,17 @@ test('repeatable feats, archetype additional feats, Intelligence bonus skills', 
   assert.equal(skillRanks(cleric,p2,cat.get,5).get('arcana'),1);
   assert.ok(trainedBefore(cleric,p2,cat.get,5).has('arcana'));
 });
+
+test('the deity’s skill is trained as setDeity stores it (a single string)', async () => {
+  const {skillTraining}=await import('../src/lib/builder/rules.js');
+  const {setDeity}=await import('../src/lib/builder/creation.js');
+  const {emptyCreation}=await import('../src/lib/leveler-format.js');
+  const torag={uuid:'Compendium.pf2e.deities.Item.torag',name:'Torag',type:'deity',metadata:{rules:{skill:['crafting'],font:['heal']}}};
+  const cat=indexCatalog({items:[...items,torag,
+    {uuid:'Compendium.pf2e.classes.Item.cleric3',name:'Cleric',type:'class',metadata:{slug:'cleric',rules:{trainedSkills:{value:['religion'],additional:2}}}}]});
+  const c=setDeity({...emptyCreation(),class:{uuid:'Compendium.pf2e.classes.Item.cleric3',name:'Cleric'}},torag);
+  assert.equal(c.classSelections.class.deity.skill,'crafting');
+  const t=skillTraining(c,cat.get,0);
+  assert.equal(t.granted.get('crafting'),'Torag');
+  assert.equal(skillRanks(c,null,cat.get,1).get('crafting'),1);
+});

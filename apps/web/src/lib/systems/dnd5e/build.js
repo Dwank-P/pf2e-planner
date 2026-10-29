@@ -33,7 +33,7 @@ export function editionMatches(item,variants){
   return isModern(variants)?edition==='2024':edition==='2014';
 }
 
-const asArray=value=>Array.isArray(value)?value:value&&typeof value==='object'?Object.values(value):[];
+const asArray=value=>Array.isArray(value)?value:typeof value==='string'&&value?[value]:value&&typeof value==='object'?Object.values(value):[];
 const uuidOf=entry=>typeof entry==='string'?entry:entry?.uuid??null;
 const levelOf=adv=>Math.max(1,Number(adv.level)||1);
 

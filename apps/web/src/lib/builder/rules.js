@@ -32,7 +32,8 @@ export const RANK_LETTERS=['U','T','E','M','L'];
 
 export const titleCase=slug=>String(slug??'').replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
 const rulesOf=item=>item?.metadata?.rules??{};
-const list=value=>Array.isArray(value)?value:value&&typeof value==='object'?Object.values(value):[];
+// A single value counts as a list of one (a deity entry stores its skill as "crafting").
+const list=value=>Array.isArray(value)?value:typeof value==='string'&&value?[value]:value&&typeof value==='object'?Object.values(value):[];
 
 /** PF2e boost/flaw slots: one option = fixed, six = free, otherwise a restricted choice. */
 export function boostSlots(slots){

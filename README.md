@@ -913,3 +913,9 @@ Website only; the Bridge stays at 0.14.1.
   Runesmith's skill) offer it on the Class step and count its training.
 - Checked against 662 sample builds from Tarondor's class guides (Bard, Cleric, Fighter,
   Guardian, Monk, Ranger, Rogue, Wizard; with and without Free Archetype) on PF2e 8.6.1 data.
+
+### v0.35.1 — Deity skills
+
+- Choosing a deity (cleric, champion…) now trains its skill — Torag's Crafting, Abadar's Society.
+  The skill was stored as a single value and dropped when the website read it as a list; the
+  same fix applies to the deity details and the D&D 5e planner.

@@ -11,7 +11,7 @@ const SIZES={tiny:'Tiny',sm:'Small',med:'Medium',lg:'Large',huge:'Huge',grg:'Gar
 const RANKS=['Untrained','Trained','Expert','Master','Legendary'];
 const TRADITIONS={arcane:'Arcane',divine:'Divine',occult:'Occult',primal:'Primal'};
 const title=s=>String(s??'').replace(/[-_]/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-const list=v=>Array.isArray(v)?v:v&&typeof v==='object'?Object.values(v):[];
+const list=v=>Array.isArray(v)?v:typeof v==='string'&&v?[v]:v&&typeof v==='object'?Object.values(v):[];
 const join=v=>v.filter(Boolean).join(', ');
 
 /** PF2e boost sets ({0:{value:[…]},…}): "Dex, Int, Free". A set offering every attribute is free. */
